@@ -51,7 +51,7 @@ static constexpr int DefLevel_OcaStringSensor       = 1 + DefLevel_OcaBasicSenso
 
 static constexpr int DefLevel_dbOcaDataTransfer                     = 1 + DefLevel_OcaAgent;
 static constexpr int DefLevel_dbOcaSceneAgent                       = 1 + DefLevel_dbOcaDataTransfer;
-static constexpr int DefLevel_dbOcaPositionAgentDeprecated          = 1 + DefLevel_dbOcaDataTransfer;
+static constexpr int DefLevel_dbOcaPositionAgentDeprecated          = 1 + DefLevel_OcaAgent;
 static constexpr int DefLevel_dbOcaSpeakerPositionAgentDeprecated   = 1 + DefLevel_dbOcaPositionAgentDeprecated;
 
 
