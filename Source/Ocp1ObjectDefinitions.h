@@ -26,6 +26,36 @@ namespace NanoOcp1
 {
 typedef std::uint32_t BoxAndObjNo;
 
+/**
+ * Definition levels of AES70 classes used here.
+ */
+static constexpr int DefLevel_OcaRoot               = 1;
+static constexpr int DefLevel_OcaAgent              = 1 + DefLevel_OcaRoot;
+static constexpr int DefLevel_OcaWorker             = 1 + DefLevel_OcaRoot;
+static constexpr int DefLevel_OcaActuator           = 1 + DefLevel_OcaWorker;
+static constexpr int DefLevel_OcaPolarity           = 1 + DefLevel_OcaActuator;
+static constexpr int DefLevel_OcaSwitch             = 1 + DefLevel_OcaActuator;
+static constexpr int DefLevel_OcaGain               = 1 + DefLevel_OcaActuator;
+static constexpr int DefLevel_OcaMute               = 1 + DefLevel_OcaActuator;
+static constexpr int DefLevel_OcaDelay              = 1 + DefLevel_OcaActuator;
+static constexpr int DefLevel_OcaBasicActuator      = 1 + DefLevel_OcaActuator;
+static constexpr int DefLevel_OcaFloat32Actuator    = 1 + DefLevel_OcaBasicActuator;
+static constexpr int DefLevel_OcaStringActuator     = 1 + DefLevel_OcaBasicActuator;
+static constexpr int DefLevel_OcaSensor             = 1 + DefLevel_OcaWorker;
+static constexpr int DefLevel_OcaLevelSensor        = 1 + DefLevel_OcaSensor;
+static constexpr int DefLevel_OcaAudioLevelSensor   = 1 + DefLevel_OcaLevelSensor;
+static constexpr int DefLevel_OcaBasicSensor        = 1 + DefLevel_OcaSensor;
+static constexpr int DefLevel_OcaBooleanSensor      = 1 + DefLevel_OcaBasicSensor;
+static constexpr int DefLevel_OcaInt32Sensor        = 1 + DefLevel_OcaBasicSensor;
+static constexpr int DefLevel_OcaStringSensor       = 1 + DefLevel_OcaBasicSensor;
+
+static constexpr int DefLevel_dbOcaDataTransfer                     = 1 + DefLevel_OcaAgent;
+static constexpr int DefLevel_dbOcaSceneAgent                       = 1 + DefLevel_dbOcaDataTransfer;
+static constexpr int DefLevel_dbOcaPositionAgentDeprecated          = 1 + DefLevel_dbOcaDataTransfer;
+static constexpr int DefLevel_dbOcaSpeakerPositionAgentDeprecated   = 1 + DefLevel_dbOcaPositionAgentDeprecated;
+
+
+
 //==============================================================================
 // Generic plattform (all amps)
 //==============================================================================
@@ -43,7 +73,7 @@ struct dbOcaObjectDef_Config_PotiLevel : Ocp1CommandDefinition
     dbOcaObjectDef_Config_PotiLevel(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, Config_PotiLevel), // ONO of Config_PotiLevel
             OCP1DATATYPE_FLOAT32,           // Value type
-            4,                              // OcaGain level
+            DefLevel_OcaGain,
             1)                              // Prop_Gain
     {
     }
@@ -58,7 +88,7 @@ struct dbOcaObjectDef_Config_Mute : Ocp1CommandDefinition
     dbOcaObjectDef_Config_Mute(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, Config_Mute), // ONO of Config_Mute
             OCP1DATATYPE_UINT8,             // Value type
-            4,                              // OcaMute level
+            DefLevel_OcaMute,
             1)                              // Prop_Setting
     {
     }
@@ -86,7 +116,7 @@ struct dbOcaObjectDef_Settings_PwrOn : Ocp1CommandDefinition
     dbOcaObjectDef_Settings_PwrOn() 
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, 0x00, Settings_PwrOn), // ONO of Settings_PwrOn
             OCP1DATATYPE_UINT16,             // Value type
-            4,                              // OcaSwitch level
+            DefLevel_OcaSwitch,
             1)                              // Prop_Setting
     {
     }
@@ -100,7 +130,7 @@ struct dbOcaObjectDef_ChStatus_Isp : Ocp1CommandDefinition
     dbOcaObjectDef_ChStatus_Isp(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, ChStatus_Isp), // ONO of ChStatus_Isp
                                 OCP1DATATYPE_BOOLEAN,           // Value type
-                                5,                              // OcaBooleanSensor level
+                                DefLevel_OcaBooleanSensor,
                                 1)                              // Prop_Reading
     {
     }
@@ -114,7 +144,7 @@ struct dbOcaObjectDef_ChStatus_Gr : Ocp1CommandDefinition
     dbOcaObjectDef_ChStatus_Gr(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, ChStatus_Gr), // ONO of ChStatus_Gr
                                 OCP1DATATYPE_BOOLEAN,           // Value type
-                                5,                              // OcaBooleanSensor level
+                                DefLevel_OcaBooleanSensor,
                                 1)                              // Prop_Reading
     {
     }
@@ -128,7 +158,7 @@ struct dbOcaObjectDef_ChStatus_Ovl : Ocp1CommandDefinition
     dbOcaObjectDef_ChStatus_Ovl(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, ChStatus_Ovl), // ONO of ChStatus_Ovl
             OCP1DATATYPE_BOOLEAN,           // Value type
-            5,                              // OcaBooleanSensor level
+            DefLevel_OcaBooleanSensor,
             1)                              // Prop_Reading
     {
     }
@@ -153,7 +183,7 @@ struct dbOcaObjectDef_ChStatus_GrHead : Ocp1CommandDefinition
     dbOcaObjectDef_ChStatus_GrHead(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, ChStatus_GrHead), // ONO of ChStatus_GrHead
             OCP1DATATYPE_FLOAT32,           // Value type
-            4,                              // OcaAudioLevelSensor level
+            DefLevel_OcaAudioLevelSensor,
             1)                              // Prop_Reading ?
     {
     }
@@ -178,7 +208,7 @@ struct dbOcaObjectDef_ChStatus_GrHead : Ocp1CommandDefinition
     dbOcaObjectDef_ChStatus_GrHead(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, ChStatus_GrHead), // ONO of ChStatus_GrHead
             OCP1DATATYPE_FLOAT32,           // Value type
-            4,                              // OcaAudioLevelSensor level
+            DefLevel_OcaAudioLevelSensor,
             1)                              // Prop_Reading ?
     {
     }
@@ -208,7 +238,7 @@ struct dbOcaObjectDef_Settings_PwrOn : Ocp1CommandDefinition
     dbOcaObjectDef_Settings_PwrOn()
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, 0x00, Settings_PwrOn), // ONO of Settings_PwrOn
             OCP1DATATYPE_UINT16,             // Value type
-            4,                              // OcaSwitch level
+            DefLevel_OcaSwitch,
             1)                              // Prop_Setting
     {
     }
@@ -222,7 +252,7 @@ struct dbOcaObjectDef_ChStatus_Isp : Ocp1CommandDefinition
     dbOcaObjectDef_ChStatus_Isp(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, ChStatus_Isp), // ONO of ChStatus_Isp
             OCP1DATATYPE_BOOLEAN,           // Value type
-            5,                              // OcaBooleanSensor level
+            DefLevel_OcaBooleanSensor,
             1)                              // Prop_Reading
     {
     }
@@ -236,7 +266,7 @@ struct dbOcaObjectDef_ChStatus_Gr : Ocp1CommandDefinition
     dbOcaObjectDef_ChStatus_Gr(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, ChStatus_Gr), // ONO of ChStatus_Gr
             OCP1DATATYPE_BOOLEAN,           // Value type
-            5,                              // OcaBooleanSensor level
+            DefLevel_OcaBooleanSensor,
             1)                              // Prop_Reading
     {
     }
@@ -250,7 +280,7 @@ struct dbOcaObjectDef_ChStatus_Ovl : Ocp1CommandDefinition
     dbOcaObjectDef_ChStatus_Ovl(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, ChStatus_Ovl), // ONO of ChStatus_Ovl
             OCP1DATATYPE_BOOLEAN,           // Value type
-            5,                              // OcaBooleanSensor level
+            DefLevel_OcaBooleanSensor,
             1)                              // Prop_Reading
     {
     }
@@ -264,7 +294,7 @@ struct dbOcaObjectDef_ChStatus_GrHead : Ocp1CommandDefinition
     dbOcaObjectDef_ChStatus_GrHead(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONo(0x01, 0x00, channel, ChStatus_GrHead), // ONO of ChStatus_GrHead
             OCP1DATATYPE_FLOAT32,           // Value type
-            4,                              // OcaAudioLevelSensor level
+            DefLevel_OcaAudioLevelSensor,
             1)                              // Prop_Reading ?
     {
     }
