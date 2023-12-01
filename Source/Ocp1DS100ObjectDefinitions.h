@@ -33,8 +33,16 @@ namespace DS100
 
 static constexpr std::uint16_t MaxChannelCount = 64;
 
-static constexpr BoxAndObjNo Settings_Box = 0x01;
-static constexpr BoxAndObjNo Settings_DeviceName = 0x0d;
+static constexpr BoxAndObjNo Settings_Box           = 0x01;
+static constexpr BoxAndObjNo Settings_DeviceName    = 0x0d;
+
+static constexpr BoxAndObjNo Status_Box                         = 0x03;
+static constexpr BoxAndObjNo Status_StatusText                  = 0x03;
+static constexpr BoxAndObjNo Status_AudioNetworkSampleStatus    = 0x30;
+
+static constexpr BoxAndObjNo Error_Box          = 0x04;
+static constexpr BoxAndObjNo Error_GnrlErr      = 0x01;
+static constexpr BoxAndObjNo Error_ErrorText    = 0x03;
 
 static constexpr BoxAndObjNo MatrixSettings_Box                     = 0x02;
 static constexpr BoxAndObjNo MatrixSettings_ReverbRoomId            = 0x0a;
@@ -58,13 +66,28 @@ static constexpr BoxAndObjNo CoordinateMapping_Source_Position  = 0x01;
 static constexpr BoxAndObjNo MatrixInput_Box                = 0x05;
 static constexpr BoxAndObjNo MatrixInput_Mute               = 0x01;
 static constexpr BoxAndObjNo MatrixInput_Gain               = 0x02;
+static constexpr BoxAndObjNo MatrixInput_Delay              = 0x03;
+static constexpr BoxAndObjNo MatrixInput_DelayEnable        = 0x04;
+static constexpr BoxAndObjNo MatrixInput_EqEnable           = 0x05;
+static constexpr BoxAndObjNo MatrixInput_Polarity           = 0x06;
 static constexpr BoxAndObjNo MatrixInput_ChannelName        = 0x07;
 static constexpr BoxAndObjNo MatrixInput_LevelMeterPreMute  = 0x09;
+static constexpr BoxAndObjNo MatrixInput_LevelMeterPostMute = 0x0a;
 static constexpr BoxAndObjNo MatrixInput_ReverbSendGain     = 0x0d;
+
+static constexpr BoxAndObjNo MatrixNode_Box                 = 0x07;
+static constexpr BoxAndObjNo MatrixNode_Enable              = 0x01;
+static constexpr BoxAndObjNo MatrixNode_Gain                = 0x02;
+static constexpr BoxAndObjNo MatrixNode_Delay               = 0x03;
+static constexpr BoxAndObjNo MatrixNode_DelayEnable         = 0x04;
 
 static constexpr BoxAndObjNo MatrixOutput_Box                   = 0x08;
 static constexpr BoxAndObjNo MatrixOutput_Mute                  = 0x01;
 static constexpr BoxAndObjNo MatrixOutput_Gain                  = 0x02;
+static constexpr BoxAndObjNo MatrixOutput_Delay                 = 0x03;
+static constexpr BoxAndObjNo MatrixOutput_DelayEnable           = 0x04;
+static constexpr BoxAndObjNo MatrixOutput_EqEnable              = 0x05;
+static constexpr BoxAndObjNo MatrixOutput_Polarity              = 0x06;
 static constexpr BoxAndObjNo MatrixOutput_ChannelName           = 0x07;
 static constexpr BoxAndObjNo MatrixOutput_LevelMeterPreMute     = 0x09;
 static constexpr BoxAndObjNo MatrixOutput_LevelMeterPostMute    = 0x0a;
@@ -75,10 +98,28 @@ static constexpr BoxAndObjNo Positioning_Source_Spread      = 0x04;
 static constexpr BoxAndObjNo Positioning_Source_DelayMode   = 0x0b;
 static constexpr BoxAndObjNo Positioning_Speaker_Position   = 0x07;
 
+static constexpr BoxAndObjNo FunctionGroup_Box            = 0x0e;
+static constexpr BoxAndObjNo FunctionGroup_Name           = 0x01;
+static constexpr BoxAndObjNo FunctionGroup_Delay          = 0x02;
+static constexpr BoxAndObjNo FunctionGroup_SpreadFactor   = 0x06;
+
+static constexpr BoxAndObjNo ReverbInput_Box    = 0x10;
+static constexpr BoxAndObjNo ReverbInput_Gain   = 0x01;
+
+static constexpr BoxAndObjNo ReverbInputProcessing_Box          = 0x11;
+static constexpr BoxAndObjNo ReverbInputProcessing_Mute         = 0x01;
+static constexpr BoxAndObjNo ReverbInputProcessing_Gain         = 0x02;
+static constexpr BoxAndObjNo ReverbInputProcessing_EqEnable     = 0x03;
+static constexpr BoxAndObjNo ReverbInputProcessing_LevelMeter   = 0x05;
+
 static constexpr BoxAndObjNo Scene_Box              = 0x17;
 static constexpr BoxAndObjNo Scene_SceneIndex       = 0x01;
 static constexpr BoxAndObjNo Scene_SceneName        = 0x03;
 static constexpr BoxAndObjNo Scene_SceneComment     = 0x04;
+
+static constexpr BoxAndObjNo SoundObjectRouting_Box     = 0x18;
+static constexpr BoxAndObjNo SoundObjectRouting_Mute    = 0x01;
+static constexpr BoxAndObjNo SoundObjectRouting_Gain    = 0x02;
 
 static constexpr std::uint32_t  SceneAgentONo   = 0x2714;
 
@@ -93,6 +134,62 @@ struct dbOcaObjectDef_Settings_DeviceName : Ocp1CommandDefinition
             OCP1DATATYPE_STRING,    // Value type
             5,                      // OcaStringActuator level - root:worker:actuator:basicactuator:stringactuator
             1)                      // Prop_Setting
+    {
+    }
+};
+
+/**
+ * Status_StatusText
+ */
+struct dbOcaObjectDef_Status_StatusText : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_Status_StatusText()
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Status_Box, Status_StatusText), // ONO of Status_StatusText,
+            OCP1DATATYPE_STRING,    // Value type
+            5,                      // OcaStringSensor level - root:worker:sensor:basicsensor:stringsensor
+            1)                      // Prop_Setting
+    {
+    }
+};
+
+/**
+ * Status_AudioNetworkSampleStatus
+ */
+struct dbOcaObjectDef_Status_AudioNetworkSampleStatus : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_Status_AudioNetworkSampleStatus()
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Status_Box, Status_AudioNetworkSampleStatus), // ONO of Status_AudioNetworkSampleStatus,
+            OCP1DATATYPE_INT32,     // Value type
+            5,                      // OcaInt32Sensor level - root:worker:sensor:basicsensor:int32sensor
+            1)                      // Prop_Reading
+    {
+    }
+};
+
+/**
+ * Error_GnrlErr
+ */
+struct dbOcaObjectDef_Error_GnrlErr : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_Error_GnrlErr()
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Error_Box, Error_GnrlErr), // ONO of Error_GnrlErr,
+            OCP1DATATYPE_BOOLEAN,   // Value type
+            5,                      // OcaBooleanSensor level - root:worker:sensor:basicsensor:booleansensor
+            1)                      // Prop_Reading
+    {
+    }
+};
+
+/**
+ * Error_ErrorText
+ */
+struct dbOcaObjectDef_Error_ErrorText : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_Error_ErrorText()
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Error_Box, Error_ErrorText), // ONO of Error_ErrorText,
+            OCP1DATATYPE_STRING,    // Value type
+            5,                      // OcaStringSensor level - root:worker:sensor:basicsensor:stringsensor
+            1)                      // Prop_String
     {
     }
 };
@@ -293,6 +390,49 @@ struct dbOcaObjectDef_Positioning_Speaker_Position : Ocp1CommandDefinition
     }
 };
 
+
+/**
+ * FunctionGroup_Name
+ */
+struct dbOcaObjectDef_FunctionGroup_Name : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_FunctionGroup_Name(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixOutput_Box, FunctionGroup_Name), // ONO of FunctionGroup_Name
+            OCP1DATATYPE_STRING,            // Value type
+            5,                              // OcaStringActuator level - root:worker:actuator:basicactuator:stringactuator
+            1)                              // Prop_Setting
+    {
+    }
+};
+
+/**
+ * FunctionGroup_Delay
+ */
+struct dbOcaObjectDef_FunctionGroup_Delay : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_FunctionGroup_Delay(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, FunctionGroup_Box, FunctionGroup_Delay), // ONO of FunctionGroup_Delay
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaDelay level - root:worker:actuator:delay
+            1)                              // Prop_Delay_Time
+    {
+    }
+};
+
+/**
+ * FunctionGroup_SpreadFactor
+ */
+struct dbOcaObjectDef_FunctionGroup_SpreadFactor : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_FunctionGroup_SpreadFactor(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, Positioning_Box, FunctionGroup_SpreadFactor), // ONO of FunctionGroup_SpreadFactor
+            OCP1DATATYPE_FLOAT32,           // Value type
+            5,                              // OcaFloat32Actuator level - root:worker:actuator:basicactuator:float32actuator
+            1)                              // Prop_Setting
+    {
+    }
+};
+
 /**
  * MatrixInput_Mute
  * Parameters for SetValueCommand: setting 1 == MUTE; 2 == UNMUTE
@@ -318,6 +458,62 @@ struct dbOcaObjectDef_MatrixInput_Gain : Ocp1CommandDefinition
             OCP1DATATYPE_FLOAT32,           // Value type
             4,                              // OcaGain level - root:worker:actuator:gain
             1)                              // Prop_Gain
+    {
+    }
+};
+
+/**
+ * MatrixInput_Delay
+ */
+struct dbOcaObjectDef_MatrixInput_Delay : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixInput_Delay(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixInput_Delay), // ONO of MatrixInput_Delay
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaDelay level - root:worker:actuator:delay
+            1)                              // Prop_Delay_Time
+    {
+    }
+};
+
+/**
+ * MatrixInput_DelayEnable
+ */
+struct dbOcaObjectDef_MatrixInput_DelayEnable : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixInput_DelayEnable(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixInput_DelayEnable), // ONO of MatrixInput_DelayEnable
+            OCP1DATATYPE_UINT16,    // Value type
+            4,                      // OcaSwitch level - root:worker:actuator:switch
+            1)                      // Prop_Position
+    {
+    }
+};
+
+/**
+ * MatrixInput_EqEnable
+ */
+struct dbOcaObjectDef_MatrixInput_EqEnable : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixInput_EqEnable(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixInput_EqEnable), // ONO of MatrixInput_EqEnable
+            OCP1DATATYPE_UINT16,    // Value type
+            4,                      // OcaSwitch level - root:worker:actuator:switch
+            1)                      // Prop_Position
+    {
+    }
+};
+
+/**
+ * MatrixInput_Polarity
+ */
+struct dbOcaObjectDef_MatrixInput_Polarity : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixInput_Polarity(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixInput_Polarity), // ONO of MatrixInput_Polarity
+            OCP1DATATYPE_UINT8,     // Value type
+            4,                      // OcaPolarity level - root:worker:actuator:polarity
+            1)                      // Prop_State
     {
     }
 };
@@ -351,6 +547,20 @@ struct dbOcaObjectDef_MatrixInput_LevelMeterPreMute : Ocp1CommandDefinition
 };
 
 /**
+ * MatrixInput_LevelMeterPostMute
+ */
+struct dbOcaObjectDef_MatrixInput_LevelMeterPostMute : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixInput_LevelMeterPostMute(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixInput_LevelMeterPostMute), // ONO of MatrixInput_LevelMeterPostMute
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaAudioLevelSensor level
+            1)                              // Prop_Level
+    {
+    }
+};
+
+/**
  * MatrixInput_ReverbSendGain
  */
 struct dbOcaObjectDef_MatrixInput_ReverbSendGain : Ocp1CommandDefinition
@@ -360,6 +570,62 @@ struct dbOcaObjectDef_MatrixInput_ReverbSendGain : Ocp1CommandDefinition
             OCP1DATATYPE_FLOAT32,           // Value type
             4,                              // OcaGain level
             1)                              // Prop_Gain
+    {
+    }
+};
+
+/**
+ * MatrixNode_Enable
+ */
+struct dbOcaObjectDef_MatrixNode_Enable : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixNode_Enable(std::uint32_t record, std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, record, channel, MatrixNode_Box, MatrixNode_Enable), // ONO of MatrixNode_Enable
+            OCP1DATATYPE_UINT16,    // Value type
+            4,                      // OcaSwitch level - root:worker:actuator:switch
+            1)                      // Prop_Position
+    {
+    }
+};
+
+/**
+ * MatrixNode_Gain
+ */
+struct dbOcaObjectDef_MatrixNode_Gain : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixNode_Gain(std::uint32_t record, std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, record, channel, MatrixNode_Box, MatrixNode_Gain), // ONO of MatrixNode_Gain
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaGain level - root:worker:actuator:gain
+            1)                              // Prop_Gain
+    {
+    }
+};
+
+/**
+ * MatrixNode_Delay
+ */
+struct dbOcaObjectDef_MatrixNode_Delay : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixNode_Delay(std::uint32_t record, std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, record, channel, MatrixNode_Box, MatrixNode_Delay), // ONO of MatrixNode_Delay
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaDelay level - root:worker:actuator:delay
+            1)                              // Prop_Delay_Time
+    {
+    }
+};
+
+/**
+ * MatrixNode_DelayEnable
+ */
+struct dbOcaObjectDef_MatrixNode_DelayEnable : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixNode_DelayEnable(std::uint32_t record, std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, record, channel, MatrixNode_Box, MatrixNode_DelayEnable), // ONO of MatrixNode_DelayEnable
+            OCP1DATATYPE_UINT16,    // Value type
+            4,                      // OcaSwitch level - root:worker:actuator:switch
+            1)                      // Prop_Position
     {
     }
 };
@@ -389,6 +655,62 @@ struct dbOcaObjectDef_MatrixOutput_Gain : Ocp1CommandDefinition
             OCP1DATATYPE_FLOAT32,           // Value type
             4,                              // OcaGain level - root:worker:actuator:gain
             1)                              // Prop_Gain
+    {
+    }
+};
+
+/**
+ * MatrixOutput_Delay
+ */
+struct dbOcaObjectDef_MatrixOutput_Delay : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixOutput_Delay(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixOutput_Box, MatrixOutput_Delay), // ONO of MatrixOutput_Delay
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaDelay level - root:worker:actuator:delay
+            1)                              // Prop_Delay_Time
+    {
+    }
+};
+
+/**
+ * MatrixOutput_DelayEnable
+ */
+struct dbOcaObjectDef_MatrixOutput_DelayEnable : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixOutput_DelayEnable(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixOutput_Box, MatrixOutput_DelayEnable), // ONO of MatrixOutput_DelayEnable
+            OCP1DATATYPE_UINT16,    // Value type
+            4,                      // OcaSwitch level - root:worker:actuator:switch
+            1)                      // Prop_Position
+    {
+    }
+};
+
+/**
+ * MatrixOutput_EqEnable
+ */
+struct dbOcaObjectDef_MatrixOutput_EqEnable : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixOutput_EqEnable(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixOutput_Box, MatrixOutput_EqEnable), // ONO of MatrixOutput_EqEnable
+            OCP1DATATYPE_UINT16,    // Value type
+            4,                      // OcaSwitch level - root:worker:actuator:switch
+            1)                      // Prop_Position
+    {
+    }
+};
+
+/**
+ * MatrixOutput_Polarity
+ */
+struct dbOcaObjectDef_MatrixOutput_Polarity : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_MatrixOutput_Polarity(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixOutput_Box, MatrixOutput_Polarity), // ONO of MatrixOutput_Polarity
+            OCP1DATATYPE_UINT8,     // Value type
+            4,                      // OcaPolarity level - root:worker:actuator:polarity
+            1)                      // Prop_State
     {
     }
 };
@@ -478,6 +800,77 @@ struct dbOcaObjectDef_MatrixSettings_ReverbRearLevel : Ocp1CommandDefinition
 };
 
 /**
+ * ReverbInput_Gain
+ */
+struct dbOcaObjectDef_ReverbInput_Gain : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_ReverbInput_Gain(std::uint32_t record, std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, record, channel, ReverbInput_Box, ReverbInput_Gain), // ONO of ReverbInput_Gain
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaGain level - root:worker:actuator:gain
+            1)                              // Prop_Gain
+    {
+    }
+};
+
+
+/**
+ * En-Space zone Mute 
+ */
+struct dbOcaObjectDef_ReverbInputProcessing_Mute : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_ReverbInputProcessing_Mute(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, ReverbInputProcessing_Box, ReverbInputProcessing_Mute), // ONO of ReverbInputProcessing_Mute,
+            OCP1DATATYPE_UINT8,             // Value type
+            4,                              // OcaMute level - root:worker:actuator:mute
+            1)                              // Prop_Setting
+    {
+    }
+};
+
+/**
+ * En-Space zone Gain
+ */
+struct dbOcaObjectDef_ReverbInputProcessing_Gain : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_ReverbInputProcessing_Gain(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, ReverbInputProcessing_Box, ReverbInputProcessing_Gain), // ONO of ReverbInputProcessing_Gain,
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaGain level - root:worker:actuator:gain
+            1)                              // Prop_Gain
+    {
+    }
+};
+
+/**
+ * En-Space zone EQ Enable
+ */
+struct dbOcaObjectDef_ReverbInputProcessing_EqEnable : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_ReverbInputProcessing_EqEnable(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, ReverbInputProcessing_Box, ReverbInputProcessing_EqEnable), // ONO of ReverbInputProcessing_EqEnable,
+            OCP1DATATYPE_UINT16,    // Value type
+            4,                      // OcaSwitch level - root:worker:actuator:switch
+            1)                      // Prop_Position
+    {
+    }
+};
+
+/**
+ * En-Space zone Level 
+ */
+struct dbOcaObjectDef_ReverbInputProcessing_LevelMeter : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_ReverbInputProcessing_LevelMeter(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, ReverbInputProcessing_Box, ReverbInputProcessing_LevelMeter), // ONO of ReverbInputProcessing_LevelMeter,
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaAudioLevelSensor level
+            1)                              // Prop_Level
+    {
+    }
+};
+
+/**
  * Scene_SceneIndex
  */
 struct dbOcaObjectDef_Scene_SceneIndex : Ocp1CommandDefinition
@@ -515,6 +908,36 @@ struct dbOcaObjectDef_Scene_SceneComment : Ocp1CommandDefinition
             OCP1DATATYPE_STRING,    // Value type
             5,                      // OcaStringActuator level - root:worker:actuator:basicactuator:stringactuator
             1)                      // Prop_Setting
+    {
+    }
+};
+
+
+/**
+ * SoundObjectRouting_Mute
+ * Parameters for SetValueCommand: setting 1 == MUTE; 2 == UNMUTE
+ */
+struct dbOcaObjectDef_SoundObjectRouting_Mute : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_SoundObjectRouting_Mute(std::uint32_t record, std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, record, channel, SoundObjectRouting_Box, SoundObjectRouting_Mute), // ONO of SoundObjectRouting_Mute
+            OCP1DATATYPE_UINT8,             // Value type
+            4,                              // OcaMute level - root:worker:actuator:mute
+            1)                              // Prop_Setting
+    {
+    }
+};
+
+/**
+ * SoundObjectRouting_Gain
+ */
+struct dbOcaObjectDef_SoundObjectRouting_Gain : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_SoundObjectRouting_Gain(std::uint32_t record, std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, record, channel, SoundObjectRouting_Box, SoundObjectRouting_Gain), // ONO of SoundObjectRouting_Gain
+            OCP1DATATYPE_FLOAT32,           // Value type
+            4,                              // OcaGain level - root:worker:actuator:gain
+            1)                              // Prop_Gain
     {
     }
 };
