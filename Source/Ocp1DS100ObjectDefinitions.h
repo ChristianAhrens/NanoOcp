@@ -385,7 +385,7 @@ struct dbOcaObjectDef_Positioning_Speaker_Position : Ocp1CommandDefinition
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, Positioning_Box, Positioning_Speaker_Position), // ONO of Positioning_Speaker_Position
             OCP1DATATYPE_DB_POSITION, // Value type
             DefLevel_dbOcaSpeakerPositionAgentDeprecated,
-            1)                        // Prop_Position
+            1)                        // Prop_Aiming_and_Position
     {
     }
 };

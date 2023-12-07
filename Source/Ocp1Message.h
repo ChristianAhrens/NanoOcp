@@ -147,7 +147,7 @@ std::vector<std::uint8_t> DataFromFloat(std::float_t floatValue);
 std::vector<std::uint8_t> DataFromPosition(std::float_t x, std::float_t y, std::float_t z);
 
 /**
- * Convenience helper method to convert a 3D position (three 32-bit floats) into a byte vector
+ * Convenience helper method to convert a 3D position and rotation (six 32-bit floats) into a byte vector
  *
  * @param[in] x     First value to be converted.
  * @param[in] y     Second value to be converted.

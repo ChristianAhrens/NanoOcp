@@ -738,10 +738,10 @@ Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const juce::var& ne
             {
                 paramCount = 1;
                 MemoryBlock* mb = newValue.getBinaryData();
-                if (mb->getSize() >= 12)
+                if (mb->getSize() == 12 || mb->getSize() == 24)
                 {
-                    newParamData.reserve(12);
-                    for (size_t i = 0; i < 12; i++)
+                    newParamData.reserve(mb->getSize());
+                    for (size_t i = 0; i < mb->getSize(); i++)
                         newParamData.push_back(static_cast<std::uint8_t>(mb->begin()[i]));
                 }
             }
