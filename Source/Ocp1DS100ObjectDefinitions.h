@@ -397,7 +397,7 @@ struct dbOcaObjectDef_Positioning_Speaker_Position : Ocp1CommandDefinition
 struct dbOcaObjectDef_FunctionGroup_Name : Ocp1CommandDefinition
 {
     dbOcaObjectDef_FunctionGroup_Name(std::uint32_t channel)
-        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixOutput_Box, FunctionGroup_Name), // ONO of FunctionGroup_Name
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, FunctionGroup_Box, FunctionGroup_Name), // ONO of FunctionGroup_Name
             OCP1DATATYPE_STRING,            // Value type
             DefLevel_OcaStringActuator,
             1)                              // Prop_Setting
@@ -425,7 +425,7 @@ struct dbOcaObjectDef_FunctionGroup_Delay : Ocp1CommandDefinition
 struct dbOcaObjectDef_FunctionGroup_SpreadFactor : Ocp1CommandDefinition
 {
     dbOcaObjectDef_FunctionGroup_SpreadFactor(std::uint32_t channel)
-        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, Positioning_Box, FunctionGroup_SpreadFactor), // ONO of FunctionGroup_SpreadFactor
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, FunctionGroup_Box, FunctionGroup_SpreadFactor), // ONO of FunctionGroup_SpreadFactor
             OCP1DATATYPE_FLOAT32,           // Value type
             DefLevel_OcaFloat32Actuator,
             1)                              // Prop_Setting
@@ -540,7 +540,7 @@ struct dbOcaObjectDef_MatrixInput_LevelMeterPreMute : Ocp1CommandDefinition
     dbOcaObjectDef_MatrixInput_LevelMeterPreMute(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixInput_LevelMeterPreMute), // ONO of MatrixInput_LevelMeterPreMute
             OCP1DATATYPE_FLOAT32,           // Value type
-            DefLevel_OcaAudioLevelSensor,
+            DefLevel_OcaLevelSensor,
             1)                              // Prop_Level
     {
     }
@@ -554,7 +554,7 @@ struct dbOcaObjectDef_MatrixInput_LevelMeterPostMute : Ocp1CommandDefinition
     dbOcaObjectDef_MatrixInput_LevelMeterPostMute(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixInput_LevelMeterPostMute), // ONO of MatrixInput_LevelMeterPostMute
             OCP1DATATYPE_FLOAT32,           // Value type
-            DefLevel_OcaAudioLevelSensor,
+            DefLevel_OcaLevelSensor,
             1)                              // Prop_Level
     {
     }
@@ -737,7 +737,7 @@ struct dbOcaObjectDef_MatrixOutput_LevelMeterPreMute : Ocp1CommandDefinition
     dbOcaObjectDef_MatrixOutput_LevelMeterPreMute(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixOutput_LevelMeterPreMute), // ONO of MatrixOutput_LevelMeterPreMute
             OCP1DATATYPE_FLOAT32,           // Value type
-            DefLevel_OcaAudioLevelSensor,
+            DefLevel_OcaLevelSensor,
             1)                              // Prop_Level
     {
     }
@@ -751,7 +751,7 @@ struct dbOcaObjectDef_MatrixOutput_LevelMeterPostMute : Ocp1CommandDefinition
     dbOcaObjectDef_MatrixOutput_LevelMeterPostMute(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixOutput_LevelMeterPostMute), // ONO of MatrixOutput_LevelMeterPostMute
             OCP1DATATYPE_FLOAT32,           // Value type
-            DefLevel_OcaAudioLevelSensor,
+            DefLevel_OcaLevelSensor,
             1)                              // Prop_Level
     {
     }
@@ -864,7 +864,7 @@ struct dbOcaObjectDef_ReverbInputProcessing_LevelMeter : Ocp1CommandDefinition
     dbOcaObjectDef_ReverbInputProcessing_LevelMeter(std::uint32_t channel)
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, ReverbInputProcessing_Box, ReverbInputProcessing_LevelMeter), // ONO of ReverbInputProcessing_LevelMeter,
             OCP1DATATYPE_FLOAT32,           // Value type
-            DefLevel_OcaAudioLevelSensor,
+            DefLevel_OcaLevelSensor,
             1)                              // Prop_Level
     {
     }
