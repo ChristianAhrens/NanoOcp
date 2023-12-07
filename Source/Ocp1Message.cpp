@@ -746,8 +746,13 @@ Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const juce::var& ne
                 }
             }
             break;
-        case OCP1DATATYPE_NONE:
         case OCP1DATATYPE_BOOLEAN:
+            {
+                paramCount = 1;
+                newParamData = { newValue.equals(bool(true)) ? static_cast<std::uint8_t>(1) : static_cast<std::uint8_t>(0)};
+            }
+            break;
+        case OCP1DATATYPE_NONE:
         case OCP1DATATYPE_INT8:
         case OCP1DATATYPE_INT16:
         case OCP1DATATYPE_INT64:
@@ -819,8 +824,11 @@ juce::var Ocp1CommandDefinition::ToVariant(std::uint8_t paramCount, const std::v
                     ret = juce::MemoryBlock((const char*)parameterData.data(), parameterData.size());
                 }
                 break;
-            case OCP1DATATYPE_NONE:
             case OCP1DATATYPE_BOOLEAN:
+                ok = parameterData.size() == 1;
+                ret = (bool)(parameterData[0] == static_cast<std::uint8_t>(1));
+                break;
+            case OCP1DATATYPE_NONE:
             case OCP1DATATYPE_INT8:
             case OCP1DATATYPE_INT16:
             case OCP1DATATYPE_INT64:
