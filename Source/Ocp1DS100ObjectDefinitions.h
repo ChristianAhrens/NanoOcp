@@ -735,7 +735,7 @@ struct dbOcaObjectDef_MatrixOutput_ChannelName : Ocp1CommandDefinition
 struct dbOcaObjectDef_MatrixOutput_LevelMeterPreMute : Ocp1CommandDefinition
 {
     dbOcaObjectDef_MatrixOutput_LevelMeterPreMute(std::uint32_t channel)
-        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixOutput_LevelMeterPreMute), // ONO of MatrixOutput_LevelMeterPreMute
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixOutput_Box, MatrixOutput_LevelMeterPreMute), // ONO of MatrixOutput_LevelMeterPreMute
             OCP1DATATYPE_FLOAT32,           // Value type
             DefLevel_OcaLevelSensor,
             1)                              // Prop_Level
@@ -749,7 +749,7 @@ struct dbOcaObjectDef_MatrixOutput_LevelMeterPreMute : Ocp1CommandDefinition
 struct dbOcaObjectDef_MatrixOutput_LevelMeterPostMute : Ocp1CommandDefinition
 {
     dbOcaObjectDef_MatrixOutput_LevelMeterPostMute(std::uint32_t channel)
-        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixInput_Box, MatrixOutput_LevelMeterPostMute), // ONO of MatrixOutput_LevelMeterPostMute
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, MatrixOutput_Box, MatrixOutput_LevelMeterPostMute), // ONO of MatrixOutput_LevelMeterPostMute
             OCP1DATATYPE_FLOAT32,           // Value type
             DefLevel_OcaLevelSensor,
             1)                              // Prop_Level
@@ -878,7 +878,7 @@ struct dbOcaObjectDef_Scene_SceneIndex : Ocp1CommandDefinition
     dbOcaObjectDef_Scene_SceneIndex()
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Scene_Box, Scene_SceneIndex), // ONO of Scene_SceneIndex,
             OCP1DATATYPE_STRING,    // Value type
-            DefLevel_OcaStringActuator,
+            DefLevel_OcaStringSensor,
             1)                      // Prop_Setting
     {
     }
@@ -892,7 +892,7 @@ struct dbOcaObjectDef_Scene_SceneName : Ocp1CommandDefinition
     dbOcaObjectDef_Scene_SceneName()
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Scene_Box, Scene_SceneName), // ONO of Scene_SceneName,
             OCP1DATATYPE_STRING,    // Value type
-            DefLevel_OcaStringActuator,
+            DefLevel_OcaStringSensor,
             1)                      // Prop_Setting
     {
     }
@@ -906,7 +906,7 @@ struct dbOcaObjectDef_Scene_SceneComment : Ocp1CommandDefinition
     dbOcaObjectDef_Scene_SceneComment()
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Scene_Box, Scene_SceneComment), // ONO of Scene_SceneComment,
             OCP1DATATYPE_STRING,    // Value type
-            DefLevel_OcaStringActuator,
+            DefLevel_OcaStringSensor,
             1)                      // Prop_Setting
     {
     }
