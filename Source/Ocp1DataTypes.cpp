@@ -22,6 +22,10 @@
 namespace NanoOcp1
 {
 
+static constexpr std::uint8_t uint8_8(8);
+static constexpr std::uint8_t uint8_16(16);
+static constexpr std::uint8_t uint8_24(24);
+
 bool DataToBool(const std::vector<std::uint8_t>& parameterData, bool* pOk)
 {
     bool ret(false);
@@ -53,9 +57,9 @@ std::int32_t DataToInt32(const std::vector<std::uint8_t>& parameterData, bool* p
     bool ok = (parameterData.size() >= sizeof(std::int32_t)); // 4 bytes expected.
     if (ok)
     {
-        ret = (((parameterData[0] << 24) & 0xff000000) +
-               ((parameterData[1] << 16) & 0x00ff0000) +
-               ((parameterData[2] << 8)  & 0x0000ff00) + parameterData[3]);
+        ret = (((parameterData[0] << uint8_24) & 0xff000000) +
+               ((parameterData[1] << uint8_16) & 0x00ff0000) +
+               ((parameterData[2] << uint8_8)  & 0x0000ff00) + parameterData[3]);
     }
 
     if (pOk != nullptr)
@@ -113,7 +117,7 @@ std::uint16_t DataToUint16(const std::vector<std::uint8_t>& parameterData, bool*
     {
         for (size_t i = 0; i < sizeof(std::uint16_t); i++)
         {
-            ret = ((ret << 8) & 0xff00) + parameterData[i];
+            ret = ((ret << static_cast<std::uint16_t>(8)) & 0xff00) + parameterData[i];
         }
     }
 
@@ -141,9 +145,9 @@ std::uint32_t DataToUint32(const std::vector<std::uint8_t>& parameterData, bool*
     bool ok = (parameterData.size() >= sizeof(std::uint32_t)); // 4 bytes expected.
     if (ok)
     {
-        ret = (((parameterData[0] << 24) & 0xff000000) +
-               ((parameterData[1] << 16) & 0x00ff0000) +
-               ((parameterData[2] << 8)  & 0x0000ff00) + parameterData[3]);
+        ret = (((parameterData[0] << uint8_24) & 0xff000000) +
+               ((parameterData[1] << uint8_16) & 0x00ff0000) +
+               ((parameterData[2] << uint8_8)  & 0x0000ff00) + parameterData[3]);
     }
 
     if (pOk != nullptr)
@@ -213,12 +217,12 @@ std::vector<std::uint8_t> DataFromString(const juce::String& string)
     const char* pStringData = string.toRawUTF8();
     int stringLength = string.length();
     
-    ret.reserve(stringLength + 2);
+    ret.reserve(static_cast<std::size_t>(stringLength + 2));
     ret.push_back(static_cast<std::uint8_t>(stringLength >> 8));
     ret.push_back(static_cast<std::uint8_t>(stringLength));
     for (int i = 0; i < stringLength; i++)
     {
-        ret.push_back(pStringData[i]);
+        ret.push_back(static_cast<std::uint8_t>(pStringData[i]));
     }
 
     return ret;
@@ -232,9 +236,9 @@ std::float_t DataToFloat(const std::vector<std::uint8_t>& parameterData, bool* p
     ok = ok && (sizeof(int) == sizeof(std::float_t)); // Required for pointer cast to work
     if (ok)
     {
-        int intValue = (((parameterData[0] << 24) & 0xff000000) + 
-                        ((parameterData[1] << 16) & 0x00ff0000) + 
-                        ((parameterData[2] << 8)  & 0x0000ff00) + parameterData[3]);
+        int intValue = (((parameterData[0] << uint8_24) & 0xff000000) +
+                        ((parameterData[1] << uint8_16) & 0x00ff0000) +
+                        ((parameterData[2] << uint8_8)  & 0x0000ff00) + parameterData[3]);
         ret = *(std::float_t*)&intValue;
     }
 
@@ -676,15 +680,15 @@ juce::String HandleToString(std::uint32_t handle)
 
 std::uint32_t ReadUint32(const char* buffer)
 {
-    return (((static_cast<std::uint8_t>(buffer[0]) << 24) & 0xff000000) +
-            ((static_cast<std::uint8_t>(buffer[1]) << 16) & 0x00ff0000) +
-            ((static_cast<std::uint8_t>(buffer[2]) << 8)  & 0x0000ff00) +
+    return (((static_cast<std::uint8_t>(buffer[0]) << uint8_24) & 0xff000000) +
+            ((static_cast<std::uint8_t>(buffer[1]) << uint8_16) & 0x00ff0000) +
+            ((static_cast<std::uint8_t>(buffer[2]) << uint8_8)  & 0x0000ff00) +
               static_cast<std::uint8_t>(buffer[3]));
 }
 
 std::uint16_t ReadUint16(const char* buffer)
 {
-    return (((static_cast<std::uint8_t>(buffer[0]) << 8)  & 0xff00) +
+    return (((static_cast<std::uint8_t>(buffer[0]) << uint8_8)  & 0xff00) +
               static_cast<std::uint8_t>(buffer[1]));
 }
 
