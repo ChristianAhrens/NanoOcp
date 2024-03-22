@@ -17,7 +17,6 @@
  */
  
 #include "Ocp1Message.h"
-#include "Ocp1DataTypes.h"
 
 
 namespace NanoOcp1
@@ -57,54 +56,49 @@ Ocp1CommandDefinition Ocp1CommandDefinition::GetValueCommand() const
                                  std::vector<std::uint8_t>());   // Empty parameters
 }
 
-Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const juce::var& newValue) const
+Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const Variant& newValue) const
 {
     std::uint8_t paramCount(0);
     std::vector<std::uint8_t> newParamData;
 
     switch (m_propertyType) // See enum Ocp1DataType
     {
+        case OCP1DATATYPE_BOOLEAN:
+            paramCount = 1;
+            newParamData = DataFromBool(std::get<bool>(newValue));
+            break;
         case OCP1DATATYPE_INT32:
             paramCount = 1;
-            newParamData = DataFromInt32(static_cast<std::int32_t>(int(newValue)));
+            newParamData = DataFromInt32(std::get<std::int32_t>(newValue));
             break;
         case OCP1DATATYPE_UINT8:
             paramCount = 1;
-            newParamData = DataFromUint8(static_cast<std::uint8_t>(int(newValue)));
+            newParamData = DataFromUint8(std::get<std::uint8_t>(newValue));
             break;
         case OCP1DATATYPE_UINT16:
             paramCount = 1;
-            newParamData = DataFromUint16(static_cast<std::uint16_t>(int(newValue)));
+            newParamData = DataFromUint16(std::get<std::uint16_t>(newValue));
             break;
         case OCP1DATATYPE_UINT32:
             paramCount = 1;
-            newParamData = DataFromUint32(static_cast<std::uint32_t>(int(newValue)));
+            newParamData = DataFromUint32(std::get<std::uint32_t>(newValue));
             break;
         case OCP1DATATYPE_FLOAT32:
             paramCount = 1;
-            newParamData = DataFromFloat(float(newValue));
+            newParamData = DataFromFloat(std::get<std::float_t>(newValue));
             break;
         case OCP1DATATYPE_STRING:
             paramCount = 1;
-            newParamData = DataFromString(newValue.toString());
+            newParamData = DataFromString(std::get<std::string>(newValue)); // TODO: let DataFromString take a std::string
+            break;
+        case OCP1DATATYPE_BLOB:
+            paramCount = 1;
+            newParamData = std::get<std::vector<std::uint8_t>>(newValue);
+            jassert(newParamData.size() >= 2); // TODO: include 2 initial bytes?
             break;
         case OCP1DATATYPE_DB_POSITION:
-            {
-                paramCount = 1;
-                MemoryBlock* mb = newValue.getBinaryData();
-                if (nullptr != mb && (mb->getSize() == 12 || mb->getSize() == 24))
-                {
-                    newParamData.reserve(mb->getSize());
-                    for (size_t i = 0; i < mb->getSize(); i++)
-                        newParamData.push_back(static_cast<std::uint8_t>(mb->begin()[i]));
-                }
-            }
-            break;
-        case OCP1DATATYPE_BOOLEAN:
-            {
-                paramCount = 1;
-                newParamData = DataFromBool(bool(newValue));
-            }
+            paramCount = 1;
+            newParamData = std::get<std::vector<std::uint8_t>>(newValue);
             break;
         case OCP1DATATYPE_NONE:
         case OCP1DATATYPE_INT8:
@@ -113,7 +107,6 @@ Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const juce::var& ne
         case OCP1DATATYPE_UINT64:
         case OCP1DATATYPE_FLOAT64:
         case OCP1DATATYPE_BIT_STRING:
-        case OCP1DATATYPE_BLOB:
         case OCP1DATATYPE_BLOB_FIXED_LEN:
         case OCP1DATATYPE_CUSTOM:
         default:
@@ -129,9 +122,9 @@ Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const juce::var& ne
                                  newParamData);
 }
 
-juce::var Ocp1CommandDefinition::ToVariant(std::uint8_t paramCount, const std::vector<std::uint8_t>& parameterData)
+Variant Ocp1CommandDefinition::ToVariant(std::uint8_t paramCount, const std::vector<std::uint8_t>& parameterData)
 {
-    juce::var ret;
+    Variant ret;
 
     // NOTE: Notifications usually contain 2 parameters: the context and the new value.
     bool ok = (paramCount == 1) || (paramCount == 2) || (paramCount == 3) || (paramCount == 6);
@@ -141,6 +134,9 @@ juce::var Ocp1CommandDefinition::ToVariant(std::uint8_t paramCount, const std::v
         ok = false;
         switch (m_propertyType) // See enum Ocp1DataType
         {
+            case OCP1DATATYPE_BOOLEAN:
+                ret = DataToBool(parameterData, &ok);
+                break;
             case OCP1DATATYPE_INT32:
                 ret = (int)NanoOcp1::DataToInt32(parameterData, &ok);
                 break;
@@ -154,13 +150,21 @@ juce::var Ocp1CommandDefinition::ToVariant(std::uint8_t paramCount, const std::v
                 ret = (int)NanoOcp1::DataToUint32(parameterData, &ok);
                 break;
             case OCP1DATATYPE_UINT64:
-                ret = (juce::int64)NanoOcp1::DataToUint64(parameterData, &ok);
+                ret = NanoOcp1::DataToUint64(parameterData, &ok);
                 break;
             case OCP1DATATYPE_FLOAT32:
                 ret = NanoOcp1::DataToFloat(parameterData, &ok);
                 break;
             case OCP1DATATYPE_STRING:
-                ret = DataToString(parameterData, &ok);
+                ret = DataToString(parameterData, &ok).toStdString(); // TODO: let DataToString return std::string
+                break;
+            case OCP1DATATYPE_BLOB:
+                ok = (parameterData.size() >= 2); // OcaBlob size is 2 bytes
+                if (ok)
+                {
+                    // TODO: include 2 initial bytes?
+                    ret = parameterData;
+                }
                 break;
             case OCP1DATATYPE_DB_POSITION:
                 ok = (parameterData.size() == 12) || // Notification contains 3 floats: x, y, z.
@@ -168,18 +172,8 @@ juce::var Ocp1CommandDefinition::ToVariant(std::uint8_t paramCount, const std::v
                      (parameterData.size() == 36);   // Response contains 9 floats: current, min, and max x, y, z.
                 if (ok)
                 {
-                    ret = juce::MemoryBlock((const char*)parameterData.data(), parameterData.size());
+                    ret = parameterData;
                 }
-                break;
-            case OCP1DATATYPE_BLOB:
-                ok = (parameterData.size() >= 2); // OcaBlob size is 2 bytes
-                if (ok)
-                {
-                    ret = juce::MemoryBlock((const char*)parameterData.data(), parameterData.size());
-                }
-                break;
-            case OCP1DATATYPE_BOOLEAN:
-                ret = DataToBool(parameterData, &ok);
                 break;
             case OCP1DATATYPE_NONE:
             case OCP1DATATYPE_INT8:
