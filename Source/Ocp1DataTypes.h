@@ -52,18 +52,35 @@ enum Ocp1DataType
 };
 
 /**
- * Representation of a type-safe union, which can be of exactly one type at any time.
+ * @struct Variant
+ * @brief Representation of a type-safe union, which can be of exactly one type at any time.
  */
-using Variant = std::variant<std::monostate,                // OCP1DATATYPE_NONE
-                             bool,                          // OCP1DATATYPE_BOOLEAN
-                             std::int32_t,                  // OCP1DATATYPE_INT32
-                             std::uint8_t,                  // OCP1DATATYPE_UINT8
-                             std::uint16_t,                 // OCP1DATATYPE_UINT16
-                             std::uint32_t,                 // OCP1DATATYPE_UINT32
-                             std::uint64_t,                 // OCP1DATATYPE_UINT64
-                             std::float_t,                  // OCP1DATATYPE_FLOAT32
-                             std::string,                   // OCP1DATATYPE_STRING
-                             std::vector<std::uint8_t>>;    // OCP1DATATYPE_BLOB
+struct Variant
+{
+    Variant() = default;
+    Variant(bool v);
+    Variant(std::int32_t v);
+    Variant(std::uint8_t v);
+    Variant(std::uint16_t v);
+    Variant(std::uint32_t v);
+    Variant(std::uint64_t v);
+    Variant(std::float_t v);
+    Variant(std::string v);
+    Variant(std::vector<std::uint8_t> v);
+
+    using VariantType = std::variant<std::monostate,                // OCP1DATATYPE_NONE
+                                     bool,                          // OCP1DATATYPE_BOOLEAN
+                                     std::int32_t,                  // OCP1DATATYPE_INT32
+                                     std::uint8_t,                  // OCP1DATATYPE_UINT8
+                                     std::uint16_t,                 // OCP1DATATYPE_UINT16
+                                     std::uint32_t,                 // OCP1DATATYPE_UINT32
+                                     std::uint64_t,                 // OCP1DATATYPE_UINT64
+                                     std::float_t,                  // OCP1DATATYPE_FLOAT32
+                                     std::string,                   // OCP1DATATYPE_STRING
+                                     std::vector<std::uint8_t>>;    // OCP1DATATYPE_BLOB
+
+    VariantType m_value;
+};
 
 /**
  * @brief  Convenience helper method to convert a byte vector into a bool

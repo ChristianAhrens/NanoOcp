@@ -709,4 +709,19 @@ std::uint32_t GetONoTy2(std::uint32_t type, std::uint32_t record, std::uint32_t 
         | (std::uint32_t((objectNumber) & 0x7F));
 }
 
+
+//==============================================================================
+// Class Variant
+//==============================================================================
+
+Variant::Variant(bool v) { m_value = v; }
+Variant::Variant(std::int32_t v) { m_value = v; }
+Variant::Variant(std::uint8_t v) { m_value = v; }
+Variant::Variant(std::uint16_t v) { m_value = v; }
+Variant::Variant(std::uint32_t v) { m_value = v; }
+Variant::Variant(std::uint64_t v) { m_value = v; }
+Variant::Variant(std::float_t v) { m_value = v; }
+Variant::Variant(std::string v) { m_value = v; }
+Variant::Variant(std::vector<std::uint8_t> v) { m_value = v; }
+
 }
