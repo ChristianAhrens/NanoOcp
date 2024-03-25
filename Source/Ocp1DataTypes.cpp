@@ -757,6 +757,25 @@ int Variant::ToInt() const
     return 0;
 }
 
+std::uint64_t Variant::ToUInt64() const
+{
+    if (std::holds_alternative<bool>(m_value))
+        return std::get<bool>(m_value) ? 1 : 0;
+    if (std::holds_alternative<int>(m_value))
+        return std::get<int>(m_value);
+    if (std::holds_alternative<std::uint64_t>(m_value))
+        return std::get<std::uint64_t>(m_value);
+    if (std::holds_alternative<double>(m_value))
+        return static_cast<std::uint64_t>(std::llround(std::get<double>(m_value)));
+    if (std::holds_alternative<std::string>(m_value))
+        return std::stoi(std::get<std::string>(m_value));
+    if (std::holds_alternative<std::vector<std::uint8_t>>(m_value))
+        return DataToUint64(std::get<std::vector<std::uint8_t>>(m_value));
+
+    jassertfalse; // Conversion to std::string not possible or not yet implemented!
+    return 0;
+}
+
 double Variant::ToDouble() const
 {
     if (std::holds_alternative<bool>(m_value))
@@ -813,6 +832,16 @@ std::vector<std::uint8_t> Variant::ToByteVector() const
 
     jassertfalse; // Conversion to std::string not possible or not yet implemented!
     return std::vector<std::uint8_t>{};
+}
+
+bool Variant::operator==(const Variant& other) const
+{
+    return m_value == other.m_value;
+}
+
+bool Variant::operator!=(const Variant& other) const
+{
+    return m_value != other.m_value;
 }
 
 }

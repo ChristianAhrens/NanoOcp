@@ -68,9 +68,13 @@ struct Variant
 
     bool ToBool() const;
     int ToInt() const;
+    std::uint64_t ToUInt64() const;
     double ToDouble() const;
     std::string ToString() const;
     std::vector<std::uint8_t> ToByteVector() const;
+
+    bool operator==(const Variant& other) const;
+    bool operator!=(const Variant& other) const;
 
     using VariantType = std::variant<std::monostate,
                                      bool,
