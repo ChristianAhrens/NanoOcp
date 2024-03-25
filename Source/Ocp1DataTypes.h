@@ -59,26 +59,27 @@ struct Variant
 {
     Variant() = default;
     Variant(bool v);
-    Variant(std::int32_t v);
-    Variant(std::uint8_t v);
-    Variant(std::uint16_t v);
-    Variant(std::uint32_t v);
+    Variant(int v);
     Variant(std::uint64_t v);
-    Variant(std::float_t v);
+    Variant(float v);
+    Variant(double v);
     Variant(std::string v);
     Variant(std::vector<std::uint8_t> v);
 
-    using VariantType = std::variant<std::monostate,                // OCP1DATATYPE_NONE
-                                     bool,                          // OCP1DATATYPE_BOOLEAN
-                                     std::int32_t,                  // OCP1DATATYPE_INT32
-                                     std::uint8_t,                  // OCP1DATATYPE_UINT8
-                                     std::uint16_t,                 // OCP1DATATYPE_UINT16
-                                     std::uint32_t,                 // OCP1DATATYPE_UINT32
-                                     std::uint64_t,                 // OCP1DATATYPE_UINT64
-                                     std::float_t,                  // OCP1DATATYPE_FLOAT32
-                                     std::string,                   // OCP1DATATYPE_STRING
-                                     std::vector<std::uint8_t>>;    // OCP1DATATYPE_BLOB
+    bool ToBool() const;
+    int ToInt() const;
+    double ToDouble() const;
+    std::string ToString() const;
+    std::vector<std::uint8_t> ToByteVector() const;
 
+    using VariantType = std::variant<std::monostate,
+                                     bool,
+                                     int,
+                                     std::uint64_t,
+                                     double,
+                                     std::string,
+                                     std::vector<std::uint8_t>>;
+private:
     VariantType m_value;
 };
 
