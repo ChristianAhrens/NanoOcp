@@ -63,13 +63,13 @@ bool NanoOcp1Base::processReceivedData(const juce::MemoryBlock& data)
 }
 
 //==============================================================================
-NanoOcp1Client::NanoOcp1Client() :
-    NanoOcp1Client(juce::String(), 0)
+NanoOcp1Client::NanoOcp1Client(const bool callbacksOnMessageThread) :
+    NanoOcp1Client(juce::String(), 0, callbacksOnMessageThread)
 {
 }
 
-NanoOcp1Client::NanoOcp1Client(const juce::String& address, const int port) :
-    NanoOcp1Base(address, port), Ocp1Connection()
+NanoOcp1Client::NanoOcp1Client(const juce::String& address, const int port, const bool callbacksOnMessageThread) :
+    NanoOcp1Base(address, port), Ocp1Connection(callbacksOnMessageThread)
 {
 }
 
@@ -141,13 +141,13 @@ void NanoOcp1Client::timerCallback()
 }
 
 //==============================================================================
-NanoOcp1Server::NanoOcp1Server() :
-    NanoOcp1Server(juce::String(), 0)
+NanoOcp1Server::NanoOcp1Server(const bool callbacksOnMessageThread) :
+    NanoOcp1Server(juce::String(), 0, callbacksOnMessageThread)
 {
 }
 
-NanoOcp1Server::NanoOcp1Server(const juce::String& address, const int port) :
-    NanoOcp1Base(address, port), Ocp1ConnectionServer()
+NanoOcp1Server::NanoOcp1Server(const juce::String& address, const int port, const bool callbacksOnMessageThread) :
+    NanoOcp1Base(address, port), Ocp1ConnectionServer(), m_callbacksOnMessageThread(callbacksOnMessageThread)
 {
 }
 
@@ -182,7 +182,7 @@ bool NanoOcp1Server::sendData(const juce::MemoryBlock& data)
 
 Ocp1Connection* NanoOcp1Server::createConnectionObject()
 {
-    m_activeConnection = std::make_unique<NanoOcp1Client>();
+    m_activeConnection = std::make_unique<NanoOcp1Client>(m_callbacksOnMessageThread);
     m_activeConnection->onDataReceived = this->onDataReceived;
 
     return m_activeConnection.get();
