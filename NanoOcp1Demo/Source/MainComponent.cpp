@@ -109,7 +109,7 @@ MainComponent::MainComponent()
     m_powerOffD40Button->onClick = [=]() 
     {
         std::uint32_t handle;
-        auto cmdDef(NanoOcp1::AmpDxDy::dbOcaObjectDef_Settings_PwrOn().SetValueCommand(std::uint16_t(0))); // 0 == OFF
+        auto cmdDef(NanoOcp1::AmpDxDy::dbOcaObjectDef_Settings_PwrOn().SetValueCommand(0)); // 0 == OFF
         m_nanoOcp1Client->sendData(NanoOcp1::Ocp1CommandResponseRequired(cmdDef, handle).GetMemoryBlock());
     };
     addAndMakeVisible(m_powerOffD40Button.get());
@@ -119,7 +119,7 @@ MainComponent::MainComponent()
     m_powerOnD40Button->onClick = [=]() 
     {
         std::uint32_t handle;
-        auto cmdDef(NanoOcp1::AmpDxDy::dbOcaObjectDef_Settings_PwrOn().SetValueCommand(std::uint16_t(1))); // 1 == ON
+        auto cmdDef(NanoOcp1::AmpDxDy::dbOcaObjectDef_Settings_PwrOn().SetValueCommand(1)); // 1 == ON
         m_nanoOcp1Client->sendData(NanoOcp1::Ocp1CommandResponseRequired(cmdDef, handle).GetMemoryBlock());
     };
     addAndMakeVisible(m_powerOnD40Button.get());
@@ -131,7 +131,7 @@ MainComponent::MainComponent()
     m_gainSlider->onValueChange = [=]()
     {
         std::uint32_t handle;
-        auto cmdDef(NanoOcp1::AmpGeneric::dbOcaObjectDef_Config_PotiLevel(1).SetValueCommand(static_cast<std::float_t>(m_gainSlider->getValue())));
+        auto cmdDef(NanoOcp1::AmpGeneric::dbOcaObjectDef_Config_PotiLevel(1).SetValueCommand(m_gainSlider->getValue()));
         m_nanoOcp1Client->sendData(NanoOcp1::Ocp1CommandResponseRequired(cmdDef, handle).GetMemoryBlock());
     };
     addAndMakeVisible(m_gainSlider.get());

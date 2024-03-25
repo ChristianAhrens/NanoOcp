@@ -715,13 +715,104 @@ std::uint32_t GetONoTy2(std::uint32_t type, std::uint32_t record, std::uint32_t 
 //==============================================================================
 
 Variant::Variant(bool v) { m_value = v; }
-Variant::Variant(std::int32_t v) { m_value = v; }
-Variant::Variant(std::uint8_t v) { m_value = v; }
-Variant::Variant(std::uint16_t v) { m_value = v; }
-Variant::Variant(std::uint32_t v) { m_value = v; }
+Variant::Variant(int v) { m_value = v; }
 Variant::Variant(std::uint64_t v) { m_value = v; }
-Variant::Variant(std::float_t v) { m_value = v; }
+Variant::Variant(float v) { m_value = static_cast<double>(v); }
+Variant::Variant(double v) { m_value = v; }
 Variant::Variant(std::string v) { m_value = v; }
 Variant::Variant(std::vector<std::uint8_t> v) { m_value = v; }
+
+
+bool Variant::ToBool() const
+{
+    if (std::holds_alternative<bool>(m_value))
+        return std::get<bool>(m_value);
+    if (std::holds_alternative<int>(m_value))
+        return (std::get<int>(m_value) > 0);
+    if (std::holds_alternative<std::uint64_t>(m_value))
+        return (std::get<std::uint64_t>(m_value) > static_cast<std::uint64_t>(0));
+    if (std::holds_alternative<double>(m_value))
+        return (std::get<double>(m_value) > 0.0);
+    if (std::holds_alternative<std::string>(m_value))
+        return (std::get<std::string>(m_value) == "true");
+
+    jassertfalse; // Conversion to int not possible or not yet implemented!
+    return 0;
+}
+
+int Variant::ToInt() const
+{
+    if (std::holds_alternative<bool>(m_value))
+        return std::get<bool>(m_value) ? 1 : 0;
+    if (std::holds_alternative<int>(m_value))
+        return std::get<int>(m_value);
+    if (std::holds_alternative<std::uint64_t>(m_value))
+        return static_cast<int>(std::get<std::uint64_t>(m_value)); // Possible data loss
+    if (std::holds_alternative<double>(m_value))
+        return std::lround(std::get<double>(m_value));
+    if (std::holds_alternative<std::string>(m_value))
+        return std::stoi(std::get<std::string>(m_value));
+
+    jassertfalse; // Conversion to int not possible or not yet implemented!
+    return 0;
+}
+
+double Variant::ToDouble() const
+{
+    if (std::holds_alternative<bool>(m_value))
+        return std::get<bool>(m_value) ? 1.0 : 0.0;
+    if (std::holds_alternative<int>(m_value))
+        return static_cast<double>(std::get<int>(m_value));
+    if (std::holds_alternative<std::uint64_t>(m_value))
+        return static_cast<double>(std::get<std::uint64_t>(m_value));
+    if (std::holds_alternative<double>(m_value))
+        return std::get<double>(m_value);
+    if (std::holds_alternative<std::string>(m_value))
+        return std::stod(std::get<std::string>(m_value));
+
+    jassertfalse; // Conversion to int not possible or not yet implemented!
+    return 0;
+}
+
+std::string Variant::ToString() const
+{
+    if (std::holds_alternative<bool>(m_value))
+        return (std::get<bool>(m_value) ? "true" : "false");
+    if (std::holds_alternative<int>(m_value))
+        return std::to_string(std::get<int>(m_value));
+    if (std::holds_alternative<std::uint64_t>(m_value))
+        return std::to_string(std::get<std::uint64_t>(m_value));
+    if (std::holds_alternative<double>(m_value))
+        return std::to_string(std::get<double>(m_value));
+    if (std::holds_alternative<std::string>(m_value))
+        return std::get<std::string>(m_value);
+    if (std::holds_alternative<std::vector<std::uint8_t>>(m_value))
+    {
+        auto v = std::get<std::vector<std::uint8_t>>(m_value);
+        return std::string(v.begin(), v.end());
+    }
+
+    jassertfalse; // Conversion to std::string not possible or not yet implemented!
+    return std::string{};
+}
+
+std::vector<std::uint8_t> Variant::ToByteVector() const
+{
+    if (std::holds_alternative<bool>(m_value))
+        return DataFromBool(std::get<bool>(m_value));
+    if (std::holds_alternative<int>(m_value))
+        return DataFromInt32(std::get<int>(m_value));
+    if (std::holds_alternative<std::uint64_t>(m_value))
+        return DataFromUint32(static_cast<int>(std::get<std::uint64_t>(m_value))); // TODO: Add a DataFromUint64
+    if (std::holds_alternative<double>(m_value))
+        return DataFromFloat(static_cast<float>(std::get<double>(m_value)));
+    if (std::holds_alternative<std::string>(m_value))
+        return DataFromString(std::get<std::string>(m_value));
+    if (std::holds_alternative<std::vector<std::uint8_t>>(m_value))
+        return std::get<std::vector<std::uint8_t>>(m_value);
+
+    jassertfalse; // Conversion to std::string not possible or not yet implemented!
+    return std::vector<std::uint8_t>{};
+}
 
 }
