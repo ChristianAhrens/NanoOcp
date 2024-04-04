@@ -55,7 +55,7 @@ public:
     /**
      * TODO: document
      */
-    Variant(float v); // TODO: change to std::float_t
+    Variant(std::float_t v);
 
     /**
      * TODO: document
@@ -96,6 +96,13 @@ public:
     bool operator!=(const Variant& other) const;
 
     /**
+     * @brief Check if this Variant has a valid value and type, i.e. different than the default TypeNone (std::monostate).
+     * 
+     * @return True if this Variant is valid.
+     */
+    bool IsValid() const;
+
+    /**
      * TODO: document
      */
     std::vector<std::uint8_t> ToParamData(Ocp1DataType type = OCP1DATATYPE_BLOB) const;
@@ -119,6 +126,11 @@ public:
      * TODO: document
      */
     double ToDouble() const;
+
+    /**
+     * TODO: document
+     */
+    std::float_t ToFloat() const;
 
     /**
      * TODO: document

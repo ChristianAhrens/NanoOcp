@@ -25,7 +25,7 @@ namespace NanoOcp1
 Variant::Variant(bool v) { m_value = v; }
 Variant::Variant(std::int32_t v) { m_value = v; }
 Variant::Variant(std::uint64_t v) { m_value = v; }
-Variant::Variant(float v) { m_value = static_cast<double>(v); }
+Variant::Variant(std::float_t v) { m_value = static_cast<double>(v); }
 Variant::Variant(double v) { m_value = v; }
 Variant::Variant(const std::string& v) { m_value = v; }
 
@@ -124,6 +124,11 @@ bool Variant::operator==(const Variant& other) const
 bool Variant::operator!=(const Variant& other) const
 {
     return m_value != other.m_value;
+}
+
+bool Variant::IsValid() const
+{
+    return (m_value.index() != TypeNone);
 }
 
 bool Variant::ToBool() const
@@ -246,6 +251,11 @@ double Variant::ToDouble() const
     return 0;
 }
 
+std::float_t Variant::ToFloat() const
+{
+    return static_cast<std::float_t>(ToDouble()); // Possible precision loss
+}
+
 std::string Variant::ToString() const
 {
     switch (m_value.index())
@@ -289,7 +299,7 @@ std::vector<std::uint8_t> Variant::ToByteVector() const
         case TypeUInt64:
             return DataFromUint32(static_cast<std::int32_t>(std::get<std::uint64_t>(m_value))); // TODO: Add a DataFromUint64
         case TypeDouble:
-            return DataFromFloat(static_cast<float>(std::get<double>(m_value))); // Possible precision loss
+            return DataFromFloat(static_cast<std::float_t>(std::get<double>(m_value))); // Possible precision loss
         case TypeString:
             return DataFromString(std::get<std::string>(m_value));
         case TypeByteVector:
@@ -319,7 +329,7 @@ std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type) const
         case OCP1DATATYPE_UINT32:
             return DataFromUint32(static_cast<std::uint32_t>(ToInt32()));
         case OCP1DATATYPE_FLOAT32:
-            return DataFromFloat(static_cast<float>(ToDouble())); // Possible precision loss
+            return DataFromFloat(static_cast<std::float_t>(ToDouble())); // Possible precision loss
         case OCP1DATATYPE_STRING:
             return DataFromString(ToString());
         case OCP1DATATYPE_BLOB:
