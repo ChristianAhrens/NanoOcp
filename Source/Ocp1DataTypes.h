@@ -51,41 +51,6 @@ enum Ocp1DataType
     OCP1DATATYPE_CUSTOM             = 128   // User-defined types
 };
 
-/**
- * @struct Variant
- * @brief Representation of a type-safe union, which can be of exactly one type at any time.
- */
-struct Variant
-{
-    Variant() = default;
-    Variant(bool v);
-    Variant(int v);
-    Variant(std::uint64_t v);
-    Variant(float v);
-    Variant(double v);
-    Variant(std::string v);
-    Variant(std::vector<std::uint8_t> v);
-
-    bool ToBool() const;
-    int ToInt() const;
-    std::uint64_t ToUInt64() const;
-    double ToDouble() const;
-    std::string ToString() const;
-    std::vector<std::uint8_t> ToByteVector() const;
-
-    bool operator==(const Variant& other) const;
-    bool operator!=(const Variant& other) const;
-
-    using VariantType = std::variant<std::monostate,
-                                     bool,
-                                     int,
-                                     std::uint64_t,
-                                     double,
-                                     std::string,
-                                     std::vector<std::uint8_t>>;
-private:
-    VariantType m_value;
-};
 
 /**
  * @brief  Convenience helper method to convert a byte vector into a bool
@@ -246,51 +211,6 @@ std::vector<std::uint8_t> DataFromPositionAndRotation(std::float_t x, std::float
  * @return  The parameters as a byte vector.
  */
 std::vector<std::uint8_t> DataFromOnoForSubscription(std::uint32_t ono, bool add = true);
-
-/**
- * Convenience helper method to extract x, y, and z float values from a juce::var.
- *
- * @param[in] value The juce::var containing the values as 3 x 4 bytes.
- * @param[out] x    The contained x value.
- * @param[out] y    The contained y value.
- * @param[out] z    The contained z value.
- * @return  True if the conversion was successful. 
- */
-bool VariantToPosition(const juce::var& value, std::float_t& x, std::float_t& y, std::float_t& z);
-
-/**
- * Convenience helper method to extract x, y, z, horizontal angle, vertical angle and rotation angle float values from a juce::var.
- *
- * @param[in] value The juce::var containing the values as 6 x 4 bytes.
- * @param[out] x    The contained x value.
- * @param[out] y    The contained y value.
- * @param[out] z    The contained z value.
- * @param[out] hor  The contained horizontal angle value.
- * @param[out] vert The contained vertical angle value.
- * @param[out] rot  The contained rotation angle value.
- * @return  True if the conversion was successful.
- */
-bool VariantToPositionAndRotation(const juce::var& value, std::float_t& x, std::float_t& y, std::float_t& z, std::float_t& hor, std::float_t& vert, std::float_t& rot);
-
-/**
- * Convenience helper method to exract a std::vector<bool> from a from a juce::var.
- * The juce::var needs to be of type MemoryBlock, and the contents need to be marshalled as an OcaList<OcaBoolean>.
- *
- * @param[in] value         The juce::var containing a list of boolean values.
- * @param[out] boolVector   The resulting std::vector<bool>. 
- * @return  True if the conversion was successful.
- */
-bool VariantToBoolVector(const juce::var& value, std::vector<bool>& boolVector);
-
-/**
- * Convenience helper method to exract a juce::StringArray from a from a juce::var.
- * The juce::var needs to be of type MemoryBlock, and the contents need to be marshalled as an OcaList<OcaString>.
- *
- * @param[in] value         The juce::var containing a list of strings.
- * @param[out] stringArray  The resulting juce::StringArray.
- * @return  True if the conversion was successful.
- */
-bool VariantToStringArray(const juce::var& value, juce::StringArray& stringArray);
 
 /**
  * Convenience method to convert an integer representing an OcaStatus to its string representation.

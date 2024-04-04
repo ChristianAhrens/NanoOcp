@@ -19,7 +19,7 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "Ocp1DataTypes.h"
+#include "Variant.h"
 
 
 namespace NanoOcp1
@@ -98,19 +98,6 @@ struct Ocp1CommandDefinition
      * @return A SetValue command definition.
      */
     virtual Ocp1CommandDefinition SetValueCommand(const Variant& newValue) const;
-
-    /**
-     * Convert the parameter data obtained by i.e. an OCA Notification message to the correct
-     * data type depending on this Ocp1CommandDefinition's type.
-     * The resulting value will be returned as a Variant.
-     * For example, a command definition for an OcaGain object will convert the provided byte array to a float value.
-     * 
-     * @param[in] paramCount    Number of parameters inside parameterData. Usually 1.
-     * @param[in] parameterData Byte array provided by an OCA Notification or Response message.
-     * @return    The value contained in parameterData, converted to the type corresponding to 
-     *            this Ocp1CommandDefinition, and packed into a Variant.
-     */
-    virtual Variant ToVariant(std::uint8_t paramCount, const std::vector<std::uint8_t>& parameterData);
 
     /**
      * Clone this object. To prevent slicing, this method must be overriden whenever new members or methods

@@ -58,138 +58,14 @@ Ocp1CommandDefinition Ocp1CommandDefinition::GetValueCommand() const
 
 Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const Variant& newValue) const
 {
-    std::uint8_t paramCount(0);
-    std::vector<std::uint8_t> newParamData;
-
-    switch (m_propertyType) // See enum Ocp1DataType
-    {
-        case OCP1DATATYPE_BOOLEAN:
-            paramCount = 1;
-            newParamData = DataFromBool(newValue.ToBool());
-            break;
-        case OCP1DATATYPE_INT32:
-            paramCount = 1;
-            newParamData = DataFromInt32(newValue.ToInt());
-            break;
-        case OCP1DATATYPE_UINT8:
-            paramCount = 1;
-            newParamData = DataFromUint8(static_cast<std::uint8_t>(newValue.ToInt()));
-            break;
-        case OCP1DATATYPE_UINT16:
-            paramCount = 1;
-            newParamData = DataFromUint16(static_cast<std::uint16_t>(newValue.ToInt()));
-            break;
-        case OCP1DATATYPE_UINT32:
-            paramCount = 1;
-            newParamData = DataFromUint32(static_cast<std::uint32_t>(newValue.ToInt()));
-            break;
-        case OCP1DATATYPE_FLOAT32:
-            paramCount = 1;
-            newParamData = DataFromFloat(static_cast<float>(newValue.ToDouble()));
-            break;
-        case OCP1DATATYPE_STRING:
-            paramCount = 1;
-            newParamData = DataFromString(newValue.ToString()); // TODO: let DataFromString take a std::string
-            break;
-        case OCP1DATATYPE_BLOB:
-            paramCount = 1;
-            newParamData = newValue.ToByteVector();
-            jassert(newParamData.size() >= 2); // TODO: include 2 initial bytes?
-            break;
-        case OCP1DATATYPE_DB_POSITION:
-            paramCount = 1;
-            newParamData = newValue.ToByteVector();
-            break;
-        case OCP1DATATYPE_NONE:
-        case OCP1DATATYPE_INT8:
-        case OCP1DATATYPE_INT16:
-        case OCP1DATATYPE_INT64:
-        case OCP1DATATYPE_UINT64:
-        case OCP1DATATYPE_FLOAT64:
-        case OCP1DATATYPE_BIT_STRING:
-        case OCP1DATATYPE_BLOB_FIXED_LEN:
-        case OCP1DATATYPE_CUSTOM:
-        default:
-            jassert(false); // Type conversion not implemented yet.
-            break;
-    }
+    std::vector<std::uint8_t> newParamData = newValue.ToParamData(static_cast<Ocp1DataType>(m_propertyType));
 
     return Ocp1CommandDefinition(m_targetOno,
                                  m_propertyType,
                                  m_propertyDefLevel,
                                  2,                     // Set method is usually MethodIdx 2
-                                 paramCount,
+                                 1,                     // Set method usually takes one parameter
                                  newParamData);
-}
-
-Variant Ocp1CommandDefinition::ToVariant(std::uint8_t paramCount, const std::vector<std::uint8_t>& parameterData)
-{
-    Variant ret;
-
-    // NOTE: Notifications usually contain 2 parameters: the context and the new value.
-    bool ok = (paramCount == 1) || (paramCount == 2) || (paramCount == 3) || (paramCount == 6);
-
-    if (ok)
-    {
-        ok = false;
-        switch (m_propertyType) // See enum Ocp1DataType
-        {
-            case OCP1DATATYPE_BOOLEAN:
-                ret = DataToBool(parameterData, &ok);
-                break;
-            case OCP1DATATYPE_INT32:
-                ret = NanoOcp1::DataToInt32(parameterData, &ok);
-                break;
-            case OCP1DATATYPE_UINT8:
-                ret = NanoOcp1::DataToUint8(parameterData, &ok);
-                break;
-            case OCP1DATATYPE_UINT16:
-                ret = NanoOcp1::DataToUint16(parameterData, &ok);
-                break;
-            case OCP1DATATYPE_UINT32:
-                ret = static_cast<int>(NanoOcp1::DataToUint32(parameterData, &ok));
-                break;
-            case OCP1DATATYPE_UINT64:
-                ret = NanoOcp1::DataToUint64(parameterData, &ok);
-                break;
-            case OCP1DATATYPE_FLOAT32:
-                ret = NanoOcp1::DataToFloat(parameterData, &ok);
-                break;
-            case OCP1DATATYPE_STRING:
-                ret = DataToString(parameterData, &ok).toStdString(); // TODO: let DataToString return std::string
-                break;
-            case OCP1DATATYPE_BLOB:
-                ok = (parameterData.size() >= 2); // OcaBlob size is 2 bytes
-                if (ok)
-                {
-                    // TODO: include 2 initial bytes?
-                    ret = parameterData;
-                }
-                break;
-            case OCP1DATATYPE_DB_POSITION:
-                ok = (parameterData.size() == 12) || // Notification contains 3 floats: x, y, z.
-                     (parameterData.size() == 24) || // Notification contains 6 floats: x, y, z, hor, vert, rot.
-                     (parameterData.size() == 36);   // Response contains 9 floats: current, min, and max x, y, z.
-                if (ok)
-                {
-                    ret = parameterData;
-                }
-                break;
-            case OCP1DATATYPE_NONE:
-            case OCP1DATATYPE_INT8:
-            case OCP1DATATYPE_INT16:
-            case OCP1DATATYPE_INT64:
-            case OCP1DATATYPE_FLOAT64:
-            case OCP1DATATYPE_BIT_STRING:
-            case OCP1DATATYPE_BLOB_FIXED_LEN:
-            case OCP1DATATYPE_CUSTOM:
-            default:
-                break;
-        }
-    }
-
-    jassert(ok); // Type conversion failed or not implemented.
-    return ret;
 }
 
 Ocp1CommandDefinition* Ocp1CommandDefinition::Clone() const

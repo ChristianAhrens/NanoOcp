@@ -23,6 +23,8 @@
         <FILE id="XEXSpv" name="Ocp1Message.h" compile="0" resource="0" file="../Source/Ocp1Message.h"/>
         <FILE id="OkE08K" name="Ocp1ObjectDefinitions.h" compile="0" resource="0"
               file="../Source/Ocp1ObjectDefinitions.h"/>
+        <FILE id="uSEH4Q" name="Variant.cpp" compile="1" resource="0" file="../Source/Variant.cpp"/>
+        <FILE id="XpVC2u" name="Variant.h" compile="0" resource="0" file="../Source/Variant.h"/>
       </GROUP>
       <FILE id="zswaEW" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
       <FILE id="WTxEOG" name="MainComponent.cpp" compile="1" resource="0"
