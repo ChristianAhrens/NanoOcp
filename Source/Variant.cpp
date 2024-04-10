@@ -24,10 +24,14 @@ namespace NanoOcp1
 
 Variant::Variant(bool v) { m_value = v; }
 Variant::Variant(std::int32_t v) { m_value = v; }
+Variant::Variant(std::uint8_t v) { m_value = v; }
+Variant::Variant(std::uint16_t v) { m_value = v; }
+Variant::Variant(std::uint32_t v) { m_value = v; }
 Variant::Variant(std::uint64_t v) { m_value = v; }
-Variant::Variant(std::float_t v) { m_value = static_cast<double>(v); }
-Variant::Variant(double v) { m_value = v; }
+Variant::Variant(std::float_t v) { m_value = v; }
+Variant::Variant(std::double_t v) { m_value = v; }
 Variant::Variant(const std::string& v) { m_value = v; }
+Variant::Variant(const char* v) : Variant(std::string(v)) { } // Allow Variant("test") to become of TypeString.
 
 Variant::Variant(std::float_t x, std::float_t y, std::float_t z)
 {
@@ -36,23 +40,21 @@ Variant::Variant(std::float_t x, std::float_t y, std::float_t z)
     std::uint32_t yInt = *(std::uint32_t*)&y;
     std::uint32_t zInt = *(std::uint32_t*)&z;
 
-    std::vector<std::uint8_t> data
-    ({
-        static_cast<std::uint8_t>(xInt >> 24),
-        static_cast<std::uint8_t>(xInt >> 16),
-        static_cast<std::uint8_t>(xInt >> 8),
-        static_cast<std::uint8_t>(xInt),
-        static_cast<std::uint8_t>(yInt >> 24),
-        static_cast<std::uint8_t>(yInt >> 16),
-        static_cast<std::uint8_t>(yInt >> 8),
-        static_cast<std::uint8_t>(yInt),
-        static_cast<std::uint8_t>(zInt >> 24),
-        static_cast<std::uint8_t>(zInt >> 16),
-        static_cast<std::uint8_t>(zInt >> 8),
-        static_cast<std::uint8_t>(zInt),
-    });
-
-    m_value = data;
+    m_value = std::vector<std::uint8_t>
+        ({
+            static_cast<std::uint8_t>(xInt >> 24),
+            static_cast<std::uint8_t>(xInt >> 16),
+            static_cast<std::uint8_t>(xInt >> 8),
+            static_cast<std::uint8_t>(xInt),
+            static_cast<std::uint8_t>(yInt >> 24),
+            static_cast<std::uint8_t>(yInt >> 16),
+            static_cast<std::uint8_t>(yInt >> 8),
+            static_cast<std::uint8_t>(yInt),
+            static_cast<std::uint8_t>(zInt >> 24),
+            static_cast<std::uint8_t>(zInt >> 16),
+            static_cast<std::uint8_t>(zInt >> 8),
+            static_cast<std::uint8_t>(zInt),
+        });
 }
 
 Variant::Variant(const std::vector<std::uint8_t>& data, Ocp1DataType type)
@@ -73,13 +75,16 @@ Variant::Variant(const std::vector<std::uint8_t>& data, Ocp1DataType type)
             m_value = NanoOcp1::DataToUint16(data, &ok);
             break;
         case OCP1DATATYPE_UINT32:
-            m_value = static_cast<int>(NanoOcp1::DataToUint32(data, &ok));
+            m_value = NanoOcp1::DataToUint32(data, &ok);
             break;
         case OCP1DATATYPE_UINT64:
             m_value = NanoOcp1::DataToUint64(data, &ok);
             break;
         case OCP1DATATYPE_FLOAT32:
             m_value = NanoOcp1::DataToFloat(data, &ok);
+            break;
+        case OCP1DATATYPE_FLOAT64:
+            m_value = NanoOcp1::DataToDouble(data, &ok);
             break;
         case OCP1DATATYPE_STRING:
             m_value = DataToString(data, &ok).toStdString(); // TODO: let DataToString return std::string
@@ -105,7 +110,6 @@ Variant::Variant(const std::vector<std::uint8_t>& data, Ocp1DataType type)
         case OCP1DATATYPE_INT8:
         case OCP1DATATYPE_INT16:
         case OCP1DATATYPE_INT64:
-        case OCP1DATATYPE_FLOAT64:
         case OCP1DATATYPE_BIT_STRING:
         case OCP1DATATYPE_BLOB_FIXED_LEN:
         case OCP1DATATYPE_CUSTOM:
@@ -131,6 +135,27 @@ bool Variant::IsValid() const
     return (m_value.index() != TypeNone);
 }
 
+Ocp1DataType Variant::GetType() const
+{
+    switch (m_value.index())
+    {
+        case TypeBool:          return OCP1DATATYPE_BOOLEAN;
+        case TypeInt32:         return OCP1DATATYPE_INT32;
+        case TypeUInt8:         return OCP1DATATYPE_UINT8;
+        case TypeUInt16:        return OCP1DATATYPE_UINT16;
+        case TypeUInt32:        return OCP1DATATYPE_UINT32;
+        case TypeUInt64:        return OCP1DATATYPE_UINT64;
+        case TypeFloat:         return OCP1DATATYPE_FLOAT32;
+        case TypeDouble:        return OCP1DATATYPE_FLOAT64;
+        case TypeString:        return OCP1DATATYPE_STRING;
+        case TypeByteVector:    return OCP1DATATYPE_BLOB;
+        default:
+            break;
+    }
+
+    return OCP1DATATYPE_NONE;
+}
+
 bool Variant::ToBool() const
 {
     switch (m_value.index())
@@ -139,10 +164,18 @@ bool Variant::ToBool() const
             return std::get<bool>(m_value);
         case TypeInt32:
             return (std::get<std::int32_t>(m_value) > std::int32_t(0));
+        case TypeUInt8:
+            return (std::get<std::uint8_t>(m_value) > std::uint8_t(0));
+        case TypeUInt16:
+            return (std::get<std::uint16_t>(m_value) > std::uint16_t(0));
+        case TypeUInt32:
+            return (std::get<std::uint32_t>(m_value) > std::uint32_t(0));
         case TypeUInt64:
             return (std::get<std::uint64_t>(m_value) > std::uint64_t(0));
+        case TypeFloat:
+            return (std::get<std::float_t>(m_value) > std::float_t(0.0f));
         case TypeDouble:
-            return (std::get<double>(m_value) > 0.0);
+            return (std::get<std::double_t>(m_value) > std::double_t(0.0));
         case TypeString:
             return (std::get<std::string>(m_value) == "true");
         case TypeByteVector:
@@ -169,10 +202,18 @@ std::int32_t Variant::ToInt32() const
             return std::get<bool>(m_value) ? 1 : 0;
         case TypeInt32:
             return std::get<std::int32_t>(m_value);
+        case TypeUInt8:
+            return static_cast<std::int32_t>(std::get<std::uint8_t>(m_value));
+        case TypeUInt16:
+            return static_cast<std::int32_t>(std::get<std::uint16_t>(m_value));
+        case TypeUInt32:
+            return static_cast<std::int32_t>(std::get<std::uint32_t>(m_value));
         case TypeUInt64:
-            return static_cast<std::int32_t>(std::get<std::uint64_t>(m_value)); // Possible data loss
+            return static_cast<std::int32_t>(std::get<std::uint64_t>(m_value));
+        case TypeFloat:
+            return std::lround(std::get<std::float_t>(m_value));
         case TypeDouble:
-            return std::lround(std::get<double>(m_value));
+            return std::lround(std::get<std::double_t>(m_value));
         case TypeString:
             return std::stol(std::get<std::string>(m_value));
         case TypeByteVector:
@@ -188,7 +229,121 @@ std::int32_t Variant::ToInt32() const
     }
 
     jassertfalse; // Conversion not possible or not yet implemented!
-    return 0;
+    return std::int32_t(0);
+}
+
+std::uint8_t Variant::ToUInt8() const
+{
+    switch (m_value.index())
+    {
+        case TypeBool:
+            return std::get<bool>(m_value) ? std::uint8_t(1) : std::uint8_t(0);
+        case TypeInt32:
+            return static_cast<std::uint8_t>(std::get<std::int32_t>(m_value));
+        case TypeUInt8:
+            return std::get<std::uint8_t>(m_value);
+        case TypeUInt16:
+            return static_cast<std::uint8_t>(std::get<std::uint16_t>(m_value));
+        case TypeUInt32:
+            return static_cast<std::uint8_t>(std::get<std::uint32_t>(m_value));
+        case TypeUInt64:
+            return static_cast<std::uint8_t>(std::get<std::uint64_t>(m_value));
+        case TypeFloat:
+            return static_cast<std::uint8_t>(std::lround(std::get<std::float_t>(m_value)));
+        case TypeDouble:
+            return static_cast<std::uint8_t>(std::lround(std::get<std::double_t>(m_value)));
+        case TypeString:
+            return static_cast<std::uint8_t>(std::stol(std::get<std::string>(m_value)));
+        case TypeByteVector:
+            {
+                bool ok;
+                auto val = DataToUint8(std::get<std::vector<std::uint8_t>>(m_value), &ok);
+                if (ok)
+                    return val;
+            }
+            break;
+        default:
+            break;
+    }
+
+    jassertfalse; // Conversion not possible or not yet implemented!
+    return std::uint8_t(0);
+}
+
+std::uint16_t Variant::ToUInt16() const
+{
+    switch (m_value.index())
+    {
+        case TypeBool:
+            return std::get<bool>(m_value) ? std::uint16_t(1) : std::uint16_t(0);
+        case TypeInt32:
+            return static_cast<std::uint16_t>(std::get<std::int32_t>(m_value));
+        case TypeUInt8:
+            return static_cast<std::uint16_t>(std::get<std::uint8_t>(m_value));
+        case TypeUInt16:
+            return std::get<std::uint16_t>(m_value);
+        case TypeUInt32:
+            return static_cast<std::uint16_t>(std::get<std::uint32_t>(m_value));
+        case TypeUInt64:
+            return static_cast<std::uint16_t>(std::get<std::uint64_t>(m_value));
+        case TypeFloat:
+            return static_cast<std::uint16_t>(std::lround(std::get<std::float_t>(m_value)));
+        case TypeDouble:
+            return static_cast<std::uint16_t>(std::lround(std::get<std::double_t>(m_value)));
+        case TypeString:
+            return static_cast<std::uint16_t>(std::stoi(std::get<std::string>(m_value)));
+        case TypeByteVector:
+            {
+                bool ok;
+                auto val = DataToUint16(std::get<std::vector<std::uint8_t>>(m_value), &ok);
+                if (ok)
+                    return val;
+            }
+            break;
+        default:
+            break;
+    }
+
+    jassertfalse; // Conversion not possible or not yet implemented!
+    return std::uint16_t(0);
+}
+
+std::uint32_t Variant::ToUInt32() const
+{
+    switch (m_value.index())
+    {
+        case TypeBool:
+            return std::get<bool>(m_value) ? std::uint32_t(1) : std::uint32_t(0);
+        case TypeInt32:
+            return static_cast<std::uint32_t>(std::get<std::int32_t>(m_value));
+        case TypeUInt8:
+            return static_cast<std::uint32_t>(std::get<std::uint8_t>(m_value));
+        case TypeUInt16:
+            return static_cast<std::uint32_t>(std::get<std::uint16_t>(m_value));
+        case TypeUInt32:
+            return static_cast<std::uint32_t>(std::get<std::uint32_t>(m_value));
+        case TypeUInt64:
+            return static_cast<std::uint32_t>(std::get<std::uint64_t>(m_value));
+        case TypeFloat:
+            return static_cast<std::uint32_t>(std::lround(std::get<std::float_t>(m_value)));
+        case TypeDouble:
+            return static_cast<std::uint32_t>(std::lround(std::get<std::double_t>(m_value)));
+        case TypeString:
+            return static_cast<std::uint32_t>(std::stoi(std::get<std::string>(m_value)));
+        case TypeByteVector:
+            {
+                bool ok;
+                auto val = DataToUint32(std::get<std::vector<std::uint8_t>>(m_value), &ok);
+                if (ok)
+                    return val;
+            }
+            break;
+        default:
+            break;
+    }
+
+    jassertfalse; // Conversion not possible or not yet implemented!
+    return std::uint32_t(0);
 }
 
 std::uint64_t Variant::ToUInt64() const
@@ -196,15 +351,23 @@ std::uint64_t Variant::ToUInt64() const
     switch (m_value.index())
     {
         case TypeBool:
-            return std::get<bool>(m_value) ? 1ULL : 0ULL;
+            return std::get<bool>(m_value) ? std::uint64_t(1) : std::uint64_t(0);
         case TypeInt32:
             return static_cast<std::uint64_t>(std::get<std::int32_t>(m_value));
+        case TypeUInt8:
+            return static_cast<std::uint64_t>(std::get<std::uint8_t>(m_value));
+        case TypeUInt16:
+            return static_cast<std::uint64_t>(std::get<std::uint16_t>(m_value));
+        case TypeUInt32:
+            return static_cast<std::uint64_t>(std::get<std::uint32_t>(m_value));
         case TypeUInt64:
-            return std::get<std::uint64_t>(m_value);
+            return static_cast<std::uint64_t>(std::get<std::uint64_t>(m_value));
+        case TypeFloat:
+            return static_cast<std::uint64_t>(std::llround(std::get<std::float_t>(m_value)));
         case TypeDouble:
-            return static_cast<std::uint64_t>(std::llround(std::get<double>(m_value)));
+            return static_cast<std::uint64_t>(std::llround(std::get<std::double_t>(m_value)));
         case TypeString:
-            return std::stoull(std::get<std::string>(m_value));
+            return static_cast<std::uint64_t>(std::stoll(std::get<std::string>(m_value)));
         case TypeByteVector:
             {
                 bool ok;
@@ -218,27 +381,35 @@ std::uint64_t Variant::ToUInt64() const
     }
 
     jassertfalse; // Conversion not possible or not yet implemented!
-    return 0;
+    return std::uint64_t(0);
 }
 
-double Variant::ToDouble() const
+std::double_t Variant::ToDouble() const
 {
     switch (m_value.index())
     {
         case TypeBool:
-            return std::get<bool>(m_value) ? 1.0 : 0.0;
+            return std::get<bool>(m_value) ? std::double_t(1.0) : std::double_t(0.0);
         case TypeInt32:
-            return static_cast<double>(std::get<std::int32_t>(m_value));
+            return static_cast<std::double_t>(std::get<std::int32_t>(m_value));
+        case TypeUInt8:
+            return static_cast<std::double_t>(std::get<std::uint8_t>(m_value));
+        case TypeUInt16:
+            return static_cast<std::double_t>(std::get<std::uint16_t>(m_value));
+        case TypeUInt32:
+            return static_cast<std::double_t>(std::get<std::uint32_t>(m_value));
         case TypeUInt64:
-            return static_cast<double>(std::get<std::uint64_t>(m_value));
+            return static_cast<std::double_t>(std::get<std::uint64_t>(m_value));
+        case TypeFloat:
+            return static_cast<std::double_t>(std::get<std::float_t>(m_value));
         case TypeDouble:
-            return std::get<double>(m_value);
+            return std::get<std::double_t>(m_value);
         case TypeString:
             return std::stod(std::get<std::string>(m_value));
         case TypeByteVector:
             {
                 bool ok;
-                auto val = static_cast<double>(DataToFloat(std::get<std::vector<std::uint8_t>>(m_value), &ok));
+                auto val = DataToDouble(std::get<std::vector<std::uint8_t>>(m_value), &ok);
                 if (ok)
                     return val;
             }
@@ -248,12 +419,45 @@ double Variant::ToDouble() const
     }
 
     jassertfalse; // Conversion not possible or not yet implemented!
-    return 0;
+    return std::double_t(0.0);
 }
 
 std::float_t Variant::ToFloat() const
 {
-    return static_cast<std::float_t>(ToDouble()); // Possible precision loss
+    switch (m_value.index())
+    {
+        case TypeBool:
+            return std::get<bool>(m_value) ? std::float_t(1.0f) : std::float_t(0.0f);
+        case TypeInt32:
+            return static_cast<std::float_t>(std::get<std::int32_t>(m_value));
+        case TypeUInt8:
+            return static_cast<std::float_t>(std::get<std::uint8_t>(m_value));
+        case TypeUInt16:
+            return static_cast<std::float_t>(std::get<std::uint16_t>(m_value));
+        case TypeUInt32:
+            return static_cast<std::float_t>(std::get<std::uint32_t>(m_value));
+        case TypeUInt64:
+            return static_cast<std::float_t>(std::get<std::uint64_t>(m_value));
+        case TypeFloat:
+            return std::get<std::float_t>(m_value);
+        case TypeDouble:
+            return static_cast<std::float_t>(std::get<std::double_t>(m_value));
+        case TypeString:
+            return static_cast<std::float_t>(std::stof(std::get<std::string>(m_value)));
+        case TypeByteVector:
+            {
+                bool ok;
+                auto val = DataToFloat(std::get<std::vector<std::uint8_t>>(m_value), &ok);
+                if (ok)
+                    return val;
+            }
+            break;
+        default:
+            break;
+    }
+
+    jassertfalse; // Conversion not possible or not yet implemented!
+    return std::float_t(0.0f);
 }
 
 std::string Variant::ToString() const
@@ -264,10 +468,18 @@ std::string Variant::ToString() const
             return (std::get<bool>(m_value) ? "true" : "false");
         case TypeInt32:
             return std::to_string(std::get<std::int32_t>(m_value));
+        case TypeUInt8:
+            return std::to_string(std::get<std::uint8_t>(m_value));
+        case TypeUInt16:
+            return std::to_string(std::get<std::uint16_t>(m_value));
+        case TypeUInt32:
+            return std::to_string(std::get<std::uint32_t>(m_value));
         case TypeUInt64:
             return std::to_string(std::get<std::uint64_t>(m_value));
+        case TypeFloat:
+            return std::to_string(std::get<std::float_t>(m_value));
         case TypeDouble:
-            return std::to_string(std::get<double>(m_value));
+            return std::to_string(std::get<std::double_t>(m_value));
         case TypeString:
             return std::get<std::string>(m_value);
         case TypeByteVector:
@@ -296,10 +508,18 @@ std::vector<std::uint8_t> Variant::ToByteVector() const
             return DataFromBool(std::get<bool>(m_value));
         case TypeInt32:
             return DataFromInt32(std::get<std::int32_t>(m_value));
+        case TypeUInt8:
+            return DataFromUint8(std::get<std::uint8_t>(m_value));
+        case TypeUInt16:
+            return DataFromUint16(std::get<std::uint16_t>(m_value));
+        case TypeUInt32:
+            return DataFromUint32(std::get<std::uint32_t>(m_value));
         case TypeUInt64:
-            return DataFromUint32(static_cast<std::int32_t>(std::get<std::uint64_t>(m_value))); // TODO: Add a DataFromUint64
+            return DataFromUint64(std::get<std::uint64_t>(m_value));
+        case TypeFloat:
+            return DataFromFloat(std::get<std::float_t>(m_value));
         case TypeDouble:
-            return DataFromFloat(static_cast<std::float_t>(std::get<double>(m_value))); // Possible precision loss
+            return DataFromDouble(std::get<std::double_t>(m_value));
         case TypeString:
             return DataFromString(std::get<std::string>(m_value));
         case TypeByteVector:
@@ -312,24 +532,30 @@ std::vector<std::uint8_t> Variant::ToByteVector() const
     return std::vector<std::uint8_t>{};
 }
 
-std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type) const
+std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATYPE_NONE */) const
 {
-    std::vector<std::uint8_t> paramData;
+    Ocp1DataType nativeType(type);
+    if (type == OCP1DATATYPE_NONE)
+        nativeType = GetType();
 
-    switch (type) // See enum Ocp1DataType
+    switch (nativeType)
     {
         case OCP1DATATYPE_BOOLEAN:
             return DataFromBool(ToBool());
         case OCP1DATATYPE_INT32:
             return DataFromInt32(ToInt32());
         case OCP1DATATYPE_UINT8:
-            return DataFromUint8(static_cast<std::uint8_t>(ToInt32())); // Possible data loss
+            return DataFromUint8(ToUInt8());
         case OCP1DATATYPE_UINT16:
-            return DataFromUint16(static_cast<std::uint16_t>(ToInt32())); // Possible data loss
+            return DataFromUint16(ToUInt16());
         case OCP1DATATYPE_UINT32:
-            return DataFromUint32(static_cast<std::uint32_t>(ToInt32()));
+            return DataFromUint32(ToUInt32());
+        case OCP1DATATYPE_UINT64:
+            return DataFromUint64(ToUInt64());
         case OCP1DATATYPE_FLOAT32:
-            return DataFromFloat(static_cast<std::float_t>(ToDouble())); // Possible precision loss
+            return DataFromFloat(ToFloat());
+        case OCP1DATATYPE_FLOAT64:
+            return DataFromDouble(ToDouble());
         case OCP1DATATYPE_STRING:
             return DataFromString(ToString());
         case OCP1DATATYPE_BLOB:
@@ -340,8 +566,6 @@ std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type) const
         case OCP1DATATYPE_INT8:
         case OCP1DATATYPE_INT16:
         case OCP1DATATYPE_INT64:
-        case OCP1DATATYPE_UINT64:
-        case OCP1DATATYPE_FLOAT64:
         case OCP1DATATYPE_BIT_STRING:
         case OCP1DATATYPE_BLOB_FIXED_LEN:
         case OCP1DATATYPE_CUSTOM:

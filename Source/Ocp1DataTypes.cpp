@@ -25,6 +25,10 @@ namespace NanoOcp1
 static constexpr std::uint8_t uint8_8(8);
 static constexpr std::uint8_t uint8_16(16);
 static constexpr std::uint8_t uint8_24(24);
+static constexpr std::uint8_t uint8_32(32);
+static constexpr std::uint8_t uint8_40(40);
+static constexpr std::uint8_t uint8_48(48);
+static constexpr std::uint8_t uint8_56(56);
 
 bool DataToBool(const std::vector<std::uint8_t>& parameterData, bool* pOk)
 {
@@ -191,6 +195,21 @@ std::uint64_t DataToUint64(const std::vector<std::uint8_t>& parameterData, bool*
     return ret;
 }
 
+std::vector<std::uint8_t> DataFromUint64(std::uint64_t intValue)
+{
+    return std::vector<std::uint8_t>
+        ({
+            static_cast<std::uint8_t>(intValue >> 56),
+            static_cast<std::uint8_t>(intValue >> 48),
+            static_cast<std::uint8_t>(intValue >> 40),
+            static_cast<std::uint8_t>(intValue >> 32),
+            static_cast<std::uint8_t>(intValue >> 24),
+            static_cast<std::uint8_t>(intValue >> 16),
+            static_cast<std::uint8_t>(intValue >> 8),
+            static_cast<std::uint8_t>(intValue),
+        });
+}
+
 juce::String DataToString(const std::vector<std::uint8_t>& parameterData, bool* pOk)
 {
     juce::String ret(0);
@@ -266,30 +285,73 @@ std::vector<std::uint8_t> DataFromFloat(std::float_t floatValue)
     return ret;
 }
 
+std::double_t DataToDouble(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+{
+    std::double_t ret(0);
+
+    bool ok = (parameterData.size() >= sizeof(std::double_t)); // 8 bytes expected.
+    ok = ok && (sizeof(std::uint64_t) == sizeof(std::double_t)); // Required for pointer cast to work
+    if (ok)
+    {
+        std::uint64_t intValue = (((static_cast<std::uint64_t>(parameterData[0]) << uint8_56) & 0xff00000000000000ULL) +
+                                  ((static_cast<std::uint64_t>(parameterData[1]) << uint8_48) & 0x00ff000000000000ULL) +
+                                  ((static_cast<std::uint64_t>(parameterData[2]) << uint8_40) & 0x0000ff0000000000ULL) +
+                                  ((static_cast<std::uint64_t>(parameterData[3]) << uint8_32) & 0x000000ff00000000ULL) +
+                                  ((static_cast<std::uint64_t>(parameterData[4]) << uint8_24) & 0x00000000ff000000ULL) +
+                                  ((static_cast<std::uint64_t>(parameterData[5]) << uint8_16) & 0x0000000000ff0000ULL) +
+                                  ((static_cast<std::uint64_t>(parameterData[6]) << uint8_8)  & 0x000000000000ff00ULL) + 
+                                  parameterData[7]);
+        ret = *(std::double_t*)&intValue;
+    }
+
+    if (pOk != nullptr)
+    {
+        *pOk = ok;
+    }
+
+    return ret;
+}
+
+std::vector<std::uint8_t> DataFromDouble(std::double_t doubleValue)
+{
+    jassert(sizeof(std::uint64_t) == sizeof(std::double_t)); // Required for pointer cast to work
+    std::uint64_t intValue = *(std::uint64_t*)&doubleValue;
+
+    return std::vector<std::uint8_t>
+        ({ 
+            static_cast<std::uint8_t>(intValue >> 56),
+            static_cast<std::uint8_t>(intValue >> 48),
+            static_cast<std::uint8_t>(intValue >> 40),
+            static_cast<std::uint8_t>(intValue >> 32),
+            static_cast<std::uint8_t>(intValue >> 24),
+            static_cast<std::uint8_t>(intValue >> 16),
+            static_cast<std::uint8_t>(intValue >> 8),
+            static_cast<std::uint8_t>(intValue),
+        });
+}
+
 std::vector<std::uint8_t> DataFromPosition(std::float_t x, std::float_t y, std::float_t z)
 {
-    std::vector<std::uint8_t> ret;
-    ret.reserve(3 * 4);
+    jassert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast below
+    std::uint32_t xInt = *(std::uint32_t*)&x;
+    std::uint32_t yInt = *(std::uint32_t*)&y;
+    std::uint32_t zInt = *(std::uint32_t*)&z;
 
-    jassert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast to work
-    
-    std::uint32_t intValue = *(std::uint32_t*)&x;
-    ret.push_back(static_cast<std::uint8_t>(intValue >> 24));
-    ret.push_back(static_cast<std::uint8_t>(intValue >> 16));
-    ret.push_back(static_cast<std::uint8_t>(intValue >> 8));
-    ret.push_back(static_cast<std::uint8_t>(intValue));
-
-    intValue = *(std::uint32_t*)&y;
-    ret.push_back(static_cast<std::uint8_t>(intValue >> 24));
-    ret.push_back(static_cast<std::uint8_t>(intValue >> 16));
-    ret.push_back(static_cast<std::uint8_t>(intValue >> 8));
-    ret.push_back(static_cast<std::uint8_t>(intValue));
-
-    intValue = *(std::uint32_t*)&z;
-    ret.push_back(static_cast<std::uint8_t>(intValue >> 24));
-    ret.push_back(static_cast<std::uint8_t>(intValue >> 16));
-    ret.push_back(static_cast<std::uint8_t>(intValue >> 8));
-    ret.push_back(static_cast<std::uint8_t>(intValue));
+    std::vector<std::uint8_t> ret
+    ({
+        static_cast<std::uint8_t>(xInt >> 24),
+        static_cast<std::uint8_t>(xInt >> 16),
+        static_cast<std::uint8_t>(xInt >> 8),
+        static_cast<std::uint8_t>(xInt),
+        static_cast<std::uint8_t>(yInt >> 24),
+        static_cast<std::uint8_t>(yInt >> 16),
+        static_cast<std::uint8_t>(yInt >> 8),
+        static_cast<std::uint8_t>(yInt),
+        static_cast<std::uint8_t>(zInt >> 24),
+        static_cast<std::uint8_t>(zInt >> 16),
+        static_cast<std::uint8_t>(zInt >> 8),
+        static_cast<std::uint8_t>(zInt),
+    });
 
     return ret;
 }

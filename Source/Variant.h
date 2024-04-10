@@ -27,119 +27,87 @@ namespace NanoOcp1
 
 /**
  * @class Variant
- * @brief Representation of a type-safe union, which can be of exactly one type at any time.
+ * Essentially a wrapper class for a std::variant with added functionality:
+ *  - Mutability: as opposed to a pure std::variant, the Variant can be constructed with a given type
+ *    and be later interpreted as a different type using the available To<T> conversion methods.
+ *    Note that these type conversions are mostly only supported between primitive types.
+ *  - Marshaling: A Variant can be directly created (unmarshaled) from a byte vector, 
+ *    and it can also be marshaled into its byte-vector representation using the ToParamData method.
  */
 class Variant
 {
 public:
+    Variant(bool v);
+    Variant(std::int32_t v);
+    Variant(std::uint8_t v);
+    Variant(std::uint16_t v);
+    Variant(std::uint32_t v);
+    Variant(std::uint64_t v);
+    Variant(std::float_t v);
+    Variant(std::double_t v);
+    Variant(const std::string& v);
+    Variant(const char* v);
+    Variant(std::float_t x, std::float_t y, std::float_t z);
+
     /**
-     * TODO: document
+     * Default constructor. Type-less and value-less per default, and will return FALSE on IsValid as such.
      */
     Variant() = default;
 
     /**
-     * TODO: document
-     */
-    Variant(bool v);
-
-    /**
-     * TODO: document
-     */
-    Variant(std::int32_t v);
-
-    /**
-     * TODO: document
-     */
-    Variant(std::uint64_t v);
-
-    /**
-     * TODO: document
-     */
-    Variant(std::float_t v);
-
-    /**
-     * TODO: document
-     */
-    Variant(double v);
-
-    /**
-     * TODO: document
-     */
-    Variant(const std::string& v);
-
-    /**
-     * TODO: document
-     */
-    Variant(std::float_t x, std::float_t y, std::float_t z);
-
-    /**
-     * @brief Class constructor.
+     * Unmarshaling constructor.
+     * Deserializes the data from the passed byte vector into the object using the passed type.
      *
-     * @param[in] data  Byte array representing the parameter data obtained by i.e. an OCP1 Notification or Response. 
-     * @param[in] type  Data type of the Ocp1CommandDefinition associated with that OCP1 Notification or Response.
+     * @param[in] data  Byte vector representing the parameter data obtained by i.e. an OCP1 Notification or Response. 
+     * @param[in] type  Data type of the Ocp1CommandDefinition associated with that OCP1 message.
      */
     Variant(const std::vector<std::uint8_t>& data, Ocp1DataType type = OCP1DATATYPE_BLOB);
 
-    /**
-     * TODO: document
-     */
     virtual ~Variant() = default;
-
-    /**
-     * TODO: document
-     */
     bool operator==(const Variant& other) const;
-
-    /**
-     * TODO: document
-     */
     bool operator!=(const Variant& other) const;
 
     /**
-     * @brief Check if this Variant has a valid value and type, i.e. different than the default TypeNone (std::monostate).
+     * Check if this Variant has a valid value and type, i.e. different than the default TypeNone (std::monostate).
+     * @note A Variant has no value or type per default.
      * 
      * @return True if this Variant is valid.
      */
     bool IsValid() const;
 
     /**
-     * TODO: document
+     * Gives the native type of this Variant, i.e. the type it was created as.
+     *
+     * @return This Variant's native type, as a Ocp1DataType.
      */
-    std::vector<std::uint8_t> ToParamData(Ocp1DataType type = OCP1DATATYPE_BLOB) const;
+    Ocp1DataType GetType() const;
 
     /**
-     * TODO: document
+     * Marshal the Variant's value into a byte-vector representation, based on the desired type.
+     * 
+     * @param[in] type  Data type to unmarshal the Varaiant as. 
+     *                  If this is left as the default (NONE), the Variant's native type will be used.
      */
+    std::vector<std::uint8_t> ToParamData(Ocp1DataType type = OCP1DATATYPE_NONE) const;
+
+    /**
+     * Type conversion methods. 
+     * Note that some of these conversions can leas to signedness change or data loss.
+     */
+
     bool ToBool() const;
-
-    /**
-     * TODO: document
-     */
     std::int32_t ToInt32() const;
-
-    /**
-     * TODO: document
-     */
+    std::uint8_t ToUInt8() const;
+    std::uint16_t ToUInt16() const;
+    std::uint32_t ToUInt32() const;
     std::uint64_t ToUInt64() const;
-
-    /**
-     * TODO: document
-     */
-    double ToDouble() const;
-
-    /**
-     * TODO: document
-     */
     std::float_t ToFloat() const;
-
-    /**
-     * TODO: document
-     */
+    std::double_t ToDouble() const;
     std::string ToString() const;
 
     /**
-     * @brief Convenience helper method to extract x, y, and z float values from a Variant.
-     * @details The Variant should internally contain the values as 3 x 4 bytes.
+     * Convenience helper method to extract x, y, and z float values from a Variant.
+     * The Variant should internally contain the values as 3 x 4 bytes.
      * 
      * @param[in] pOk   Optional parameter to verify if the conversion was successful.
      * @return  The contained x, y, and z values.
@@ -147,7 +115,7 @@ public:
     std::array<std::float_t, 3> ToPosition(bool* pOk = nullptr) const;
 
     /**
-     * @brief Convenience helper method to extract x, y, z, horizontal angle, vertical angle
+     * Convenience helper method to extract x, y, z, horizontal angle, vertical angle
      * and rotation angle float values from a Variant.
      *
      * @param[in] pOk   Optional parameter to verify if the conversion was successful.
@@ -156,7 +124,7 @@ public:
     std::array<std::float_t, 6> ToPositionAndRotation(bool* pOk = nullptr) const;
 
     /**
-     * @brief Convenience helper method to extract a std::vector<bool> from a from a Variant.
+     * Convenience helper method to extract a std::vector<bool> from a from a Variant.
      * The Variant's contents need to be marshalled as an OcaList<OcaBoolean>.
      *
      * @param[in] pOk   Optional parameter to verify if the conversion was successful.
@@ -165,7 +133,7 @@ public:
     std::vector<bool> ToBoolVector(bool* pOk = nullptr) const;
 
     /**
-     * @brief Convenience helper method to extract a juce::StringArray from a from a Variant.
+     * Convenience helper method to extract a juce::StringArray from a from a Variant.
      * The Variant's contents need to be marshalled as an OcaList<OcaString>.
      *
      * @param[in] pOk   Optional parameter to verify if the conversion was successful.
@@ -176,38 +144,50 @@ public:
 
 protected:
     /**
-     * TODO: document
+     * Marshals the Variant into a byte vector using a format based on the Variant's native type.
+     * 
+     * @return  The Variant's byte vector representation.
      */
     std::vector<std::uint8_t> ToByteVector() const;
 
     /**
-     * TODO: document
+     * Used internally to identify the possible types that the internal std::variant can assume.
+     * Mirrors enum Ocp1DataType, but without gaps (essential for std::variant) or unused types.
      */
     enum TypeIndex
     {
         TypeNone = 0,
         TypeBool,
         TypeInt32,
+        TypeUInt8,
+        TypeUInt16,
+        TypeUInt32,
         TypeUInt64,
+        TypeFloat,
         TypeDouble,
         TypeString,
         TypeByteVector
     };
 
     /**
-     * TODO: document
+     * Definition of the internal std::variant class template.
+     * The internal m_value holds a value of exactly one of the alternative types at any given time.
      */
     using VariantType = std::variant<std::monostate,                // TypeNone
                                      bool,                          // TypeBool
                                      std::int32_t,                  // TypeInt32
+                                     std::uint8_t,                  // TypeUInt8
+                                     std::uint16_t,                 // TypeUInt16
+                                     std::uint32_t,                 // TypeUInt32
                                      std::uint64_t,                 // TypeUInt64
-                                     double,                        // TypeDouble
+                                     std::float_t,                  // TypeFloat
+                                     std::double_t,                 // TypeDouble
                                      std::string,                   // TypeString
                                      std::vector<std::uint8_t>>;    // TypeByteVector
 
 private:
     /**
-     * TODO: document
+     * Internal value as a std::variant.
      */
     VariantType m_value;
 };

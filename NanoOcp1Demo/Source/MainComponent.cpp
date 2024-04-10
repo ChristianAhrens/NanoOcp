@@ -139,7 +139,7 @@ MainComponent::MainComponent()
     setSize(300, 200);
 
     // create the nano ocp1 client and fire it up
-    m_nanoOcp1Client = std::make_unique<NanoOcp1::NanoOcp1Client>(address, port);
+    m_nanoOcp1Client = std::make_unique<NanoOcp1::NanoOcp1Client>(address, port, true /* synch callbacks */);
     m_nanoOcp1Client->onDataReceived = [=](const juce::MemoryBlock& message)
     {
         return OnOcp1MessageReceived(message);
