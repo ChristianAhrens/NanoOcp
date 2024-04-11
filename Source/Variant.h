@@ -18,8 +18,9 @@
 
 #pragma once
 
-#include <JuceHeader.h>
-#include "Ocp1DataTypes.h"
+#include <JuceHeader.h>     //< USE juce::StringArray
+#include <variant>          //< USE std::variant
+#include "Ocp1DataTypes.h"  //< USE NanoOcp1::Ocp1DataType
 
 
 namespace NanoOcp1
