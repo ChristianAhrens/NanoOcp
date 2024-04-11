@@ -640,6 +640,7 @@ std::vector<bool> Variant::ToBoolVector(bool* pOk) const
     if (ok)
         listSize = NanoOcp1::DataToUint16(vec, &ok);
 
+    ok = ok && (vec.size() == listSize + 2);
     if (ok && listSize > 0)
     {
         boolVector.reserve(listSize);
@@ -671,6 +672,7 @@ juce::StringArray Variant::ToStringArray(bool* pOk) const
     if (ok)
         listSize = NanoOcp1::DataToUint16(vec, &ok);
 
+    ok = ok && (vec.size() == listSize + 2); // Byte vector has the right size
     if (ok && listSize > 0)
     {
         stringArray.ensureStorageAllocated(listSize);
