@@ -81,7 +81,7 @@ public:
      *
      * @return This Variant's native type, as a Ocp1DataType.
      */
-    Ocp1DataType GetType() const;
+    Ocp1DataType GetDataType() const;
 
     /**
      * Marshal the Variant's value into a byte-vector representation, based on the desired type.

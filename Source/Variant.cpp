@@ -135,7 +135,7 @@ bool Variant::IsValid() const
     return (m_value.index() != TypeNone);
 }
 
-Ocp1DataType Variant::GetType() const
+Ocp1DataType Variant::GetDataType() const
 {
     switch (m_value.index())
     {
@@ -536,7 +536,7 @@ std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATY
 {
     Ocp1DataType nativeType(type);
     if (type == OCP1DATATYPE_NONE)
-        nativeType = GetType();
+        nativeType = GetDataType();
 
     switch (nativeType)
     {
@@ -580,7 +580,16 @@ std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATY
 std::array<std::float_t, 3> Variant::ToPosition(bool* pOk) const
 {
     std::array<std::float_t, 3> ret{ 0.0f };
-    auto data = ToByteVector();
+
+    if (m_value.index() != TypeByteVector)
+    {
+        if (pOk != nullptr)
+            *pOk = false;
+
+        return ret;
+    }
+
+    const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
     bool ok = ((data.size() == 12) || // Value contains 3 floats: x, y, z.
                (data.size() == 36));  // Value contains 9 floats: x, y, z, plus min and max each on top.
 
@@ -602,7 +611,16 @@ std::array<std::float_t, 3> Variant::ToPosition(bool* pOk) const
 std::array<std::float_t, 6> Variant::ToPositionAndRotation(bool* pOk) const
 {
     std::array<std::float_t, 6> ret{ 0.0f };
-    auto data = ToByteVector();
+
+    if (m_value.index() != TypeByteVector)
+    {
+        if (pOk != nullptr)
+            *pOk = false;
+
+        return ret;
+    }
+
+    const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
     bool ok = (data.size() == 24); // Value contains 6 floats: x, y, z, horAngle, vertAngle, rotAngle.
     
     if (ok)
@@ -633,21 +651,29 @@ std::vector<bool> Variant::ToBoolVector(bool* pOk) const
 {
     std::vector<bool> boolVector;
 
-    auto vec = ToByteVector();
-    bool ok = (vec.size() >= 2); // OcaList size takes up the first 2 bytes.
+    if (m_value.index() != TypeByteVector)
+    {
+        if (pOk != nullptr)
+            *pOk = false;
+
+        return boolVector;
+    }
+
+    const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
+    bool ok = (data.size() >= 2); // OcaList size takes up the first 2 bytes.
 
     std::uint16_t listSize(0);
     if (ok)
-        listSize = NanoOcp1::DataToUint16(vec, &ok);
+        listSize = NanoOcp1::DataToUint16(data, &ok);
 
-    ok = ok && (vec.size() == listSize + 2);
+    ok = ok && (data.size() == listSize + 2);
     if (ok && listSize > 0)
     {
         boolVector.reserve(listSize);
         std::size_t readPos(2); // Start after the OcaList size bytes
-        while (readPos < vec.size() && ok)
+        while (readPos < data.size() && ok)
         {
-            std::vector<std::uint8_t> tmpData(vec.data() + readPos, vec.data() + readPos + 1);
+            std::vector<std::uint8_t> tmpData(data.data() + readPos, data.data() + readPos + 1);
             boolVector.push_back(NanoOcp1::DataToBool(tmpData, &ok));
             readPos++;
         }
@@ -665,27 +691,35 @@ juce::StringArray Variant::ToStringArray(bool* pOk) const
 {
     juce::StringArray stringArray;
 
-    auto vec = ToByteVector();
-    bool ok = (vec.size() >= 2); // OcaList size takes up the first 2 bytes.
+    if (m_value.index() != TypeByteVector)
+    {
+        if (pOk != nullptr)
+            *pOk = false;
+
+        return stringArray;
+    }
+
+    const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
+    bool ok = (data.size() >= 2); // OcaList size takes up the first 2 bytes.
 
     std::uint16_t listSize(0);
     if (ok)
-        listSize = NanoOcp1::DataToUint16(vec, &ok);
+        listSize = NanoOcp1::DataToUint16(data, &ok);
 
-    ok = ok && (vec.size() == listSize + 2); // Byte vector has the right size
+    ok = ok && (data.size() == listSize + 2); // Byte vector has the right size
     if (ok && listSize > 0)
     {
         stringArray.ensureStorageAllocated(listSize);
         std::size_t readPos(2); // Start after the OcaList size bytes
-        while (readPos < vec.size() && ok)
+        while (readPos < data.size() && ok)
         {
-            std::vector<std::uint8_t> stringLenData(vec.data() + readPos, vec.data() + readPos + 2);
+            std::vector<std::uint8_t> stringLenData(data.data() + readPos, data.data() + readPos + 2);
             auto stringLen = NanoOcp1::DataToUint16(stringLenData, &ok);
             readPos += 2;
 
             if (ok)
             {
-                stringArray.add(juce::String(std::string(vec.data() + readPos, vec.data() + readPos + stringLen)));
+                stringArray.add(juce::String(std::string(data.data() + readPos, data.data() + readPos + stringLen)));
                 readPos += stringLen;
             }
         }
