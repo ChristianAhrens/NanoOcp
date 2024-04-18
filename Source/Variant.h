@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <JuceHeader.h>     //< USE juce::StringArray
 #include <variant>          //< USE std::variant
 #include "Ocp1DataTypes.h"  //< USE NanoOcp1::Ocp1DataType
 
@@ -134,13 +133,13 @@ public:
     std::vector<bool> ToBoolVector(bool* pOk = nullptr) const;
 
     /**
-     * Convenience helper method to extract a juce::StringArray from a from a Variant.
+     * Convenience helper method to extract a std::vector<std::string> from a from a Variant.
      * The Variant's contents need to be marshalled as an OcaList<OcaString>.
      *
      * @param[in] pOk   Optional parameter to verify if the conversion was successful.
      * @return  The resulting OcaList<OcaBoolean> as a std::vector<bool>.
      */
-    juce::StringArray ToStringArray(bool* pOk = nullptr) const;
+    std::vector<std::string> ToStringVector(bool* pOk = nullptr) const;
 
 
 protected:

@@ -687,16 +687,16 @@ std::vector<bool> Variant::ToBoolVector(bool* pOk) const
     return boolVector;
 }
 
-juce::StringArray Variant::ToStringArray(bool* pOk) const
+std::vector<std::string> Variant::ToStringVector(bool* pOk) const
 {
-    juce::StringArray stringArray;
+    std::vector<std::string> stringVector;
 
     if (m_value.index() != TypeByteVector)
     {
         if (pOk != nullptr)
             *pOk = false;
 
-        return stringArray;
+        return stringVector;
     }
 
     const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
@@ -709,7 +709,7 @@ juce::StringArray Variant::ToStringArray(bool* pOk) const
     ok = ok && (data.size() == listSize + 2); // Byte vector has the right size
     if (ok && listSize > 0)
     {
-        stringArray.ensureStorageAllocated(listSize);
+        stringVector.reserve(static_cast<size_t>(listSize));
         std::size_t readPos(2); // Start after the OcaList size bytes
         while (readPos < data.size() && ok)
         {
@@ -719,18 +719,18 @@ juce::StringArray Variant::ToStringArray(bool* pOk) const
 
             if (ok)
             {
-                stringArray.add(juce::String(std::string(data.data() + readPos, data.data() + readPos + stringLen)));
+                stringVector.push_back(std::string(data.data() + readPos, data.data() + readPos + stringLen));
                 readPos += stringLen;
             }
         }
     }
 
-    ok = ok && (stringArray.size() == listSize);
+    ok = ok && (stringVector.size() == listSize);
 
     if (pOk != nullptr)
         *pOk = ok;
 
-    return stringArray;
+    return stringVector;
 }
 
 }
