@@ -20,6 +20,7 @@
 
 #include <JuceHeader.h>
 #include "Variant.h"
+#include "Ocp1DataTypes.h" //< USE Ocp1DataType
 
 
 namespace NanoOcp1
@@ -106,6 +107,16 @@ struct Ocp1CommandDefinition
      * @return A pointer to a copy of this object. It is the caller's responsibility to worry about the object's ownership.
      */
     virtual Ocp1CommandDefinition* Clone() const;
+
+    /**
+     * Convenience getter method for the Ocp1CommandDefinition's type.
+     *
+     * @return the Ocp1CommandDefinition's type as a Ocp1DataType.
+     */
+    Ocp1DataType GetDataType() const
+    {
+        return static_cast<Ocp1DataType>(m_propertyType);
+    }
 
 
     std::uint32_t m_targetOno;

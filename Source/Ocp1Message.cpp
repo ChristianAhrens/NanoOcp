@@ -58,7 +58,7 @@ Ocp1CommandDefinition Ocp1CommandDefinition::GetValueCommand() const
 
 Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const Variant& newValue) const
 {
-    std::vector<std::uint8_t> newParamData = newValue.ToParamData(static_cast<Ocp1DataType>(m_propertyType));
+    std::vector<std::uint8_t> newParamData = newValue.ToParamData(GetDataType());
 
     return Ocp1CommandDefinition(m_targetOno,
                                  m_propertyType,
