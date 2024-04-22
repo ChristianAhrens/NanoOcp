@@ -17,6 +17,7 @@
  */
 
 #include "Variant.h"
+#include <assert.h>
 
 
 namespace NanoOcp1
@@ -35,7 +36,7 @@ Variant::Variant(const char* v) : Variant(std::string(v)) { } // Allow Variant("
 
 Variant::Variant(std::float_t x, std::float_t y, std::float_t z)
 {
-    jassert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast to work below
+    assert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast to work below
     std::uint32_t xInt = *(std::uint32_t*)&x;
     std::uint32_t yInt = *(std::uint32_t*)&y;
     std::uint32_t zInt = *(std::uint32_t*)&z;
@@ -117,7 +118,7 @@ Variant::Variant(const std::vector<std::uint8_t>& data, Ocp1DataType type)
             break;
     }
 
-    jassert(ok); // Conversion not possible or not yet implemented!
+    assert(ok); // Conversion not possible or not yet implemented!
 }
 
 bool Variant::operator==(const Variant& other) const
@@ -190,7 +191,7 @@ bool Variant::ToBool() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return false;
 }
 
@@ -215,7 +216,14 @@ std::int32_t Variant::ToInt32() const
         case TypeDouble:
             return std::lround(std::get<std::double_t>(m_value));
         case TypeString:
-            return std::stol(std::get<std::string>(m_value));
+            try 
+            { 
+                return std::stol(std::get<std::string>(m_value)); 
+            } 
+            catch (...) 
+            { 
+                break; 
+            }
         case TypeByteVector:
             {
                 bool ok;
@@ -228,7 +236,7 @@ std::int32_t Variant::ToInt32() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::int32_t(0);
 }
 
@@ -253,7 +261,14 @@ std::uint8_t Variant::ToUInt8() const
         case TypeDouble:
             return static_cast<std::uint8_t>(std::lround(std::get<std::double_t>(m_value)));
         case TypeString:
-            return static_cast<std::uint8_t>(std::stol(std::get<std::string>(m_value)));
+            try
+            {
+                return static_cast<std::uint8_t>(std::stol(std::get<std::string>(m_value)));
+            }
+            catch (...)
+            {
+                break;
+            }
         case TypeByteVector:
             {
                 bool ok;
@@ -266,7 +281,7 @@ std::uint8_t Variant::ToUInt8() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::uint8_t(0);
 }
 
@@ -291,7 +306,14 @@ std::uint16_t Variant::ToUInt16() const
         case TypeDouble:
             return static_cast<std::uint16_t>(std::lround(std::get<std::double_t>(m_value)));
         case TypeString:
-            return static_cast<std::uint16_t>(std::stoi(std::get<std::string>(m_value)));
+            try
+            {
+                return static_cast<std::uint16_t>(std::stoi(std::get<std::string>(m_value)));
+            }
+            catch (...)
+            {
+                break;
+            }
         case TypeByteVector:
             {
                 bool ok;
@@ -304,7 +326,7 @@ std::uint16_t Variant::ToUInt16() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::uint16_t(0);
 }
 
@@ -329,7 +351,14 @@ std::uint32_t Variant::ToUInt32() const
         case TypeDouble:
             return static_cast<std::uint32_t>(std::lround(std::get<std::double_t>(m_value)));
         case TypeString:
-            return static_cast<std::uint32_t>(std::stoi(std::get<std::string>(m_value)));
+            try
+            {
+                return static_cast<std::uint32_t>(std::stoi(std::get<std::string>(m_value)));
+            }
+            catch (...)
+            {
+                break;
+            }
         case TypeByteVector:
             {
                 bool ok;
@@ -342,7 +371,7 @@ std::uint32_t Variant::ToUInt32() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::uint32_t(0);
 }
 
@@ -367,7 +396,14 @@ std::uint64_t Variant::ToUInt64() const
         case TypeDouble:
             return static_cast<std::uint64_t>(std::llround(std::get<std::double_t>(m_value)));
         case TypeString:
-            return static_cast<std::uint64_t>(std::stoll(std::get<std::string>(m_value)));
+            try
+            {
+                return static_cast<std::uint64_t>(std::stoll(std::get<std::string>(m_value)));
+            }
+            catch (...)
+            {
+                break;
+            }
         case TypeByteVector:
             {
                 bool ok;
@@ -380,7 +416,7 @@ std::uint64_t Variant::ToUInt64() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::uint64_t(0);
 }
 
@@ -405,7 +441,14 @@ std::double_t Variant::ToDouble() const
         case TypeDouble:
             return std::get<std::double_t>(m_value);
         case TypeString:
-            return std::stod(std::get<std::string>(m_value));
+            try
+            {
+                return std::stod(std::get<std::string>(m_value));
+            }
+            catch (...)
+            {
+                break;
+            }
         case TypeByteVector:
             {
                 bool ok;
@@ -418,7 +461,7 @@ std::double_t Variant::ToDouble() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::double_t(0.0);
 }
 
@@ -443,7 +486,14 @@ std::float_t Variant::ToFloat() const
         case TypeDouble:
             return static_cast<std::float_t>(std::get<std::double_t>(m_value));
         case TypeString:
-            return static_cast<std::float_t>(std::stof(std::get<std::string>(m_value)));
+            try
+            {
+                return static_cast<std::float_t>(std::stof(std::get<std::string>(m_value)));
+            }
+            catch (...)
+            {
+                break;
+            }
         case TypeByteVector:
             {
                 bool ok;
@@ -456,7 +506,7 @@ std::float_t Variant::ToFloat() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::float_t(0.0f);
 }
 
@@ -496,7 +546,7 @@ std::string Variant::ToString() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::string{};
 }
 
@@ -528,7 +578,7 @@ std::vector<std::uint8_t> Variant::ToByteVector() const
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::vector<std::uint8_t>{};
 }
 
@@ -573,7 +623,7 @@ std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATY
             break;
     }
 
-    jassertfalse; // Conversion not possible or not yet implemented!
+    assert(false); // Conversion not possible or not yet implemented!
     return std::vector<std::uint8_t>{};
 }
 
