@@ -157,8 +157,10 @@ Ocp1DataType Variant::GetDataType() const
     return OCP1DATATYPE_NONE;
 }
 
-bool Variant::ToBool() const
+bool Variant::ToBool(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -180,23 +182,21 @@ bool Variant::ToBool() const
         case TypeString:
             return (std::get<std::string>(m_value) == "true");
         case TypeByteVector:
-            {
-                bool ok;
-                auto val = DataToBool(std::get<std::vector<std::uint8_t>>(m_value), &ok);
-                if (ok)
-                    return val;
-            }
-            break;
+            return DataToBool(std::get<std::vector<std::uint8_t>>(m_value), pOk);
         default:
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return false;
 }
 
-std::int32_t Variant::ToInt32() const
+std::int32_t Variant::ToInt32(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -225,23 +225,21 @@ std::int32_t Variant::ToInt32() const
                 break; 
             }
         case TypeByteVector:
-            {
-                bool ok;
-                auto val = DataToInt32(std::get<std::vector<std::uint8_t>>(m_value), &ok);
-                if (ok)
-                    return val;
-            }
-            break;
+            return DataToInt32(std::get<std::vector<std::uint8_t>>(m_value), pOk);
         default:
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return std::int32_t(0);
 }
 
-std::uint8_t Variant::ToUInt8() const
+std::uint8_t Variant::ToUInt8(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -270,23 +268,21 @@ std::uint8_t Variant::ToUInt8() const
                 break;
             }
         case TypeByteVector:
-            {
-                bool ok;
-                auto val = DataToUint8(std::get<std::vector<std::uint8_t>>(m_value), &ok);
-                if (ok)
-                    return val;
-            }
-            break;
+            return DataToUint8(std::get<std::vector<std::uint8_t>>(m_value), pOk);
         default:
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return std::uint8_t(0);
 }
 
-std::uint16_t Variant::ToUInt16() const
+std::uint16_t Variant::ToUInt16(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -315,23 +311,21 @@ std::uint16_t Variant::ToUInt16() const
                 break;
             }
         case TypeByteVector:
-            {
-                bool ok;
-                auto val = DataToUint16(std::get<std::vector<std::uint8_t>>(m_value), &ok);
-                if (ok)
-                    return val;
-            }
-            break;
+            return DataToUint16(std::get<std::vector<std::uint8_t>>(m_value), pOk);
         default:
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return std::uint16_t(0);
 }
 
-std::uint32_t Variant::ToUInt32() const
+std::uint32_t Variant::ToUInt32(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -360,23 +354,21 @@ std::uint32_t Variant::ToUInt32() const
                 break;
             }
         case TypeByteVector:
-            {
-                bool ok;
-                auto val = DataToUint32(std::get<std::vector<std::uint8_t>>(m_value), &ok);
-                if (ok)
-                    return val;
-            }
-            break;
+            return DataToUint32(std::get<std::vector<std::uint8_t>>(m_value), pOk);
         default:
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return std::uint32_t(0);
 }
 
-std::uint64_t Variant::ToUInt64() const
+std::uint64_t Variant::ToUInt64(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -405,23 +397,21 @@ std::uint64_t Variant::ToUInt64() const
                 break;
             }
         case TypeByteVector:
-            {
-                bool ok;
-                auto val = DataToUint64(std::get<std::vector<std::uint8_t>>(m_value), &ok);
-                if (ok)
-                    return val;
-            }
-            break;
+            return DataToUint64(std::get<std::vector<std::uint8_t>>(m_value), pOk);
         default:
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return std::uint64_t(0);
 }
 
-std::double_t Variant::ToDouble() const
+std::double_t Variant::ToDouble(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -450,23 +440,21 @@ std::double_t Variant::ToDouble() const
                 break;
             }
         case TypeByteVector:
-            {
-                bool ok;
-                auto val = DataToDouble(std::get<std::vector<std::uint8_t>>(m_value), &ok);
-                if (ok)
-                    return val;
-            }
-            break;
+            return DataToDouble(std::get<std::vector<std::uint8_t>>(m_value), pOk);
         default:
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return std::double_t(0.0);
 }
 
-std::float_t Variant::ToFloat() const
+std::float_t Variant::ToFloat(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -495,23 +483,21 @@ std::float_t Variant::ToFloat() const
                 break;
             }
         case TypeByteVector:
-            {
-                bool ok;
-                auto val = DataToFloat(std::get<std::vector<std::uint8_t>>(m_value), &ok);
-                if (ok)
-                    return val;
-            }
-            break;
+            return DataToFloat(std::get<std::vector<std::uint8_t>>(m_value), pOk);
         default:
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return std::float_t(0.0f);
 }
 
-std::string Variant::ToString() const
+std::string Variant::ToString(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -546,12 +532,16 @@ std::string Variant::ToString() const
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return std::string{};
 }
 
-std::vector<std::uint8_t> Variant::ToByteVector() const
+std::vector<std::uint8_t> Variant::ToByteVector(bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     switch (m_value.index())
     {
         case TypeBool:
@@ -578,12 +568,16 @@ std::vector<std::uint8_t> Variant::ToByteVector() const
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+
     return std::vector<std::uint8_t>{};
 }
 
-std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATYPE_NONE */) const
+std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATYPE_NONE */, bool* pOk) const
 {
+    if (pOk != nullptr) *pOk = true;
+
     Ocp1DataType nativeType(type);
     if (type == OCP1DATATYPE_NONE)
         nativeType = GetDataType();
@@ -591,27 +585,27 @@ std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATY
     switch (nativeType)
     {
         case OCP1DATATYPE_BOOLEAN:
-            return DataFromBool(ToBool());
+            return DataFromBool(ToBool(pOk));
         case OCP1DATATYPE_INT32:
-            return DataFromInt32(ToInt32());
+            return DataFromInt32(ToInt32(pOk));
         case OCP1DATATYPE_UINT8:
-            return DataFromUint8(ToUInt8());
+            return DataFromUint8(ToUInt8(pOk));
         case OCP1DATATYPE_UINT16:
-            return DataFromUint16(ToUInt16());
+            return DataFromUint16(ToUInt16(pOk));
         case OCP1DATATYPE_UINT32:
-            return DataFromUint32(ToUInt32());
+            return DataFromUint32(ToUInt32(pOk));
         case OCP1DATATYPE_UINT64:
-            return DataFromUint64(ToUInt64());
+            return DataFromUint64(ToUInt64(pOk));
         case OCP1DATATYPE_FLOAT32:
-            return DataFromFloat(ToFloat());
+            return DataFromFloat(ToFloat(pOk));
         case OCP1DATATYPE_FLOAT64:
-            return DataFromDouble(ToDouble());
+            return DataFromDouble(ToDouble(pOk));
         case OCP1DATATYPE_STRING:
-            return DataFromString(ToString());
+            return DataFromString(ToString(pOk));
         case OCP1DATATYPE_BLOB:
-            return ToByteVector();
+            return ToByteVector(pOk);
         case OCP1DATATYPE_DB_POSITION:
-            return ToByteVector();
+            return ToByteVector(pOk);
         case OCP1DATATYPE_NONE:
         case OCP1DATATYPE_INT8:
         case OCP1DATATYPE_INT16:
@@ -623,7 +617,9 @@ std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATY
             break;
     }
 
-    assert(false); // Conversion not possible or not yet implemented!
+    // Conversion not possible or not yet implemented!
+    if (pOk != nullptr) *pOk = false;
+    
     return std::vector<std::uint8_t>{};
 }
 

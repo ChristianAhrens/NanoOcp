@@ -85,25 +85,26 @@ public:
     /**
      * Marshal the Variant's value into a byte-vector representation, based on the desired type.
      * 
-     * @param[in] type  Data type to unmarshal the Varaiant as. 
+     * @param[in] type  Data type to unmarshal the Varaiant as.
      *                  If this is left as the default (NONE), the Variant's native type will be used.
+     * @param[in] pOk   Optional parameter to verify if the conversion was successful.
      */
-    std::vector<std::uint8_t> ToParamData(Ocp1DataType type = OCP1DATATYPE_NONE) const;
+    std::vector<std::uint8_t> ToParamData(Ocp1DataType type = OCP1DATATYPE_NONE, bool* pOk = nullptr) const;
 
     /**
      * Type conversion methods. 
      * Note that some of these conversions can leas to signedness change or data loss.
      */
 
-    bool ToBool() const;
-    std::int32_t ToInt32() const;
-    std::uint8_t ToUInt8() const;
-    std::uint16_t ToUInt16() const;
-    std::uint32_t ToUInt32() const;
-    std::uint64_t ToUInt64() const;
-    std::float_t ToFloat() const;
-    std::double_t ToDouble() const;
-    std::string ToString() const;
+    bool ToBool(bool* pOk = nullptr) const;
+    std::int32_t ToInt32(bool* pOk = nullptr) const;
+    std::uint8_t ToUInt8(bool* pOk = nullptr) const;
+    std::uint16_t ToUInt16(bool* pOk = nullptr) const;
+    std::uint32_t ToUInt32(bool* pOk = nullptr) const;
+    std::uint64_t ToUInt64(bool* pOk = nullptr) const;
+    std::float_t ToFloat(bool* pOk = nullptr) const;
+    std::double_t ToDouble(bool* pOk = nullptr) const;
+    std::string ToString(bool* pOk = nullptr) const;
 
     /**
      * Convenience helper method to extract x, y, and z float values from a Variant.
@@ -146,9 +147,10 @@ protected:
     /**
      * Marshals the Variant into a byte vector using a format based on the Variant's native type.
      * 
+     * @param[in] pOk   Optional parameter to verify if the conversion was successful.
      * @return  The Variant's byte vector representation.
      */
-    std::vector<std::uint8_t> ToByteVector() const;
+    std::vector<std::uint8_t> ToByteVector(bool* pOk = nullptr) const;
 
     /**
      * Used internally to identify the possible types that the internal std::variant can assume.
