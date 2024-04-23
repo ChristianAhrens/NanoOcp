@@ -756,7 +756,8 @@ std::vector<std::string> Variant::ToStringVector(bool* pOk) const
     if (ok)
         listSize = NanoOcp1::DataToUint16(data, &ok);
 
-    ok = ok && (data.size() == listSize + 2); // Byte vector has the right size
+    // Byte vector has the right size even assuming empty strings (min 2 bytes per string + 2 bytes for list size).
+    ok = ok && (data.size() >= ((listSize * 2) + 2));
     if (ok && listSize > 0)
     {
         stringVector.reserve(static_cast<size_t>(listSize));
