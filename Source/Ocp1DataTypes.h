@@ -18,8 +18,9 @@
 
 #pragma once
 
-#include <JuceHeader.h>
-
+#include <vector>       //< USE std::vector
+#include <string>       //< USE std::to_string
+#include <cmath>        //< USE std::float_t, std::double_t
 
 namespace NanoOcp1
 {
@@ -153,22 +154,22 @@ std::uint64_t DataToUint64(const std::vector<std::uint8_t>& parameterData, bool*
 std::vector<std::uint8_t> DataFromUint64(std::uint64_t value);
 
 /**
- * Convenience helper method to convert a byte vector into a juce::String
+ * Convenience helper method to convert a byte vector into a std::string
  *
  * @param[in] parameterData     Vector of bytes containing the string to be converted.
  *                              Note that the first two bytes contain the string's length.
  * @param[in] pOk               Optional parameter to verify if the conversion was successful.
- * @return  The string contained in the parameterData as a juce::String.
+ * @return  The string contained in the parameterData as a std::string.
  */
-juce::String DataToString(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+std::string DataToString(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
 
 /**
- * Convenience helper method to convert a juce::String into a byte vector
+ * Convenience helper method to convert a std::string into a byte vector
  *
- * @param[in] string     juce::String to be converted.
+ * @param[in] string     std::string to be converted.
  * @return  The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromString(const juce::String& string);
+std::vector<std::uint8_t> DataFromString(const std::string& string);
 
 /**
  * Convenience helper method to convert a byte vector into a 32-bit float.
@@ -243,7 +244,7 @@ std::vector<std::uint8_t> DataFromOnoForSubscription(std::uint32_t ono, bool add
  * @param[in] status     Integer representing an OcaStatus.
  * @return  The string representation of the OcaStatus.
  */
-juce::String StatusToString(std::uint8_t status);
+std::string StatusToString(std::uint8_t status);
 
 /**
  * Convenience method to convert an integer representing an Ocp1DataType to its string representation.
@@ -251,16 +252,16 @@ juce::String StatusToString(std::uint8_t status);
  * @param[in] dataType  Integer representing an Ocp1DataType.
  * @return  The string representation of the Ocp1DataType.
  */
-juce::String DataTypeToString(int dataType);
+std::string DataTypeToString(int dataType);
 
 /**
  * Convenience method to convert an integer representing an OCA Response handle to its string representation.
- * It will return juce::String(handle) most of the time, except in cases OCA_INVALID_SESSIONID and OCA_LOCAL_SESSIONID.
+ * It will return std::string(handle) most of the time, except in cases OCA_INVALID_SESSIONID and OCA_LOCAL_SESSIONID.
  *
  * @param[in] handle     OCA Response handle.
  * @return  The string representation of the handle.
  */
-juce::String HandleToString(std::uint32_t handle);
+std::string HandleToString(std::uint32_t handle);
 
 /**
  * Convenience method to read 4 bytes from a buffer.

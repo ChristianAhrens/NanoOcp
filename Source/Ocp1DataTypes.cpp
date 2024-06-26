@@ -15,9 +15,10 @@
  * along with this library; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
- 
-#include "Ocp1DataTypes.h"
 
+#include <JuceHeader.h>
+
+#include "Ocp1DataTypes.h"
 
 namespace NanoOcp1
 {
@@ -210,16 +211,13 @@ std::vector<std::uint8_t> DataFromUint64(std::uint64_t intValue)
         });
 }
 
-juce::String DataToString(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+std::string DataToString(const std::vector<std::uint8_t>& parameterData, bool* pOk)
 {
-    juce::String ret(0);
+    std::string ret;
 
     bool ok = parameterData.size() >= 2; // At least 2 bytes for the string length
     if (ok)
-    {
-        ret.preallocateBytes(parameterData.size() - 1);
-        ret = juce::String(std::string(parameterData.begin() + 2, parameterData.end()));
-    }
+        ret = std::string(parameterData.begin() + 2, parameterData.end());
     
     if (pOk != nullptr)
     {
@@ -229,15 +227,15 @@ juce::String DataToString(const std::vector<std::uint8_t>& parameterData, bool* 
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromString(const juce::String& string)
+std::vector<std::uint8_t> DataFromString(const std::string& string)
 {
     std::vector<std::uint8_t> ret;
 
-    const char* pStringData = string.toRawUTF8();
-    int stringLength = string.length();
+    const char* pStringData = string.c_str();
+    std::size_t stringLength = string.length();
     
-    ret.reserve(static_cast<std::size_t>(stringLength + 2));
-    ret.push_back(static_cast<std::uint8_t>(stringLength >> 8));
+    ret.reserve(stringLength + static_cast<std::size_t>(2));
+    ret.push_back(static_cast<std::uint8_t>(stringLength >> static_cast<std::size_t>(8)));
     ret.push_back(static_cast<std::uint8_t>(stringLength));
     for (int i = 0; i < stringLength; i++)
     {
@@ -442,124 +440,124 @@ std::vector<std::uint8_t> DataFromOnoForSubscription(std::uint32_t ono, bool add
     return ret;
 }
 
-juce::String StatusToString(std::uint8_t status)
+std::string StatusToString(std::uint8_t status)
 {
-    juce::String result;
+    std::string result;
 
     switch (status)
     {
         case 0: // OCASTATUS_OK:
-            result = juce::String("OK");
+            result = std::string("OK");
             break;
         case 1: // OCASTATUS_PROTOCOL_VERSION_ERROR:
-            result = juce::String("ProtocolVersionError");
+            result = std::string("ProtocolVersionError");
             break;
         case 2: // OCASTATUS_DEVICE_ERROR:
-            result = juce::String("DeviceError");
+            result = std::string("DeviceError");
             break;
         case 3: // OCASTATUS_LOCKED:
-            result = juce::String("Locked");
+            result = std::string("Locked");
             break;
         case 4: // OCASTATUS_BAD_FORMAT:
-            result = juce::String("BadFormat");
+            result = std::string("BadFormat");
             break;
         case 5: // OCASTATUS_BAD_ONO:
-            result = juce::String("BadONo");
+            result = std::string("BadONo");
             break;
         case 6: // OCASTATUS_PARAMETER_ERROR:
-            result = juce::String("ParameterError");
+            result = std::string("ParameterError");
             break;
         case 7: // OCASTATUS_PARAMETER_OUT_OF_RANGE:
-            result = juce::String("ParameterOutOfRange");
+            result = std::string("ParameterOutOfRange");
             break;
         case 8: // OCASTATUS_NOT_IMPLEMENTED:
-            result = juce::String("NotImplemented");
+            result = std::string("NotImplemented");
             break;
         case 9: // OCASTATUS_INVALID_REQUEST:
-            result = juce::String("InvalidRequest");
+            result = std::string("InvalidRequest");
             break;
         case 10: // OCASTATUS_PROCESSING_FAILED:
-            result = juce::String("ProcessingFailed");
+            result = std::string("ProcessingFailed");
             break;
         case 11: // OCASTATUS_BAD_METHOD:
-            result = juce::String("BadMethod");
+            result = std::string("BadMethod");
             break;
         case 12: // OCASTATUS_PARTIALLY_SUCCEEDED:
-            result = juce::String("PartiallySucceeded");
+            result = std::string("PartiallySucceeded");
             break;
         case 13: // OCASTATUS_TIMEOUT:
-            result = juce::String("Timeout");
+            result = std::string("Timeout");
             break;
         case 14: // OCASTATUS_BUFFER_OVERFLOW:
-            result = juce::String("BufferOverflow");
+            result = std::string("BufferOverflow");
             break;
         case 15: // OCASTATUS_PERMISSION_DENIED:
-            result = juce::String("PermissionDenied");
+            result = std::string("PermissionDenied");
             break;
         default:
-            result = juce::String(status);
+            result = std::to_string(status);
             break;
     }
 
     return result;
 }
 
-juce::String DataTypeToString(int dataType)
+std::string DataTypeToString(int dataType)
 {
-    juce::String result;
+    std::string result;
 
     switch (dataType)
     {
     case OCP1DATATYPE_BOOLEAN: 
-        result = juce::String("Boolean");
+        result = std::string("Boolean");
         break;
     case OCP1DATATYPE_INT8:
-        result = juce::String("Int8");
+        result = std::string("Int8");
         break;
     case OCP1DATATYPE_INT16:
-        result = juce::String("Int16");
+        result = std::string("Int16");
         break;
     case OCP1DATATYPE_INT32:
-        result = juce::String("Int32");
+        result = std::string("Int32");
         break;
     case OCP1DATATYPE_INT64:
-        result = juce::String("Int64");
+        result = std::string("Int64");
         break;
     case OCP1DATATYPE_UINT8:
-        result = juce::String("UInt8");
+        result = std::string("UInt8");
         break;
     case OCP1DATATYPE_UINT16:
-        result = juce::String("UInt16");
+        result = std::string("UInt16");
         break;
     case OCP1DATATYPE_UINT32:
-        result = juce::String("UInt32");
+        result = std::string("UInt32");
         break;
     case OCP1DATATYPE_UINT64:
-        result = juce::String("UInt64");
+        result = std::string("UInt64");
         break;
     case OCP1DATATYPE_FLOAT32:
-        result = juce::String("Float32");
+        result = std::string("Float32");
         break;
     case OCP1DATATYPE_FLOAT64:
-        result = juce::String("Float64");
+        result = std::string("Float64");
         break;
     case OCP1DATATYPE_STRING:
-        result = juce::String("String");
+        result = std::string("String");
         break;
     case OCP1DATATYPE_BIT_STRING:
-        result = juce::String("BitString");
+        result = std::string("BitString");
         break;
     case OCP1DATATYPE_BLOB:
-        result = juce::String("Blob");
+        result = std::string("Blob");
         break;
     case OCP1DATATYPE_BLOB_FIXED_LEN:
-        result = juce::String("BlobFixedLength");
+        result = std::string("BlobFixedLength");
         break;
     case OCP1DATATYPE_DB_POSITION:
-        result = juce::String("Position (d&b)");
+        result = std::string("Position (d&b)");
         break;
     case OCP1DATATYPE_CUSTOM:
-        result = juce::String("Custom");
+        result = std::string("Custom");
         break;
     default:
         break;
@@ -568,20 +566,20 @@ juce::String DataTypeToString(int dataType)
     return result;
 }
 
-juce::String HandleToString(std::uint32_t handle)
+std::string HandleToString(std::uint32_t handle)
 {
-    juce::String result;
+    std::string result;
 
     switch (handle)
     {
         case 0: // OCA_INVALID_SESSIONID
-            result = juce::String("InvalidSessionID");
+            result = std::string("InvalidSessionID");
             break;
         case 1: // OCA_LOCAL_SESSIONID
-            result = juce::String("LocalSessionID");
+            result = std::string("LocalSessionID");
             break;
         default: 
-            result = juce::String(handle);
+            result = std::to_string(handle);
             break;
     }
 

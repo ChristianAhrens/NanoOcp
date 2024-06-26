@@ -64,7 +64,7 @@ Variant::Variant(const std::vector<std::uint8_t>& data, Ocp1DataType type)
     switch (type)
     {
         case OCP1DATATYPE_BOOLEAN:
-            m_value = DataToBool(data, &ok);
+            m_value = NanoOcp1::DataToBool(data, &ok);
             break;
         case OCP1DATATYPE_INT32:
             m_value = NanoOcp1::DataToInt32(data, &ok);
@@ -88,7 +88,7 @@ Variant::Variant(const std::vector<std::uint8_t>& data, Ocp1DataType type)
             m_value = NanoOcp1::DataToDouble(data, &ok);
             break;
         case OCP1DATATYPE_STRING:
-            m_value = DataToString(data, &ok).toStdString(); // TODO: let DataToString return std::string
+            m_value = NanoOcp1::DataToString(data, &ok);
             break;
         case OCP1DATATYPE_BLOB:
             ok = (data.size() >= 2); // OcaBlob size is 2 bytes
@@ -519,15 +519,7 @@ std::string Variant::ToString(bool* pOk) const
         case TypeString:
             return std::get<std::string>(m_value);
         case TypeByteVector:
-            {
-                // TODO: use DataToString once it is refactored to return std::string
-                // TODO: does the vector always include the 2 bytes size?
-                auto vec = std::get<std::vector<std::uint8_t>>(m_value);
-                bool ok = vec.size() >= 2; // At least 2 bytes for the OcaString length
-                if (ok)
-                    return std::string(vec.begin() + 2, vec.end());
-            }
-            break;
+            return DataToString(std::get<std::vector<std::uint8_t>>(m_value), pOk);
         default:
             break;
     }

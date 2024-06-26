@@ -19,6 +19,7 @@
 #pragma once
 
 #include <variant>          //< USE std::variant
+#include <array>            //< USE std::array
 #include "Ocp1DataTypes.h"  //< USE NanoOcp1::Ocp1DataType
 
 
