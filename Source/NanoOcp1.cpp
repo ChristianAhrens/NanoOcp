@@ -104,6 +104,11 @@ bool NanoOcp1Client::stop()
     return !isConnected();
 }
 
+bool NanoOcp1Client::isRunning()
+{
+    return m_started;
+}
+
 bool NanoOcp1Client::sendData(const juce::MemoryBlock& data)
 {
     if (!isConnected())

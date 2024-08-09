@@ -80,6 +80,7 @@ public:
     //==============================================================================
     bool start() override;
     bool stop() override;
+    bool isRunning();
 
     //==============================================================================
     bool sendData(const juce::MemoryBlock& data) override;
