@@ -80,6 +80,7 @@ public:
     //==============================================================================
     bool start() override;
     bool stop() override;
+    bool isRunning();
 
     //==============================================================================
     bool sendData(const juce::MemoryBlock& data) override;
@@ -95,7 +96,7 @@ protected:
 
 private:
     //==============================================================================
-    bool m_started{ false };
+    bool m_running{ false };
 };
 
 class NanoOcp1Server : public NanoOcp1Base, public Ocp1ConnectionServer

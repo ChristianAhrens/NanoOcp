@@ -80,7 +80,7 @@ NanoOcp1Client::~NanoOcp1Client()
 
 bool NanoOcp1Client::start()
 {
-    m_started = true;
+    m_running = true;
 
     if (connectToSocket(getAddress(), getPort(), 50))
         return true; // connection immediatly established
@@ -92,7 +92,7 @@ bool NanoOcp1Client::start()
 
 bool NanoOcp1Client::stop()
 {
-    m_started = false;
+    m_running = false;
 
     stopTimer();
 
@@ -102,6 +102,11 @@ bool NanoOcp1Client::stop()
         onConnectionLost();
 
     return !isConnected();
+}
+
+bool NanoOcp1Client::isRunning()
+{
+    return m_running;
 }
 
 bool NanoOcp1Client::sendData(const juce::MemoryBlock& data)
@@ -125,7 +130,7 @@ void NanoOcp1Client::connectionLost()
     if (onConnectionLost)
         onConnectionLost();
 
-    if (m_started)
+    if (m_running)
         startTimer(500); // start trying to reestablish connection
 }
 
