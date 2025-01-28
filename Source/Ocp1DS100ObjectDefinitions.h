@@ -30,10 +30,6 @@ namespace NanoOcp1
 namespace DS100
 {
 
-static constexpr std::uint16_t MaxInputChannelCount = 64;
-static constexpr std::uint16_t MaxOutputChannelCount = 64;
-static constexpr std::uint16_t MaxReverbZones = 4;
-static constexpr std::uint16_t MaxFunctionGroups = 16;
 
 static constexpr BoxAndObjNo Settings_Box           = 0x01;
 static constexpr BoxAndObjNo Settings_DeviceName    = 0x0d;
