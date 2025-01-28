@@ -30,6 +30,10 @@ namespace NanoOcp1
 namespace DS100
 {
 
+static constexpr BoxAndObjNo Fixed_Box              = 0x00;
+static constexpr BoxAndObjNo Fixed_HardwareVariant  = 0x02;
+static constexpr BoxAndObjNo Fixed_SerNr            = 0x0a;
+static constexpr BoxAndObjNo Fixed_GUID             = 0x0f;
 
 static constexpr BoxAndObjNo Settings_Box           = 0x01;
 static constexpr BoxAndObjNo Settings_DeviceName    = 0x0d;
@@ -127,6 +131,48 @@ static constexpr BoxAndObjNo SoundObjectRouting_Gain    = 0x02;
 
 static constexpr std::uint32_t  SceneAgentONo   = 0x2714;
 
+
+/**
+ * Fixed_HardwareVariant
+ */
+struct dbOcaObjectDef_Fixed_HardwareVariant : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_Fixed_HardwareVariant()
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Fixed_Box, Fixed_HardwareVariant), // ONO of Fixed_HardwareVariant,
+            OCP1DATATYPE_INT32,     // Value type
+            DefLevel_OcaInt32Sensor,
+            1)                      // Prop_Reading
+    {
+    }
+};
+
+/**
+ * Fixed_SerNr
+ */
+struct dbOcaObjectDef_Fixed_SerNr : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_Fixed_SerNr()
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Fixed_Box, Fixed_SerNr), // ONO of Fixed_SerNr,
+            OCP1DATATYPE_STRING,    // Value type
+            DefLevel_OcaStringActuator,
+            1)                      // Prop_Setting
+    {
+    }
+};
+
+/**
+ * Fixed_GUID
+ */
+struct dbOcaObjectDef_Fixed_GUID : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_Fixed_GUID()
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, Fixed_Box, Fixed_GUID), // ONO of Fixed_GUID,
+            OCP1DATATYPE_STRING,    // Value type
+            DefLevel_OcaStringActuator,
+            1)                      // Prop_Setting
+    {
+    }
+};
 
 /**
  * Settings_DeviceName
