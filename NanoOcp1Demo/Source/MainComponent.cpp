@@ -37,6 +37,7 @@ MainComponent::MainComponent()
     m_potiLevelObjDef = std::make_unique<NanoOcp1::AmpGeneric::dbOcaObjectDef_Config_PotiLevel>(1);
     m_soundobjectEnableObjDef = std::make_unique<NanoOcp1::DS100::dbOcaObjectDef_Positioning_Source_Enable>(1);
     m_speakerGroupObjDef = std::make_unique<NanoOcp1::DS100::dbOcaObjectDef_Positioning_Speaker_Group>(1);
+    m_guidObjDef = std::make_unique<NanoOcp1::DS100::dbOcaObjectDef_Fixed_GUID>();
 
     // Editor to allow user input for ip address and port to use to connect
     m_ipAndPortEditor = std::make_unique<TextEditor>();
@@ -97,6 +98,10 @@ MainComponent::MainComponent()
 
             m_nanoOcp1Client->sendData(NanoOcp1::Ocp1CommandResponseRequired(*m_speakerGroupObjDef.get(), handle).GetMemoryBlock());
             m_ocaHandleMap.emplace(handle, m_speakerGroupObjDef.get());
+            DBG("Sent an OCA Get command with handle " << NanoOcp1::HandleToString(handle));
+
+            m_nanoOcp1Client->sendData(NanoOcp1::Ocp1CommandResponseRequired(*m_guidObjDef.get(), handle).GetMemoryBlock());
+            m_ocaHandleMap.emplace(handle, m_guidObjDef.get());
             DBG("Sent an OCA Get command with handle " << NanoOcp1::HandleToString(handle));
         }
         else
@@ -263,6 +268,11 @@ bool MainComponent::OnOcp1MessageReceived(const juce::MemoryBlock& message)
                             {
                                 std::float_t newGain = NanoOcp1::DataToFloat(responseObj->GetParameterData());
                                 m_gainSlider->setValue(newGain, dontSendNotification);
+                            }
+                            else if (objDef == m_guidObjDef.get())
+                            {
+                                auto newValue = NanoOcp1::DataToString(responseObj->GetParameterData());
+                                DBG(juce::String(__FUNCTION__) + juce::String(" Response for Fixed_GUID: ") + juce::String(newValue));
                             }
                             else
                             {

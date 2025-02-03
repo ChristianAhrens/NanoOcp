@@ -129,7 +129,7 @@ static constexpr BoxAndObjNo SoundObjectRouting_Box     = 0x18;
 static constexpr BoxAndObjNo SoundObjectRouting_Mute    = 0x01;
 static constexpr BoxAndObjNo SoundObjectRouting_Gain    = 0x02;
 
-static constexpr BoxAndObjNo Positioning_Speaker_Box        = 0x1a;
+static constexpr BoxAndObjNo Positioning_Speaker_Box        = 0x1a; // introduced with GUID DB000CD0
 static constexpr BoxAndObjNo Positioning_Speaker_Group      = 0x01; // introduced with GUID DB000CD0
 static constexpr BoxAndObjNo Positioning_Speaker_Position   = 0x02; // introduced with GUID DB000CD0
 

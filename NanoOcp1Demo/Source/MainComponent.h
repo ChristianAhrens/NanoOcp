@@ -60,6 +60,7 @@ private:
     std::unique_ptr<NanoOcp1::Ocp1CommandDefinition>   m_potiLevelObjDef;
     std::unique_ptr<NanoOcp1::Ocp1CommandDefinition>   m_soundobjectEnableObjDef;
     std::unique_ptr<NanoOcp1::Ocp1CommandDefinition>   m_speakerGroupObjDef;
+    std::unique_ptr<NanoOcp1::Ocp1CommandDefinition>   m_guidObjDef;
     std::map<std::uint32_t, NanoOcp1::Ocp1CommandDefinition*> m_ocaHandleMap;
 
     //==============================================================================
