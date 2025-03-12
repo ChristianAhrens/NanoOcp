@@ -45,7 +45,7 @@ public:
     enum class Notify { no, yes };
 
 public:
-    Ocp1Connection(bool callbacksOnMessageThread = true);
+    Ocp1Connection(bool callbacksOnMessageThread = true, const juce::Thread::Priority threadPriority = juce::Thread::Priority::normal);
     virtual ~Ocp1Connection();
 
     bool connectToSocket(const juce::String& hostName, int portNumber, int timeOutMillisecs);
@@ -86,6 +86,8 @@ private:
 
     void runThread();
     int writeData(void*, int);
+    
+    juce::Thread::Priority m_threadPriority;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Ocp1Connection)
 };

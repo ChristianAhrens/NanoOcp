@@ -79,9 +79,9 @@ class Ocp1Connection::SafeAction : public SafeActionImpl
 };
 
 //==============================================================================
-Ocp1Connection::Ocp1Connection(bool callbacksOnMessageThread)
+Ocp1Connection::Ocp1Connection(bool callbacksOnMessageThread , const juce::Thread::Priority threadPriority)
     : useMessageThread(callbacksOnMessageThread),
-    safeAction(std::make_shared<SafeAction>(*this))
+    safeAction(std::make_shared<SafeAction>(*this)), m_threadPriority(threadPriority)
 {
     thread.reset(new ConnectionThread(*this));
 }
@@ -192,7 +192,7 @@ void Ocp1Connection::initialise()
     safeAction->setSafe(true);
     threadIsRunning = true;
     connectionMadeInt();
-    thread->startThread();
+    thread->startThread(m_threadPriority);
 }
 
 void Ocp1Connection::initialiseWithSocket(std::unique_ptr<juce::StreamingSocket> newSocket)

@@ -42,7 +42,7 @@ class Ocp1ConnectionServer : private juce::Thread
 {
 public:
     //==============================================================================
-    Ocp1ConnectionServer();
+    Ocp1ConnectionServer(const juce::Thread::Priority threadPriority=juce::Thread::Priority::normal);
     ~Ocp1ConnectionServer() override;
 
     bool beginWaitingForSocket(int portNumber, const juce::String& bindAddress = juce::String());
@@ -58,6 +58,8 @@ private:
     std::unique_ptr<juce::StreamingSocket> socket;
 
     void run() override;
+    
+    juce::Thread::Priority m_threadPriority;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Ocp1ConnectionServer)
 };

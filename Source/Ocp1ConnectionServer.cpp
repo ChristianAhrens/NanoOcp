@@ -24,7 +24,7 @@ namespace NanoOcp1
 {
 
 
-Ocp1ConnectionServer::Ocp1ConnectionServer() : juce::Thread("NanoOcp1 connection server")
+Ocp1ConnectionServer::Ocp1ConnectionServer(const juce::Thread::Priority threadPriority) : juce::Thread("NanoOcp1 connection server"), m_threadPriority(threadPriority)
 {
 }
 
@@ -42,7 +42,7 @@ bool Ocp1ConnectionServer::beginWaitingForSocket(const int portNumber, const juc
 
     if (socket->createListener(portNumber, bindAddress))
     {
-        startThread();
+        startThread(m_threadPriority);
         return true;
     }
 
