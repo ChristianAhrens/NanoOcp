@@ -18,6 +18,7 @@
 
 #include "Variant.h"
 #include <assert.h>
+#include <sstream>
 
 
 namespace NanoOcp1
@@ -639,6 +640,26 @@ std::array<std::float_t, 3> Variant::ToPosition(bool* pOk) const
 
     if (ok)
         ret[2] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 8, data.data() + 12), &ok); // z
+
+    if (pOk != nullptr)
+        *pOk = ok;
+
+    return ret;
+}
+
+std::string Variant::ToPositionString(bool* pOk) const
+{
+    bool ok;
+    std::string ret;
+
+    auto pos = ToPosition(&ok);
+    if (ok)
+    {
+        std::stringstream ss;
+        ss << pos[0] << ", " << pos[1] << ", " << pos[2];
+
+        ret = std::string(ss.str());
+    }
 
     if (pOk != nullptr)
         *pOk = ok;

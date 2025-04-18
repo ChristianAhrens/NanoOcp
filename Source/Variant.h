@@ -117,6 +117,14 @@ public:
     std::array<std::float_t, 3> ToPosition(bool* pOk = nullptr) const;
 
     /**
+     * Calls ToPosition and returns a human-readable string with the resulting position.
+     *
+     * @param[in] pOk   Optional parameter to verify if the conversion was successful.
+     * @return  A string in the format "x, y, z".
+     */
+    std::string ToPositionString(bool* pOk = nullptr) const;
+
+    /**
      * Convenience helper method to extract x, y, z, horizontal angle, vertical angle
      * and rotation angle float values from a Variant.
      *
