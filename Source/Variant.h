@@ -117,9 +117,9 @@ public:
     std::array<std::float_t, 3> ToPosition(bool* pOk = nullptr) const;
 
     /**
-     * Calls ToPosition and returns a human-readable string with the resulting position.
+     * Calls ToPosition and returns a human-readable string with the result.
      *
-     * @param[in] pOk   Optional parameter to verify if the conversion was successful.
+     * @param[in] pOk   Optional parameter to verify if the ToPosition call was successful.
      * @return  A string in the format "x, y, z".
      */
     std::string ToPositionString(bool* pOk = nullptr) const;
@@ -137,6 +137,15 @@ public:
 
     [[deprecated("Use ToAimingAndPosition instead, this method will be removed in the future.")]]
     std::array<std::float_t, 6> ToPositionAndRotation(bool* pOk = nullptr) const;
+
+    /**
+     * Calls ToAimingAndPosition and returns a human-readable string with the result.
+     *
+     * @param[in] pOk   Optional parameter to verify if the ToAimingAndPosition call
+     *                  was successful.
+     * @return  A string in the format: "hor, ver, rot, x, y, z".
+     */
+    std::string ToAimingAndPositionString(bool* pOk = nullptr) const;
 
     /**
      * Convenience helper method to extract a std::vector<bool> from a from a Variant.

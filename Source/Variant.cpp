@@ -711,6 +711,27 @@ std::array<std::float_t, 6> Variant::ToAimingAndPosition(bool* pOk) const
     return ret;
 }
 
+std::string Variant::ToAimingAndPositionString(bool* pOk) const
+{
+    bool ok;
+    std::string ret;
+
+    auto pos = ToAimingAndPosition(&ok);
+    if (ok)
+    {
+        std::stringstream ss;
+        ss << pos[0] << ", " << pos[1] << ", " << pos[2] << ", " <<
+              pos[3] << ", " << pos[4] << ", " << pos[5];
+
+        ret = std::string(ss.str());
+    }
+
+    if (pOk != nullptr)
+        *pOk = ok;
+
+    return ret;
+}
+
 std::vector<bool> Variant::ToBoolVector(bool* pOk) const
 {
     std::vector<bool> boolVector;
