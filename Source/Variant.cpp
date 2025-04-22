@@ -669,6 +669,11 @@ std::string Variant::ToPositionString(bool* pOk) const
 
 std::array<std::float_t, 6> Variant::ToPositionAndRotation(bool* pOk) const
 {
+    return ToAimingAndPosition(pOk);
+}
+
+std::array<std::float_t, 6> Variant::ToAimingAndPosition(bool* pOk) const
+{
     std::array<std::float_t, 6> ret{ 0.0f };
 
     if (m_value.index() != TypeByteVector)
@@ -680,25 +685,25 @@ std::array<std::float_t, 6> Variant::ToPositionAndRotation(bool* pOk) const
     }
 
     const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
-    bool ok = (data.size() == 24); // Value contains 6 floats: x, y, z, horAngle, vertAngle, rotAngle.
+    bool ok = (data.size() == 24); // Value contains 6 floats: horAngle, vertAngle, rotAngle, x, y, z.
     
     if (ok)
-        ret[0] = NanoOcp1::DataToFloat(data, &ok); // x
+        ret[0] = NanoOcp1::DataToFloat(data, &ok); // hor
 
     if (ok)
-        ret[1] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 4, data.data() + 8), &ok); // y
+        ret[1] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 4, data.data() + 8), &ok); // ver
 
     if (ok)
-        ret[2] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 8, data.data() + 12), &ok); // z
+        ret[2] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 8, data.data() + 12), &ok); // rot
 
     if (ok)
-        ret[3] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 12, data.data() + 16), &ok); // hor
+        ret[3] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 12, data.data() + 16), &ok); // x
 
     if (ok)
-        ret[4] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 16, data.data() + 20), &ok); // ver
+        ret[4] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 16, data.data() + 20), &ok); // y
 
     if (ok)
-        ret[5] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 20, data.data() + 24), &ok); // rot
+        ret[5] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 20, data.data() + 24), &ok); // z
 
     if (pOk != nullptr)
         *pOk = ok;

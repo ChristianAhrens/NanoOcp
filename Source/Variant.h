@@ -125,12 +125,17 @@ public:
     std::string ToPositionString(bool* pOk = nullptr) const;
 
     /**
-     * Convenience helper method to extract x, y, z, horizontal angle, vertical angle
-     * and rotation angle float values from a Variant.
+     * Convenience helper method to extract x, y, z, horizontal angle (yaw), 
+     * vertical angle (pitch) and rotation angle (roll) float values from a Variant.
+     * @note The aiming angles are unmarshaled first and the position second, to keep in line 
+     *       with the CdbOcaAimingAndPosition::Unmarshal method.
      *
      * @param[in] pOk   Optional parameter to verify if the conversion was successful.
-     * @return  The contained x, y, z, hor, ver, and rot values.
+     * @return  The contained values in the order: hor, ver, rot, x, y, z.
      */
+    std::array<std::float_t, 6> ToAimingAndPosition(bool* pOk = nullptr) const;
+
+    [[deprecated("Use ToAimingAndPosition instead, this method will be removed in the future.")]]
     std::array<std::float_t, 6> ToPositionAndRotation(bool* pOk = nullptr) const;
 
     /**

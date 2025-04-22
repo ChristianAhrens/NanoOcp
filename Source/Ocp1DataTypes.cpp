@@ -361,6 +361,11 @@ std::vector<std::uint8_t> DataFromPosition(std::float_t x, std::float_t y, std::
 
 std::vector<std::uint8_t> DataFromPositionAndRotation(std::float_t x, std::float_t y, std::float_t z, std::float_t hor, std::float_t vert, std::float_t rot)
 {
+    return DataFromAimingAndPosition(hor, vert, rot, x, y, z);
+}
+
+std::vector<std::uint8_t> DataFromAimingAndPosition(std::float_t hor, std::float_t vert, std::float_t rot, std::float_t x, std::float_t y, std::float_t z)
+{
     std::vector<std::uint8_t> ret;
     ret.reserve(6 * 4);
 

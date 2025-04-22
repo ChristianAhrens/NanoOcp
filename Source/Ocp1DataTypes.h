@@ -208,24 +208,29 @@ std::vector<std::uint8_t> DataFromDouble(std::double_t doubleValue);
 /**
  * Convenience helper method to convert a 3D position (three 32-bit floats) into a byte vector
  *
- * @param[in] x     First value to be converted.
- * @param[in] y     Second value to be converted.
- * @param[in] z     Third value to be converted.
+ * @param[in] x     Position along x axis.
+ * @param[in] y     Position along y axis.
+ * @param[in] z     Position along z axis.
  * @return  The values as a byte vector.
  */
 std::vector<std::uint8_t> DataFromPosition(std::float_t x, std::float_t y, std::float_t z);
 
 /**
- * Convenience helper method to convert a 3D position and rotation (six 32-bit floats) into a byte vector
+ * Convenience helper method to convert a 3D aiming and position (six 32-bit floats) into a byte vector
+ * @note The aiming angles are marshaled first and the position second, to keep in line with the 
+ *       CdbOcaAimingAndPosition::Marshal method.
  *
- * @param[in] x     First value to be converted.
- * @param[in] y     Second value to be converted.
- * @param[in] z     Third value to be converted.
- * @param[in] hor   Fourth value to be converted.
- * @param[in] vert  Fifth value to be converted.
- * @param[in] rot   Sixth value to be converted.
+ * @param[in] hor   Horizontal aiming (yaw).
+ * @param[in] vert  Vertical aiming (pitch).
+ * @param[in] rot   Rotational aiming (roll).
+ * @param[in] x     Position along x axis.
+ * @param[in] y     Position along y axis.
+ * @param[in] z     Position along z axis.
  * @return  The values as a byte vector.
  */
+std::vector<std::uint8_t> DataFromAimingAndPosition(std::float_t hor, std::float_t vert, std::float_t rot, std::float_t x, std::float_t y, std::float_t z);
+
+[[deprecated("Use DataFromAimingAndPosition instead, this method will be removed in the future.")]]
 std::vector<std::uint8_t> DataFromPositionAndRotation(std::float_t x, std::float_t y, std::float_t z, std::float_t hor, std::float_t vert, std::float_t rot);
 
 /**
