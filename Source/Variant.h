@@ -135,7 +135,8 @@ public:
      */
     std::array<std::float_t, 6> ToAimingAndPosition(bool* pOk = nullptr) const;
 
-    [[deprecated("Use ToAimingAndPosition instead, this method will be removed in the future.")]]
+    [[deprecated("Use ToAimingAndPosition instead, this method will be removed in the future. " 
+      "NOTE: The output of both methods is identical, but the new method has a more consistent name.")]]
     std::array<std::float_t, 6> ToPositionAndRotation(bool* pOk = nullptr) const;
 
     /**

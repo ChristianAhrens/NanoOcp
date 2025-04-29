@@ -230,7 +230,8 @@ std::vector<std::uint8_t> DataFromPosition(std::float_t x, std::float_t y, std::
  */
 std::vector<std::uint8_t> DataFromAimingAndPosition(std::float_t hor, std::float_t vert, std::float_t rot, std::float_t x, std::float_t y, std::float_t z);
 
-[[deprecated("Use DataFromAimingAndPosition instead, this method will be removed in the future.")]]
+[[deprecated("Use DataFromAimingAndPosition instead, this method will be removed in the future. "
+  "NOTE: The order of the input parameters in the new method has been changed to be more consistent with the marshaling order.")]]
 std::vector<std::uint8_t> DataFromPositionAndRotation(std::float_t x, std::float_t y, std::float_t z, std::float_t hor, std::float_t vert, std::float_t rot);
 
 /**
