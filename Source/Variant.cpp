@@ -797,12 +797,13 @@ std::vector<std::string> Variant::ToStringVector(bool* pOk) const
     {
         stringVector.reserve(static_cast<size_t>(listSize));
         std::size_t readPos(2); // Start after the OcaList size bytes
-        while (readPos < data.size() && ok)
+        while (readPos + 2 <= data.size() && ok)
         {
             std::vector<std::uint8_t> stringLenData(data.data() + readPos, data.data() + readPos + 2);
             auto stringLen = NanoOcp1::DataToUint16(stringLenData, &ok);
             readPos += 2;
 
+            ok = ok && (readPos + stringLen <= data.size());
             if (ok)
             {
                 stringVector.push_back(std::string(data.data() + readPos, data.data() + readPos + stringLen));
