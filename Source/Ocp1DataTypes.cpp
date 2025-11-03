@@ -604,10 +604,24 @@ std::uint32_t ReadUint32(const char* buffer)
               static_cast<std::uint8_t>(buffer[3]));
 }
 
+std::uint32_t ReadUint32(const std::uint8_t* buffer)
+{
+    return (((buffer[0] << uint8_24) & 0xff000000) +
+            ((buffer[1] << uint8_16) & 0x00ff0000) +
+            ((buffer[2] << uint8_8)  & 0x0000ff00) +
+              buffer[3]);
+}
+
 std::uint16_t ReadUint16(const char* buffer)
 {
     return (((static_cast<std::uint8_t>(buffer[0]) << uint8_8)  & 0xff00) +
               static_cast<std::uint8_t>(buffer[1]));
+}
+
+std::uint16_t ReadUint16(const std::uint8_t* buffer)
+{
+    return (((buffer[0] << uint8_8)  & 0xff00) +
+              buffer[1]);
 }
 
 std::uint32_t GetONo(std::uint32_t type, std::uint32_t record, std::uint32_t channel, std::uint32_t boxAndObjectNumber)

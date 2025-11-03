@@ -86,29 +86,34 @@ Ocp1CommandDefinition* Ocp1CommandDefinition::Clone() const
 //==============================================================================
 
 Ocp1Header::Ocp1Header(const juce::MemoryBlock& memoryBlock)
+    : Ocp1Header(std::vector<std::uint8_t>(memoryBlock.begin(), memoryBlock.end()))
+{
+}
+
+Ocp1Header::Ocp1Header(const std::vector<std::uint8_t>& memory)
     :   m_syncVal(static_cast<std::uint8_t>(0)),
         m_protoVers(static_cast<std::uint16_t>(0)),
         m_msgSize(static_cast<std::uint32_t>(0)),
         m_msgType(static_cast<std::uint8_t>(0)),
         m_msgCnt(static_cast<std::uint16_t>(0))
 {
-    jassert(memoryBlock.getSize() >= 10); // Not enough data to fit even a Ocp1Header.
-    if (memoryBlock.getSize() >= 10)
+    jassert(memory.size() >= 10); // Not enough data to fit even an Ocp1Header.
+    if (memory.size() >= 10)
     {
-        m_syncVal = static_cast<std::uint8_t>(memoryBlock[0]);
+        m_syncVal = memory.at(0);
         jassert(m_syncVal == 0x3b); // Message does not start with the sync byte.
 
-        m_protoVers = ReadUint16(memoryBlock.begin() + 1);
+        m_protoVers = ReadUint16(memory.data() + 1);
         jassert(m_protoVers == 1); // Protocol version is expected to be 1.
-        
-        m_msgSize = ReadUint32(memoryBlock.begin() + 3);
+
+        m_msgSize = ReadUint32(memory.data() + 3);
         jassert(m_msgSize >= Ocp1HeaderSize); // Message has unexpected size.
 
-        m_msgType = static_cast<std::uint8_t>(memoryBlock[7]);
+        m_msgType = memory.at(7);
         jassert(m_msgType <= Ocp1Message::KeepAlive); // Message type outside expected range.
 
-        m_msgCnt = ReadUint16(memoryBlock.begin() + 8);
-        jassert(m_msgCnt > 0); // At least one message expected. 
+        m_msgCnt = ReadUint16(memory.data() + 8);
+        jassert(m_msgCnt > 0); // At least one message expected.
     }
 }
 
@@ -178,63 +183,70 @@ juce::MemoryBlock Ocp1Message::GetMemoryBlock()
 
 std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const juce::MemoryBlock& receivedData)
 {
+    const std::vector<std::uint8_t> convertedData(receivedData.begin(), receivedData.end());
+
+    return UnmarshalOcp1Message(convertedData);
+}
+
+std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const std::vector<std::uint8_t>& receivedData)
+{
     Ocp1Header header(receivedData);
     if (!header.IsValid())
         return nullptr;
-
+    
     switch (header.GetMessageType())
     {
         case Notification:
             {
-                std::uint32_t notificationSize(ReadUint32(receivedData.begin() + 10));
+                std::uint32_t notificationSize(ReadUint32(receivedData.data() + 10));
                 std::uint32_t newValueSize = notificationSize - 28;
                 if (newValueSize < 1)
                     return nullptr;
 
                 // Not a valid object number.
-                std::uint32_t targetOno(ReadUint32(receivedData.begin() + 14));
+                std::uint32_t targetOno(ReadUint32(receivedData.data() + 14));
                 if (targetOno == 0)
                     return nullptr;
 
                 // Method DefinitionLevel expected to be 3 (OcaSubscriptionManager)
-                std::uint16_t methodDefLevel(ReadUint16(receivedData.begin() + 18));
+                std::uint16_t methodDefLevel(ReadUint16(receivedData.data() + 18));
                 if (methodDefLevel < 1)
                     return nullptr;
 
                 // Method index expected to be 1 (AddSubscription)
-                std::uint16_t methodIdx(ReadUint16(receivedData.begin() + 20));
+                std::uint16_t methodIdx(ReadUint16(receivedData.data() + 20));
                 if (methodIdx < 1)
                     return nullptr;
 
                 // At least one parameter expected.
-                std::uint8_t paramCount = static_cast<std::uint8_t>(receivedData[22]);
+                std::uint8_t paramCount = receivedData[22];
                 if (paramCount < 1)
                     return nullptr;
 
-                std::uint16_t contextSize(ReadUint16(receivedData.begin() + 23));
+                std::uint16_t contextSize(ReadUint16(receivedData.data() + 23));
 
                 // Not a valid object number.
-                std::uint32_t emitterOno(ReadUint32(receivedData.begin() + 25 + contextSize));
+                std::uint32_t emitterOno(ReadUint32(receivedData.data() + 25 + contextSize));
                 if (emitterOno == 0)
                     return nullptr;
 
                 // Event definiton level expected to be 1 (OcaRoot).
-                std::uint16_t eventDefLevel(ReadUint16(receivedData.begin() + 29 + contextSize));
+                std::uint16_t eventDefLevel(ReadUint16(receivedData.data() + 29 + contextSize));
                 if (eventDefLevel != 1)
                     return nullptr;
 
                 // Event index expected to be 1 (OCA_EVENT_PROPERTY_CHANGED).
-                std::uint16_t eventIdx(ReadUint16(receivedData.begin() + 31 + contextSize));
+                std::uint16_t eventIdx(ReadUint16(receivedData.data() + 31 + contextSize));
                 if (eventIdx != 1)
                     return nullptr;
 
                 // Property definition level expected to be > 0.
-                std::uint16_t propDefLevel(ReadUint16(receivedData.begin() + 33 + contextSize));
+                std::uint16_t propDefLevel(ReadUint16(receivedData.data() + 33 + contextSize));
                 if (propDefLevel == 0)
                     return nullptr;
 
                 // Property index expected to be > 0.
-                std::uint16_t propIdx(ReadUint16(receivedData.begin() + 35 + contextSize));
+                std::uint16_t propIdx(ReadUint16(receivedData.data() + 35 + contextSize));
                 if (propIdx == 0)
                     return nullptr;
 
@@ -242,7 +254,7 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const juce::Memor
                 parameterData.reserve(newValueSize);
                 for (std::uint32_t i = 0; i < newValueSize; i++) // TODO: check if this can be optimized via memcpy
                 {
-                    parameterData.push_back(static_cast<std::uint8_t>(receivedData[37 + contextSize + i]));
+                    parameterData.push_back(receivedData[37 + contextSize + i]);
                 }
 
                 return std::make_unique<Ocp1Notification>(emitterOno, propDefLevel, propIdx, paramCount, parameterData);
@@ -250,18 +262,18 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const juce::Memor
 
         case Response:
             {
-                std::uint32_t responseSize(ReadUint32(receivedData.begin() + 10));
+                std::uint32_t responseSize(ReadUint32(receivedData.data() + 10));
                 std::uint32_t parameterDataLength = responseSize - 10;
                 if (responseSize < 10)
                     return nullptr;
 
                 // Not a valid handle.
-                std::uint32_t handle(ReadUint32(receivedData.begin() + 14));
+                std::uint32_t handle(ReadUint32(receivedData.data() + 14));
                 if (handle == 0)
                     return nullptr;
 
-                std::uint8_t status = static_cast<std::uint8_t>(receivedData[18]);
-                std::uint8_t paramCount = static_cast<std::uint8_t>(receivedData[19]);
+                const std::uint8_t status = receivedData[18];
+                const std::uint8_t paramCount = receivedData[19];
 
                 std::vector<std::uint8_t> parameterData;
                 if (parameterDataLength > 0)
@@ -269,7 +281,7 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const juce::Memor
                     parameterData.reserve(parameterDataLength);
                     for (std::uint32_t i = 0; i < parameterDataLength; i++)
                     {
-                        parameterData.push_back(static_cast<std::uint8_t>(receivedData[20 + i]));
+                        parameterData.push_back(receivedData[20 + i]);
                     }
                 }
 
@@ -278,16 +290,68 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const juce::Memor
 
         case KeepAlive:
             {
-                std::uint16_t heartbeat(ReadUint16(receivedData.begin() + 10));
+                std::uint16_t heartbeat(ReadUint16(receivedData.data() + 10));
 
                 return std::make_unique<Ocp1KeepAlive>(heartbeat);
             }
 
         case Command:
-        case CommandResponseRequired:
             {
                 // TODO
                 return nullptr;
+            }
+        case CommandResponseRequired:
+            {
+                constexpr std::size_t commandSizeOffset = Ocp1Header::Ocp1HeaderSize;
+                constexpr std::size_t handleOffset = commandSizeOffset + 4;
+                constexpr std::size_t targetOnoOffset = handleOffset + 4;
+                constexpr std::size_t methodDefLevelOffset = targetOnoOffset + 4;
+                constexpr std::size_t methodIdxOffset = methodDefLevelOffset + 2;
+                constexpr std::size_t paramCountOffset = methodIdxOffset + 2;
+                constexpr std::uint32_t minimumCommandSize = 16; // Size without parameters
+                constexpr std::size_t parameterDataOffset = paramCountOffset + 1;
+
+                const std::uint32_t commandSize(ReadUint32(receivedData.data() + commandSizeOffset));
+                if (commandSize < minimumCommandSize)
+                    return nullptr;
+
+                if(receivedData.size() < Ocp1Header::Ocp1HeaderSize + commandSize)
+                    return nullptr;
+
+                std::uint32_t handle(ReadUint32(receivedData.data() + handleOffset));
+                const bool isInvalidHandle = (handle == 0);
+                if (isInvalidHandle)
+                    return nullptr;
+
+                const std::uint32_t targetOno(ReadUint32(receivedData.data() + targetOnoOffset));
+                const bool isInvalidTargetOno = (targetOno == 0);
+                if (isInvalidTargetOno)
+                    return nullptr;
+
+                const std::uint16_t methodDefLevel(ReadUint16(receivedData.data() + methodDefLevelOffset));
+                const bool isInvalidMethodDefLevel = (methodDefLevel < 1);
+                if (isInvalidMethodDefLevel)
+                    return nullptr;
+
+                const std::uint16_t methodIdx(ReadUint16(receivedData.data() + methodIdxOffset));
+                const bool isInvalidMethodIdx = (methodIdx < 1);
+                if (isInvalidMethodIdx)
+                    return nullptr;
+
+                const std::uint8_t paramCount = receivedData[paramCountOffset];
+                
+                const auto parameterData = [&receivedData, &paramCount, &parameterDataOffset]() {
+                    if (paramCount == 0)
+                        return std::vector<std::uint8_t>{};
+                    else if(receivedData.begin() + parameterDataOffset >= receivedData.end())
+                        return std::vector<std::uint8_t>{};
+                    else
+                        return std::vector<std::uint8_t>(receivedData.begin() + parameterDataOffset, receivedData.end());
+                }();
+
+                auto result = std::make_unique<Ocp1CommandResponseRequired>(targetOno, methodDefLevel, methodIdx, paramCount, parameterData);
+                result->SetHandle(handle);
+                return result;
             }
         default:
             return nullptr;

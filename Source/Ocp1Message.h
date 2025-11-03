@@ -145,7 +145,7 @@ public:
     /**
      * Class constructor.
      */
-    Ocp1Header(std::uint8_t msgType, size_t parameterDataLength)
+    Ocp1Header(std::uint8_t msgType, std::size_t parameterDataLength)
         :   m_syncVal(0x3b),
             m_protoVers(static_cast<std::uint16_t>(1)),
             m_msgSize(CalculateMessageSize(msgType, parameterDataLength)),
@@ -157,7 +157,12 @@ public:
     /**
      * Class constructor which creates a Ocp1Header based on a juce::MemoryBlock.
      */
-    Ocp1Header(const juce::MemoryBlock& memoryBlock);
+    explicit Ocp1Header(const juce::MemoryBlock& memoryBlock);
+
+    /**
+     * Class constructor which creates a Ocp1Header based on a std::vector<std::uint8_t>.
+     */
+    explicit Ocp1Header(const std::vector<std::uint8_t>& memory);
 
     /**
      * Class destructor.
@@ -303,6 +308,13 @@ public:
      */
     static std::unique_ptr<Ocp1Message> UnmarshalOcp1Message(const juce::MemoryBlock& receivedData);
 
+
+    /**
+     * Factory method which creates a new Ocp1Message object based on a vector<std::uint8_t>.
+     *
+     * TODO
+     */
+    static std::unique_ptr<Ocp1Message> UnmarshalOcp1Message(const std::vector<std::uint8_t>& receivedData);
 protected:
     Ocp1Header                  m_header;           // TODO
     std::vector<std::uint8_t>   m_parameterData;
@@ -317,6 +329,23 @@ class Ocp1CommandResponseRequired : public Ocp1Message
 {
 public:
     /**
+     * Class constructor without creating the handle.
+     * To set the handle of this command, use SetHandle() after instantiation.
+     */
+    Ocp1CommandResponseRequired(std::uint32_t targetOno,
+                                std::uint16_t methodDefLevel,
+                                std::uint16_t methodIndex,
+                                std::uint8_t paramCount,
+                                const std::vector<std::uint8_t>& parameterData)
+        : Ocp1Message(static_cast<std::uint8_t>(CommandResponseRequired), parameterData),
+            m_targetOno(targetOno),
+            m_methodDefLevel(methodDefLevel),
+            m_methodIndex(methodIndex),
+            m_paramCount(paramCount)
+    {
+    }
+
+    /**
      * Class constructor.
      */
     Ocp1CommandResponseRequired(std::uint32_t targetOno,
@@ -325,11 +354,8 @@ public:
                                 std::uint8_t paramCount,
                                 const std::vector<std::uint8_t>& parameterData,
                                 std::uint32_t& handle)
-        : Ocp1Message(static_cast<std::uint8_t>(CommandResponseRequired), parameterData),
-            m_targetOno(targetOno),
-            m_methodDefLevel(methodDefLevel),
-            m_methodIndex(methodIndex),
-            m_paramCount(paramCount)
+        : Ocp1CommandResponseRequired(targetOno, methodDefLevel, methodIndex,
+                                      paramCount, parameterData)
     {
         // Return a new unique handle every time this class is instantiated.
         m_handle = m_nextHandle;
@@ -364,6 +390,26 @@ public:
         m_handle = handle;
     }
 
+    std::uint32_t GetHandle() const
+    {
+        return m_handle;
+    }
+
+    std::uint32_t GetTargetOno() const
+    {
+        return m_targetOno;
+    }
+
+    std::uint16_t GetMethodDefLevel() const
+    {
+        return m_methodDefLevel;
+    }
+
+    std::uint16_t GetMethodIndex() const
+    {
+        return m_methodIndex;
+    }
+    
     // Reimplemented from Ocp1Message
 
     std::vector<std::uint8_t> GetSerializedData() override;
