@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="t0S85N" name="NanoOcp1Demo" projectType="guiapp" version="0.5.0"
+<JUCERPROJECT id="t0S85N" name="NanoOcp1Demo" projectType="guiapp" version="0.5.1"
               companyName="Christian Ahrens" companyEmail="christianahrens@me.com"
               companyCopyright="2025" jucerFormatVersion="1" defines="" headerPath="../../../Source"
               cppLanguageStandard="latest">
