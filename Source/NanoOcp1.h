@@ -28,6 +28,7 @@
 
 #include "Ocp1Connection.h"
 #include "Ocp1ConnectionServer.h"
+#include "Ocp1DataTypes.h"
 
 
 namespace NanoOcp1
@@ -51,16 +52,16 @@ public:
     virtual bool stop() = 0;
 
     //==============================================================================
-    virtual bool sendData(const juce::MemoryBlock& data) = 0;
+    virtual bool sendData(const ByteVector& data) = 0;
 
     //==============================================================================
-    std::function<bool(const juce::MemoryBlock&)> onDataReceived;
+    std::function<bool(const ByteVector&)> onDataReceived;
     std::function<void()> onConnectionEstablished;
     std::function<void()> onConnectionLost;
 
 protected:
     //==============================================================================
-    bool processReceivedData(const juce::MemoryBlock& data);
+    bool processReceivedData(const ByteVector& data);
 
 private:
     //==============================================================================
@@ -83,12 +84,12 @@ public:
     bool isRunning();
 
     //==============================================================================
-    bool sendData(const juce::MemoryBlock& data) override;
+    bool sendData(const ByteVector& data) override;
 
     //==============================================================================
     void connectionMade() override;
     void connectionLost() override;
-    void messageReceived(const juce::MemoryBlock& message) override;
+    void messageReceived(const ByteVector& message) override;
 
 protected:
     //==============================================================================
@@ -112,7 +113,7 @@ public:
     bool stop() override;
 
     //==============================================================================
-    bool sendData(const juce::MemoryBlock& data) override;
+    bool sendData(const ByteVector& data) override;
 
 protected:
     //==============================================================================

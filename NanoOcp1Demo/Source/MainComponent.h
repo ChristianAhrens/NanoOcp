@@ -26,6 +26,7 @@ namespace NanoOcp1
     class NanoOcp1;
     class NanoOcp1Client;
     struct Ocp1CommandDefinition;
+    using ByteVector = std::vector<std::uint8_t>;
 }
 
 namespace NanoOcp1Demo
@@ -50,7 +51,7 @@ public:
     void textEditorReturnKeyPressed(TextEditor& editor) override;
 
     //==============================================================================
-    bool OnOcp1MessageReceived(const juce::MemoryBlock& message);
+    bool OnOcp1MessageReceived(const NanoOcp1::ByteVector& message);
     
 private:
     //==============================================================================

@@ -24,13 +24,6 @@
 #include "Ocp1DataTypes.h" //< USE Ocp1DataType
 
 
-// Forward declaration
-namespace juce
-{
-    class MemoryBlock;
-}
-
-
 namespace NanoOcp1
 {
 
@@ -59,7 +52,7 @@ struct Ocp1CommandDefinition
                           std::uint16_t propertyDefLevel,
                           std::uint16_t propertyIndex,
                           std::uint8_t paramCount = static_cast<std::uint8_t>(0),
-                          const std::vector<std::uint8_t>& parameterData = std::vector<std::uint8_t>())
+                          const ByteVector& parameterData = std::vector<std::uint8_t>())
         :   m_targetOno(targetOno),
             m_propertyType(propertyType),
             m_propertyDefLevel(propertyDefLevel),
@@ -130,7 +123,7 @@ struct Ocp1CommandDefinition
     std::uint16_t m_propertyDefLevel;           // Level of the property definition within the AES70 class hierarchy.
     std::uint16_t m_propertyIndex;              // Index of the property within its AES70 class definition.
     std::uint8_t m_paramCount;                  // Number of parameters contained in m_parameterData.
-    std::vector<std::uint8_t> m_parameterData;  // Parameter data for the command.
+    ByteVector m_parameterData;                 // Parameter data for the command.
 };
 
 
@@ -153,14 +146,9 @@ public:
     }
 
     /**
-     * Class constructor which creates a Ocp1Header based on a juce::MemoryBlock.
+     * Class constructor which creates a Ocp1Header based on a ByteVector.
      */
-    explicit Ocp1Header(const juce::MemoryBlock& memoryBlock);
-
-    /**
-     * Class constructor which creates a Ocp1Header based on a std::vector<std::uint8_t>.
-     */
-    explicit Ocp1Header(const std::vector<std::uint8_t>& memory);
+    explicit Ocp1Header(const ByteVector& memory);
 
     /**
      * Class destructor.
@@ -200,7 +188,7 @@ public:
      * 
      * @return  A vector of 10 bytes containing the OCA header.
      */
-    std::vector<std::uint8_t> GetSerializedData() const;
+    ByteVector GetSerializedData() const;
 
     /**
      * Helper method to calculate the OCA message size based on the message's type and 
@@ -247,7 +235,7 @@ public:
     /**
      * Class constructor.
      */
-    Ocp1Message(std::uint8_t msgType, const std::vector<std::uint8_t>& parameterData)
+    Ocp1Message(std::uint8_t msgType, const ByteVector& parameterData)
         : m_header(Ocp1Header(msgType, parameterData.size())),
         m_parameterData(parameterData)
 
@@ -274,7 +262,7 @@ public:
      *
      * @return  A vector containing the OCA message including header.
      */
-    std::vector<std::uint8_t> GetParameterData() const
+    ByteVector GetParameterData() const
     {
         return m_parameterData;
     }
@@ -285,23 +273,7 @@ public:
      *
      * @return  A vector containing the OCA message including header.
      */
-    virtual std::vector<std::uint8_t> GetSerializedData() = 0;
-
-    /**
-     * Convenience method which returns a juce::MemoryBloc representing 
-     * the binary contents of the complete message.
-     *
-     * @return  A juce::MemoryBlock containing the OCA message including header.
-     */
-    juce::MemoryBlock GetMemoryBlock();
-
-    /**
-     * Factory method which creates a new Ocp1Message object based on a MemoryBlock.
-     * 
-     * @param[in] receivedData    MemoryBlock containing the received OCA message.
-     * @return  A unique pointer to the unmarshaled Ocp1Message object.
-     */
-    static std::unique_ptr<Ocp1Message> UnmarshalOcp1Message(const juce::MemoryBlock& receivedData);
+    virtual ByteVector GetSerializedData() = 0;
 
 
     /**
@@ -310,12 +282,12 @@ public:
      * @param[in] receivedData    Vector containing the received OCA message.
      * @return  A unique pointer to the unmarshaled Ocp1Message object.
      */
-    static std::unique_ptr<Ocp1Message> UnmarshalOcp1Message(const std::vector<std::uint8_t>& receivedData);
+    static std::unique_ptr<Ocp1Message> UnmarshalOcp1Message(const ByteVector& receivedData);
 
 
 protected:
     Ocp1Header                  m_header;           // OCA message header.
-    std::vector<std::uint8_t>   m_parameterData;    // Parameter data contained by the message.
+    ByteVector   m_parameterData;                   // Parameter data contained by the message.
     static std::uint32_t        m_nextHandle;       // Static variable to generate unique command handles.
 };
 
@@ -334,7 +306,7 @@ public:
                                 std::uint16_t methodDefLevel,
                                 std::uint16_t methodIndex,
                                 std::uint8_t paramCount,
-                                const std::vector<std::uint8_t>& parameterData)
+                                const ByteVector& parameterData)
         : Ocp1Message(static_cast<std::uint8_t>(CommandResponseRequired), parameterData),
             m_handle(0),
             m_targetOno(targetOno),
@@ -351,7 +323,7 @@ public:
                                 std::uint16_t methodDefLevel,
                                 std::uint16_t methodIndex,
                                 std::uint8_t paramCount,
-                                const std::vector<std::uint8_t>& parameterData,
+                                const ByteVector& parameterData,
                                 std::uint32_t& handle)
         : Ocp1CommandResponseRequired(targetOno, methodDefLevel, methodIndex,
                                       paramCount, parameterData)
@@ -409,7 +381,7 @@ public:
     
     // Reimplemented from Ocp1Message
 
-    std::vector<std::uint8_t> GetSerializedData() override;
+    ByteVector GetSerializedData() override;
 
 protected:
     std::uint32_t               m_handle;           // Handle of the command.
@@ -432,7 +404,7 @@ public:
     Ocp1Response(std::uint32_t handle,
                  std::uint8_t status,
                  std::uint8_t paramCount,
-                 const std::vector<std::uint8_t>& parameterData)
+                 const ByteVector& parameterData)
         : Ocp1Message(static_cast<std::uint8_t>(Response), parameterData),
             m_handle(handle),
             m_status(status),
@@ -477,7 +449,7 @@ public:
 
     // Reimplemented from Ocp1Message
 
-    std::vector<std::uint8_t> GetSerializedData() override;
+    ByteVector GetSerializedData() override;
 
 protected:
     /**
@@ -510,7 +482,7 @@ public:
                      std::uint16_t emitterPropertyDefLevel,
                      std::uint16_t emitterPropertyIndex,
                      std::uint8_t paramCount,
-                     const std::vector<std::uint8_t>& parameterData)
+                     const ByteVector& parameterData)
         : Ocp1Message(static_cast<std::uint8_t>(Notification), parameterData),
             m_emitterOno(emitterOno),
             m_emitterPropertyDefLevel(emitterPropertyDefLevel),
@@ -559,7 +531,7 @@ public:
 
     // Reimplemented from Ocp1Message
 
-    std::vector<std::uint8_t> GetSerializedData() override;
+    ByteVector GetSerializedData() override;
 
 protected:
     std::uint32_t               m_emitterOno;               // ONo of the object whose property changed, triggering this notification.
@@ -609,7 +581,7 @@ public:
 
     // Reimplemented from Ocp1Message
 
-    std::vector<std::uint8_t> GetSerializedData() override;
+    ByteVector GetSerializedData() override;
 };
 
 }

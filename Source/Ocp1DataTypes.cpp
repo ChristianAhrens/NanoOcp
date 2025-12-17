@@ -36,7 +36,7 @@ static constexpr std::uint8_t uint8_40(40);
 static constexpr std::uint8_t uint8_48(48);
 static constexpr std::uint8_t uint8_56(56);
 
-bool DataToBool(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+bool DataToBool(const ByteVector& parameterData, bool* pOk)
 {
     bool ret(false);
     bool ok = parameterData.size() == 1;
@@ -54,12 +54,12 @@ bool DataToBool(const std::vector<std::uint8_t>& parameterData, bool* pOk)
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromBool(bool boolValue)
+ByteVector DataFromBool(bool boolValue)
 {
-    return std::vector<std::uint8_t>{ boolValue ? static_cast<std::uint8_t>(1) : static_cast<std::uint8_t>(0) };
+    return ByteVector{ boolValue ? static_cast<std::uint8_t>(1) : static_cast<std::uint8_t>(0) };
 }
 
-std::int32_t DataToInt32(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+std::int32_t DataToInt32(const ByteVector& parameterData, bool* pOk)
 {
     std::int32_t ret(0);
 
@@ -80,9 +80,9 @@ std::int32_t DataToInt32(const std::vector<std::uint8_t>& parameterData, bool* p
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromInt32(std::int32_t intValue)
+ByteVector DataFromInt32(std::int32_t intValue)
 {
-    std::vector<std::uint8_t> ret;
+    ByteVector ret;
     ret.reserve(4);
 
     ret.push_back(static_cast<std::uint8_t>(intValue >> 24));
@@ -93,7 +93,7 @@ std::vector<std::uint8_t> DataFromInt32(std::int32_t intValue)
     return ret;
 }
 
-std::uint8_t DataToUint8(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+std::uint8_t DataToUint8(const ByteVector& parameterData, bool* pOk)
 {
     std::uint8_t ret(0);
     bool ok = (parameterData.size() >= sizeof(std::uint8_t));
@@ -110,16 +110,16 @@ std::uint8_t DataToUint8(const std::vector<std::uint8_t>& parameterData, bool* p
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromUint8(std::uint8_t value)
+ByteVector DataFromUint8(std::uint8_t value)
 {
-    std::vector<std::uint8_t> ret;
+    ByteVector ret;
     ret.push_back(value);
 
     return ret;
 }
 
 
-std::uint16_t DataToUint16(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+std::uint16_t DataToUint16(const ByteVector& parameterData, bool* pOk)
 {
     std::uint16_t ret(0);
     bool ok = (parameterData.size() >= sizeof(std::uint16_t));
@@ -139,16 +139,16 @@ std::uint16_t DataToUint16(const std::vector<std::uint8_t>& parameterData, bool*
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromUint16(std::uint16_t value)
+ByteVector DataFromUint16(std::uint16_t value)
 {
-    std::vector<std::uint8_t> ret;
+    ByteVector ret;
     ret.push_back(static_cast<std::uint8_t>(value >> 8));
     ret.push_back(static_cast<std::uint8_t>(value));
 
     return ret;
 }
 
-std::uint32_t DataToUint32(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+std::uint32_t DataToUint32(const ByteVector& parameterData, bool* pOk)
 {
     std::uint32_t ret(0);
 
@@ -168,9 +168,9 @@ std::uint32_t DataToUint32(const std::vector<std::uint8_t>& parameterData, bool*
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromUint32(std::uint32_t intValue)
+ByteVector DataFromUint32(std::uint32_t intValue)
 {
-    std::vector<std::uint8_t> ret;
+    ByteVector ret;
     ret.reserve(4);
 
     ret.push_back(static_cast<std::uint8_t>(intValue >> 24));
@@ -181,7 +181,7 @@ std::vector<std::uint8_t> DataFromUint32(std::uint32_t intValue)
     return ret;
 }
 
-std::uint64_t DataToUint64(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+std::uint64_t DataToUint64(const ByteVector& parameterData, bool* pOk)
 {
     std::uint64_t ret(0);
 
@@ -201,9 +201,9 @@ std::uint64_t DataToUint64(const std::vector<std::uint8_t>& parameterData, bool*
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromUint64(std::uint64_t intValue)
+ByteVector DataFromUint64(std::uint64_t intValue)
 {
-    return std::vector<std::uint8_t>
+    return ByteVector
         ({
             static_cast<std::uint8_t>(intValue >> 56),
             static_cast<std::uint8_t>(intValue >> 48),
@@ -216,7 +216,7 @@ std::vector<std::uint8_t> DataFromUint64(std::uint64_t intValue)
         });
 }
 
-std::string DataToString(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+std::string DataToString(const ByteVector& parameterData, bool* pOk)
 {
     std::string ret;
 
@@ -232,9 +232,9 @@ std::string DataToString(const std::vector<std::uint8_t>& parameterData, bool* p
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromString(const std::string& string)
+ByteVector DataFromString(const std::string& string)
 {
-    std::vector<std::uint8_t> ret;
+    ByteVector ret;
 
     const char* pStringData = string.c_str();
     std::size_t stringLength = string.length();
@@ -250,7 +250,7 @@ std::vector<std::uint8_t> DataFromString(const std::string& string)
     return ret;
 }
 
-std::float_t DataToFloat(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+std::float_t DataToFloat(const ByteVector& parameterData, bool* pOk)
 {
     std::float_t ret(0);
 
@@ -272,9 +272,9 @@ std::float_t DataToFloat(const std::vector<std::uint8_t>& parameterData, bool* p
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromFloat(std::float_t floatValue)
+ByteVector DataFromFloat(std::float_t floatValue)
 {
-    std::vector<std::uint8_t> ret;
+    ByteVector ret;
     ret.reserve(4);
 
     jassert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast to work
@@ -288,7 +288,7 @@ std::vector<std::uint8_t> DataFromFloat(std::float_t floatValue)
     return ret;
 }
 
-std::double_t DataToDouble(const std::vector<std::uint8_t>& parameterData, bool* pOk)
+std::double_t DataToDouble(const ByteVector& parameterData, bool* pOk)
 {
     std::double_t ret(0);
 
@@ -315,12 +315,12 @@ std::double_t DataToDouble(const std::vector<std::uint8_t>& parameterData, bool*
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromDouble(std::double_t doubleValue)
+ByteVector DataFromDouble(std::double_t doubleValue)
 {
     jassert(sizeof(std::uint64_t) == sizeof(std::double_t)); // Required for pointer cast to work
     std::uint64_t intValue = *(std::uint64_t*)&doubleValue;
 
-    return std::vector<std::uint8_t>
+    return ByteVector
         ({ 
             static_cast<std::uint8_t>(intValue >> 56),
             static_cast<std::uint8_t>(intValue >> 48),
@@ -333,14 +333,14 @@ std::vector<std::uint8_t> DataFromDouble(std::double_t doubleValue)
         });
 }
 
-std::vector<std::uint8_t> DataFromPosition(std::float_t x, std::float_t y, std::float_t z)
+ByteVector DataFromPosition(std::float_t x, std::float_t y, std::float_t z)
 {
     jassert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast below
     std::uint32_t xInt = *(std::uint32_t*)&x;
     std::uint32_t yInt = *(std::uint32_t*)&y;
     std::uint32_t zInt = *(std::uint32_t*)&z;
 
-    std::vector<std::uint8_t> ret
+    ByteVector ret
     ({
         static_cast<std::uint8_t>(xInt >> 24),
         static_cast<std::uint8_t>(xInt >> 16),
@@ -359,14 +359,14 @@ std::vector<std::uint8_t> DataFromPosition(std::float_t x, std::float_t y, std::
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromPositionAndRotation(std::float_t x, std::float_t y, std::float_t z, std::float_t hor, std::float_t vert, std::float_t rot)
+ByteVector DataFromPositionAndRotation(std::float_t x, std::float_t y, std::float_t z, std::float_t hor, std::float_t vert, std::float_t rot)
 {
     return DataFromAimingAndPosition(hor, vert, rot, x, y, z);
 }
 
-std::vector<std::uint8_t> DataFromAimingAndPosition(std::float_t hor, std::float_t vert, std::float_t rot, std::float_t x, std::float_t y, std::float_t z)
+ByteVector DataFromAimingAndPosition(std::float_t hor, std::float_t vert, std::float_t rot, std::float_t x, std::float_t y, std::float_t z)
 {
-    std::vector<std::uint8_t> ret;
+    ByteVector ret;
     ret.reserve(6 * 4);
 
     jassert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast to work
@@ -410,9 +410,9 @@ std::vector<std::uint8_t> DataFromAimingAndPosition(std::float_t hor, std::float
     return ret;
 }
 
-std::vector<std::uint8_t> DataFromOnoForSubscription(std::uint32_t ono, bool add)
+ByteVector DataFromOnoForSubscription(std::uint32_t ono, bool add)
 {
-    std::vector<std::uint8_t> ret;
+    ByteVector ret;
     ret.reserve(add ? 25 : 16);
 
     ret.push_back(static_cast<std::uint8_t>(ono >> 24)); // Emitter ONo

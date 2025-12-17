@@ -42,7 +42,7 @@ Variant::Variant(std::float_t x, std::float_t y, std::float_t z)
     std::uint32_t yInt = *(std::uint32_t*)&y;
     std::uint32_t zInt = *(std::uint32_t*)&z;
 
-    m_value = std::vector<std::uint8_t>
+    m_value = ByteVector
         ({
             static_cast<std::uint8_t>(xInt >> 24),
             static_cast<std::uint8_t>(xInt >> 16),
@@ -59,7 +59,7 @@ Variant::Variant(std::float_t x, std::float_t y, std::float_t z)
         });
 }
 
-Variant::Variant(const std::vector<std::uint8_t>& data, Ocp1DataType type)
+Variant::Variant(const ByteVector& data, Ocp1DataType type)
 {
     bool ok(false);
     switch (type)
@@ -183,7 +183,7 @@ bool Variant::ToBool(bool* pOk) const
         case TypeString:
             return (std::get<std::string>(m_value) == "true");
         case TypeByteVector:
-            return DataToBool(std::get<std::vector<std::uint8_t>>(m_value), pOk);
+            return DataToBool(std::get<ByteVector>(m_value), pOk);
         default:
             break;
     }
@@ -226,7 +226,7 @@ std::int32_t Variant::ToInt32(bool* pOk) const
                 break; 
             }
         case TypeByteVector:
-            return DataToInt32(std::get<std::vector<std::uint8_t>>(m_value), pOk);
+            return DataToInt32(std::get<ByteVector>(m_value), pOk);
         default:
             break;
     }
@@ -269,7 +269,7 @@ std::uint8_t Variant::ToUInt8(bool* pOk) const
                 break;
             }
         case TypeByteVector:
-            return DataToUint8(std::get<std::vector<std::uint8_t>>(m_value), pOk);
+            return DataToUint8(std::get<ByteVector>(m_value), pOk);
         default:
             break;
     }
@@ -312,7 +312,7 @@ std::uint16_t Variant::ToUInt16(bool* pOk) const
                 break;
             }
         case TypeByteVector:
-            return DataToUint16(std::get<std::vector<std::uint8_t>>(m_value), pOk);
+            return DataToUint16(std::get<ByteVector>(m_value), pOk);
         default:
             break;
     }
@@ -355,7 +355,7 @@ std::uint32_t Variant::ToUInt32(bool* pOk) const
                 break;
             }
         case TypeByteVector:
-            return DataToUint32(std::get<std::vector<std::uint8_t>>(m_value), pOk);
+            return DataToUint32(std::get<ByteVector>(m_value), pOk);
         default:
             break;
     }
@@ -398,7 +398,7 @@ std::uint64_t Variant::ToUInt64(bool* pOk) const
                 break;
             }
         case TypeByteVector:
-            return DataToUint64(std::get<std::vector<std::uint8_t>>(m_value), pOk);
+            return DataToUint64(std::get<ByteVector>(m_value), pOk);
         default:
             break;
     }
@@ -441,7 +441,7 @@ std::double_t Variant::ToDouble(bool* pOk) const
                 break;
             }
         case TypeByteVector:
-            return DataToDouble(std::get<std::vector<std::uint8_t>>(m_value), pOk);
+            return DataToDouble(std::get<ByteVector>(m_value), pOk);
         default:
             break;
     }
@@ -484,7 +484,7 @@ std::float_t Variant::ToFloat(bool* pOk) const
                 break;
             }
         case TypeByteVector:
-            return DataToFloat(std::get<std::vector<std::uint8_t>>(m_value), pOk);
+            return DataToFloat(std::get<ByteVector>(m_value), pOk);
         default:
             break;
     }
@@ -520,7 +520,7 @@ std::string Variant::ToString(bool* pOk) const
         case TypeString:
             return std::get<std::string>(m_value);
         case TypeByteVector:
-            return DataToString(std::get<std::vector<std::uint8_t>>(m_value), pOk);
+            return DataToString(std::get<ByteVector>(m_value), pOk);
         default:
             break;
     }
@@ -531,7 +531,7 @@ std::string Variant::ToString(bool* pOk) const
     return std::string{};
 }
 
-std::vector<std::uint8_t> Variant::ToByteVector(bool* pOk) const
+ByteVector Variant::ToByteVector(bool* pOk) const
 {
     if (pOk != nullptr) *pOk = true;
 
@@ -556,7 +556,7 @@ std::vector<std::uint8_t> Variant::ToByteVector(bool* pOk) const
         case TypeString:
             return DataFromString(std::get<std::string>(m_value));
         case TypeByteVector:
-            return std::get<std::vector<std::uint8_t>>(m_value);
+            return std::get<ByteVector>(m_value);
         default:
             break;
     }
@@ -564,10 +564,10 @@ std::vector<std::uint8_t> Variant::ToByteVector(bool* pOk) const
     // Conversion not possible or not yet implemented!
     if (pOk != nullptr) *pOk = false;
 
-    return std::vector<std::uint8_t>{};
+    return ByteVector{};
 }
 
-std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATYPE_NONE */, bool* pOk) const
+ByteVector Variant::ToParamData(Ocp1DataType type /* = OCP1DATATYPE_NONE */, bool* pOk) const
 {
     if (pOk != nullptr) *pOk = true;
 
@@ -613,7 +613,7 @@ std::vector<std::uint8_t> Variant::ToParamData(Ocp1DataType type /* = OCP1DATATY
     // Conversion not possible or not yet implemented!
     if (pOk != nullptr) *pOk = false;
     
-    return std::vector<std::uint8_t>{};
+    return ByteVector{};
 }
 
 std::array<std::float_t, 3> Variant::ToPosition(bool* pOk) const
@@ -628,7 +628,7 @@ std::array<std::float_t, 3> Variant::ToPosition(bool* pOk) const
         return ret;
     }
 
-    const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
+    const auto& data = std::get<ByteVector>(m_value);
     bool ok = ((data.size() == 12) || // Value contains 3 floats: x, y, z.
                (data.size() == 36));  // Value contains 9 floats: x, y, z, plus min and max each on top.
 
@@ -636,10 +636,10 @@ std::array<std::float_t, 3> Variant::ToPosition(bool* pOk) const
         ret[0] = NanoOcp1::DataToFloat(data, &ok); // x
 
     if (ok)
-        ret[1] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 4, data.data() + 8), &ok); // y
+        ret[1] = NanoOcp1::DataToFloat(ByteVector(data.data() + 4, data.data() + 8), &ok); // y
 
     if (ok)
-        ret[2] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 8, data.data() + 12), &ok); // z
+        ret[2] = NanoOcp1::DataToFloat(ByteVector(data.data() + 8, data.data() + 12), &ok); // z
 
     if (pOk != nullptr)
         *pOk = ok;
@@ -684,26 +684,26 @@ std::array<std::float_t, 6> Variant::ToAimingAndPosition(bool* pOk) const
         return ret;
     }
 
-    const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
+    const auto& data = std::get<ByteVector>(m_value);
     bool ok = (data.size() == 24); // Value contains 6 floats: horAngle, vertAngle, rotAngle, x, y, z.
     
     if (ok)
         ret[0] = NanoOcp1::DataToFloat(data, &ok); // hor
 
     if (ok)
-        ret[1] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 4, data.data() + 8), &ok); // ver
+        ret[1] = NanoOcp1::DataToFloat(ByteVector(data.data() + 4, data.data() + 8), &ok); // ver
 
     if (ok)
-        ret[2] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 8, data.data() + 12), &ok); // rot
+        ret[2] = NanoOcp1::DataToFloat(ByteVector(data.data() + 8, data.data() + 12), &ok); // rot
 
     if (ok)
-        ret[3] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 12, data.data() + 16), &ok); // x
+        ret[3] = NanoOcp1::DataToFloat(ByteVector(data.data() + 12, data.data() + 16), &ok); // x
 
     if (ok)
-        ret[4] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 16, data.data() + 20), &ok); // y
+        ret[4] = NanoOcp1::DataToFloat(ByteVector(data.data() + 16, data.data() + 20), &ok); // y
 
     if (ok)
-        ret[5] = NanoOcp1::DataToFloat(std::vector<std::uint8_t>(data.data() + 20, data.data() + 24), &ok); // z
+        ret[5] = NanoOcp1::DataToFloat(ByteVector(data.data() + 20, data.data() + 24), &ok); // z
 
     if (pOk != nullptr)
         *pOk = ok;
@@ -744,7 +744,7 @@ std::vector<bool> Variant::ToBoolVector(bool* pOk) const
         return boolVector;
     }
 
-    const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
+    const auto& data = std::get<ByteVector>(m_value);
     bool ok = (data.size() >= 2); // OcaList size takes up the first 2 bytes.
 
     std::uint16_t listSize(0);
@@ -758,7 +758,7 @@ std::vector<bool> Variant::ToBoolVector(bool* pOk) const
         std::size_t readPos(2); // Start after the OcaList size bytes
         while (readPos < data.size() && ok)
         {
-            std::vector<std::uint8_t> tmpData(data.data() + readPos, data.data() + readPos + 1);
+            ByteVector tmpData(data.data() + readPos, data.data() + readPos + 1);
             boolVector.push_back(NanoOcp1::DataToBool(tmpData, &ok));
             readPos++;
         }
@@ -784,7 +784,7 @@ std::vector<std::string> Variant::ToStringVector(bool* pOk) const
         return stringVector;
     }
 
-    const auto& data = std::get<std::vector<std::uint8_t>>(m_value);
+    const auto& data = std::get<ByteVector>(m_value);
     bool ok = (data.size() >= 2); // OcaList size takes up the first 2 bytes.
 
     std::uint16_t listSize(0);
@@ -799,7 +799,7 @@ std::vector<std::string> Variant::ToStringVector(bool* pOk) const
         std::size_t readPos(2); // Start after the OcaList size bytes
         while (readPos + 2 <= data.size() && ok)
         {
-            std::vector<std::uint8_t> stringLenData(data.data() + readPos, data.data() + readPos + 2);
+            ByteVector stringLenData(data.data() + readPos, data.data() + readPos + 2);
             auto stringLen = NanoOcp1::DataToUint16(stringLenData, &ok);
             readPos += 2;
 

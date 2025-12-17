@@ -959,7 +959,7 @@ struct dbOcaObjDef_MatrixSettings_ReverbRoomIdNames : Ocp1CommandDefinition
             m_propertyDefLevel,
             5,                                 // GetPositionNames has MethodIdx 5
             0,                                 // GetPositionNames needs 0 input params
-            std::vector<std::uint8_t>());      // Empty parameters
+            ByteVector());      // Empty parameters
     }
 
     dbOcaObjDef_MatrixSettings_ReverbRoomIdNames* Clone() const override
@@ -988,7 +988,7 @@ struct dbOcaObjDef_MatrixSettings_ReverbRoomIdEnableds : Ocp1CommandDefinition
             m_propertyDefLevel,
             9,                                 // GetPositionEnableds has MethodIdx 9
             0,                                 // GetPositionEnableds needs 0 input params
-            std::vector<std::uint8_t>());      // Empty parameters
+            ByteVector());      // Empty parameters
     }
 
     dbOcaObjDef_MatrixSettings_ReverbRoomIdEnableds* Clone() const override
@@ -1216,7 +1216,7 @@ struct dbOcaObjectDef_SceneAgent : Ocp1CommandDefinition
         std::uint32_t newValue = minor + (major << 16);
 
         std::uint8_t paramCount(1);
-        std::vector<std::uint8_t> newParamData = DataFromUint32(newValue);
+        ByteVector newParamData = DataFromUint32(newValue);
 
         return Ocp1CommandDefinition(m_targetOno,
             OCP1DATATYPE_UINT32,

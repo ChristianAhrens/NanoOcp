@@ -24,13 +24,14 @@
     #include <JuceHeader.h>
 #endif
 
+#include "Ocp1DataTypes.h"
+
 
 namespace NanoOcp1
 {
 
 
 class Ocp1ConnectionServer;
-class MemoryBlock;
 
 
 //==============================================================================
@@ -53,12 +54,12 @@ public:
     bool isConnected() const;
     juce::StreamingSocket* getSocket() const noexcept { return socket.get(); }
     juce::String getConnectedHostName() const;
-    bool sendMessage(const juce::MemoryBlock& message);
+    bool sendMessage(const ByteVector& message);
 
     //==============================================================================
     virtual void connectionMade() = 0;
     virtual void connectionLost() = 0;
-    virtual void messageReceived(const juce::MemoryBlock& message) = 0;
+    virtual void messageReceived(const ByteVector& message) = 0;
 
 private:
     //==============================================================================
@@ -73,7 +74,7 @@ private:
     void deleteSocket();
     void connectionMadeInt();
     void connectionLostInt();
-    void deliverDataInt(const juce::MemoryBlock&);
+    void deliverDataInt(const ByteVector&);
     bool readNextMessage();
     int readData(void*, int);
 
