@@ -75,7 +75,8 @@ NanoOcp1Client::NanoOcp1Client(const juce::String& address, const int port, cons
 
 NanoOcp1Client::~NanoOcp1Client()
 {
-    stop();
+    // See comment in Ocp1Connection destructor. 
+    disconnect(4000, Notify::no);
 }
 
 bool NanoOcp1Client::start()
