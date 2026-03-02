@@ -33,7 +33,18 @@ namespace NanoOcp1
 
 struct Ocp1Connection::ConnectionThread : public juce::Thread
 {
-    ConnectionThread(Ocp1Connection& c) : juce::Thread("JUCE IPC"), owner(c) {}
+    ConnectionThread(Ocp1Connection& c) 
+        : juce::Thread("Ocp1Connection::ConnectionThread"), 
+          owner(c) 
+    {
+    }
+
+    ~ConnectionThread() override
+    {
+        signalThreadShouldExit();
+        stopThread(4000);
+    }
+
     void run() override { owner.runThread(); }
 
     Ocp1Connection& owner;
@@ -93,6 +104,9 @@ Ocp1Connection::~Ocp1Connection()
     // destroying the derived class, we'd end up calling the pure virtual implementations
     // of `messageReceived`, `connectionMade` and `connectionLost` which is definitely
     // not a good idea!
+
+    if (safeAction)
+        safeAction->setSafe(false);
     jassert(!safeAction->isSafe());
 
     callbackConnectionState = false;
