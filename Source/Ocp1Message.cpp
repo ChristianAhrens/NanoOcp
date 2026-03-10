@@ -60,12 +60,12 @@ Ocp1CommandDefinition Ocp1CommandDefinition::GetValueCommand() const
                                  m_propertyDefLevel,
                                  1,                              // Get method is usually MethodIdx 1
                                  0,                              // 0 Param
-                                 std::vector<std::uint8_t>());   // Empty parameters
+        ByteVector());   // Empty parameters
 }
 
 Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const Variant& newValue) const
 {
-    std::vector<std::uint8_t> newParamData = newValue.ToParamData(GetDataType());
+    ByteVector newParamData = newValue.ToParamData(GetDataType());
 
     return Ocp1CommandDefinition(m_targetOno,
                                  m_propertyType,
@@ -85,12 +85,7 @@ Ocp1CommandDefinition* Ocp1CommandDefinition::Clone() const
 // Class Ocp1Header
 //==============================================================================
 
-Ocp1Header::Ocp1Header(const juce::MemoryBlock& memoryBlock)
-    : Ocp1Header(std::vector<std::uint8_t>(memoryBlock.begin(), memoryBlock.end()))
-{
-}
-
-Ocp1Header::Ocp1Header(const std::vector<std::uint8_t>& memory)
+Ocp1Header::Ocp1Header(const ByteVector& memory)
     :   m_syncVal(static_cast<std::uint8_t>(0)),
         m_protoVers(static_cast<std::uint16_t>(0)),
         m_msgSize(static_cast<std::uint32_t>(0)),
@@ -123,9 +118,9 @@ bool Ocp1Header::IsValid() const
             (m_msgType <= Ocp1Message::KeepAlive) && (m_msgCnt > 0));
 }
 
-std::vector<std::uint8_t> Ocp1Header::GetSerializedData() const
+ByteVector Ocp1Header::GetSerializedData() const
 {
-    std::vector<std::uint8_t> serializedData;
+    ByteVector serializedData;
 
     serializedData.push_back(m_syncVal);
     serializedData.push_back(static_cast<std::uint8_t>(m_protoVers >> 8));
@@ -175,20 +170,8 @@ std::uint32_t Ocp1Header::CalculateMessageSize(std::uint8_t msgType, size_t para
 // OCA_INVALID_SESSIONID  == 0, OCA_LOCAL_SESSIONID == 1
 std::uint32_t Ocp1Message::m_nextHandle = 2;
 
-juce::MemoryBlock Ocp1Message::GetMemoryBlock()
-{
-    auto serializedData = GetSerializedData();
-    return juce::MemoryBlock((const char*)serializedData.data(), serializedData.size());
-}
 
-std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const juce::MemoryBlock& receivedData)
-{
-    const std::vector<std::uint8_t> convertedData(receivedData.begin(), receivedData.end());
-
-    return UnmarshalOcp1Message(convertedData);
-}
-
-std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const std::vector<std::uint8_t>& receivedData)
+std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector& receivedData)
 {
     Ocp1Header header(receivedData);
     if (!header.IsValid())
@@ -250,7 +233,7 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const std::vector
                 if (propIdx == 0)
                     return nullptr;
 
-                const auto parameterData = std::vector<std::uint8_t>(receivedData.begin() + 37 + contextSize, 
+                const auto parameterData = ByteVector(receivedData.begin() + 37 + contextSize,
                                                                      receivedData.begin() + 37 + contextSize + newValueSize);
 
                 return std::make_unique<Ocp1Notification>(emitterOno, propDefLevel, propIdx, paramCount, parameterData);
@@ -273,9 +256,9 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const std::vector
 
                 const auto parameterData = [&receivedData, &parameterDataLength]() {
                     if (parameterDataLength == 0)
-                        return std::vector<std::uint8_t>{};
+                        return ByteVector{};
                     else
-                        return std::vector<std::uint8_t>(receivedData.begin() + 20, receivedData.end());
+                        return ByteVector(receivedData.begin() + 20, receivedData.end());
                     }();
                 jassert(parameterData.size() == parameterDataLength);
 
@@ -336,11 +319,11 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const std::vector
                 
                 const auto parameterData = [&receivedData, &paramCount, &parameterDataOffset]() {
                     if (paramCount == 0)
-                        return std::vector<std::uint8_t>{};
+                        return ByteVector{};
                     else if(receivedData.begin() + parameterDataOffset >= receivedData.end())
-                        return std::vector<std::uint8_t>{};
+                        return ByteVector{};
                     else
-                        return std::vector<std::uint8_t>(receivedData.begin() + parameterDataOffset, receivedData.end());
+                        return ByteVector(receivedData.begin() + parameterDataOffset, receivedData.end());
                 }();
 
                 auto result = std::make_unique<Ocp1CommandResponseRequired>(targetOno, methodDefLevel, methodIdx, paramCount, parameterData);
@@ -358,9 +341,9 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const std::vector
 // Class Ocp1CommandResponseRequired
 //==============================================================================
 
-std::vector<std::uint8_t> Ocp1CommandResponseRequired::GetSerializedData()
+ByteVector Ocp1CommandResponseRequired::GetSerializedData()
 {
-    std::vector<std::uint8_t> serializedData = m_header.GetSerializedData();
+    ByteVector serializedData = m_header.GetSerializedData();
 
     std::uint32_t commandSize(m_header.GetMessageSize() - 9); // Message size minus the header
     serializedData.push_back(static_cast<std::uint8_t>(commandSize >> 24));
@@ -394,9 +377,9 @@ std::vector<std::uint8_t> Ocp1CommandResponseRequired::GetSerializedData()
 // Class Ocp1Response
 //==============================================================================
 
-std::vector<std::uint8_t> Ocp1Response::GetSerializedData()
+ByteVector Ocp1Response::GetSerializedData()
 {
-    std::vector<std::uint8_t> serializedData = m_header.GetSerializedData();
+    ByteVector serializedData = m_header.GetSerializedData();
 
     std::uint32_t responseSize(m_header.GetMessageSize() - 9); // Message size minus the header
     serializedData.push_back(static_cast<std::uint8_t>(responseSize >> 24));
@@ -423,9 +406,9 @@ std::vector<std::uint8_t> Ocp1Response::GetSerializedData()
 // Class Ocp1Notification
 //==============================================================================
 
-std::vector<std::uint8_t> Ocp1Notification::GetSerializedData()
+ByteVector Ocp1Notification::GetSerializedData()
 {
-    std::vector<std::uint8_t> serializedData = m_header.GetSerializedData();
+    ByteVector serializedData = m_header.GetSerializedData();
 
     std::uint32_t notificationSize(m_header.GetMessageSize() - 9); // Message size minus the header
     serializedData.push_back(static_cast<std::uint8_t>(notificationSize >> 24));
@@ -508,9 +491,9 @@ std::uint32_t Ocp1KeepAlive::GetHeartBeatMilliseconds() const
     return 0;
 }
 
-std::vector<std::uint8_t> Ocp1KeepAlive::GetSerializedData()
+ByteVector Ocp1KeepAlive::GetSerializedData()
 {
-    std::vector<std::uint8_t> serializedData = m_header.GetSerializedData();
+    ByteVector serializedData = m_header.GetSerializedData();
     serializedData.insert(serializedData.end(), m_parameterData.begin(), m_parameterData.end());
     
     return serializedData;

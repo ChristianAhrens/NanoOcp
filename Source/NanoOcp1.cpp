@@ -54,7 +54,7 @@ const int NanoOcp1Base::getPort()
     return m_port;
 }
 
-bool NanoOcp1Base::processReceivedData(const juce::MemoryBlock& data)
+bool NanoOcp1Base::processReceivedData(const ByteVector& data)
 {
     if (onDataReceived)
         return onDataReceived(data);
@@ -109,7 +109,7 @@ bool NanoOcp1Client::isRunning()
     return m_running;
 }
 
-bool NanoOcp1Client::sendData(const juce::MemoryBlock& data)
+bool NanoOcp1Client::sendData(const ByteVector& data)
 {
     if (!isConnected())
         return false;
@@ -134,7 +134,7 @@ void NanoOcp1Client::connectionLost()
         startTimer(500); // start trying to reestablish connection
 }
 
-void NanoOcp1Client::messageReceived(const juce::MemoryBlock& message)
+void NanoOcp1Client::messageReceived(const ByteVector& message)
 {
     processReceivedData(message);
 }
@@ -177,7 +177,7 @@ bool NanoOcp1Server::stop()
         return true;
 }
 
-bool NanoOcp1Server::sendData(const juce::MemoryBlock& data)
+bool NanoOcp1Server::sendData(const ByteVector& data)
 {
     if (!m_activeConnection)
         return false;

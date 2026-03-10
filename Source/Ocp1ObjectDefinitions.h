@@ -25,10 +25,31 @@
 
 namespace NanoOcp1
 {
+
+/**
+ * @brief Shorthand for the combined box-and-object-number part of an ONo.
+ *
+ * An OCA Object Number (ONo) encodes `type`, `record`, `channel`, and a
+ * `boxAndObjectNumber` packed together by `GetONo()`.  The `BoxAndObjNo` constants
+ * in each device namespace (e.g. `DS100::Fixed_GUID = 0x0f`) are the `boxAndObjectNumber`
+ * argument to `GetONo()`.  Concrete `dbOcaObjectDef_*` structs call `GetONo()` in
+ * their constructors so callers never need to compose ONos manually.
+ */
 typedef std::uint32_t BoxAndObjNo;
 
 /**
- * Definition levels of AES70 classes used here.
+ * @name AES70 class definition levels
+ * @brief Inheritance-depth constants used as `m_propertyDefLevel` in `Ocp1CommandDefinition`.
+ *
+ * In AES70 every property is defined at a specific level in the OCA class hierarchy.
+ * The def-level is the number of classes between `OcaRoot` (level 1) and the class
+ * that introduces the property.  NanoOcp uses these constants to build the correct
+ * `Ocp1CommandDefinition::m_propertyDefLevel` fields.
+ *
+ * Example: `OcaGain` inherits `OcaRoot → OcaWorker → OcaActuator → OcaGain`, so
+ * `DefLevel_OcaGain = 4`.  The `Prop_Gain` property in `OcaGain` therefore has
+ * `m_propertyDefLevel = 4`.
+ * @{
  */
 static constexpr int DefLevel_OcaRoot               = 1;
 static constexpr int DefLevel_OcaAgent              = 1 + DefLevel_OcaRoot;
@@ -51,15 +72,21 @@ static constexpr int DefLevel_OcaBooleanSensor      = 1 + DefLevel_OcaBasicSenso
 static constexpr int DefLevel_OcaInt32Sensor        = 1 + DefLevel_OcaBasicSensor;
 static constexpr int DefLevel_OcaStringSensor       = 1 + DefLevel_OcaBasicSensor;
 
-static constexpr int DefLevel_dbOcaDataTransfer                     = 1 + DefLevel_OcaAgent;
-static constexpr int DefLevel_dbOcaSceneAgent                       = 1 + DefLevel_dbOcaDataTransfer;
-static constexpr int DefLevel_dbOcaPositionAgentDeprecated          = 1 + DefLevel_OcaAgent;
-static constexpr int DefLevel_dbOcaSpeakerPositionAgentDeprecated   = 1 + DefLevel_dbOcaPositionAgentDeprecated;
+static constexpr int DefLevel_dbOcaDataTransfer                     = 1 + DefLevel_OcaAgent;         ///< d&b data-transfer agent (DS100 scene control).
+static constexpr int DefLevel_dbOcaSceneAgent                       = 1 + DefLevel_dbOcaDataTransfer; ///< DS100 scene agent, extends dbOcaDataTransfer.
+static constexpr int DefLevel_dbOcaPositionAgentDeprecated          = 1 + DefLevel_OcaAgent;          ///< Deprecated d&b 3D position agent (pre-firmware DB000CD0).
+static constexpr int DefLevel_dbOcaSpeakerPositionAgentDeprecated   = 1 + DefLevel_dbOcaPositionAgentDeprecated; ///< Deprecated d&b speaker-position agent.
+/** @} */
 
 
-
-//==============================================================================
-// Generic plattform (all amps)
+/**
+ * @namespace NanoOcp1::AmpGeneric
+ * @brief Object definitions common to all d&b amplifier platforms.
+ *
+ * These constants and structs apply to any d&b amp that exposes the generic
+ * OCA object model (Dx, Dy, 5D, etc.).  For DS100-specific objects, see
+ * `NanoOcp1::DS100`.
+ */
 //==============================================================================
 namespace AmpGeneric
 {

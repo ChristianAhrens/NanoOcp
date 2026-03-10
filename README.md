@@ -2,6 +2,8 @@
 
 NanoOcp is a code collection based on JUCE framework including means to set up a minimal AES70 OCP.1 connection via tcp and handle/parse the protocol data in a basic way.
 
+Full code documentation available at [![Documentation](https://img.shields.io/badge/docs-doxygen-blue)](https://ChristianAhrens.github.io/NanoOcp/)
+
 |Appveyor CI build status|NanoOcp1Demo|
 |:----------------|:-----|
 | macOS Xcode           | [![Build status](https://ci.appveyor.com/api/projects/status/l680mk88wpwh8oq1?svg=true)](https://ci.appveyor.com/project/ChristianAhrens/nanoocp1demo-macos)   |

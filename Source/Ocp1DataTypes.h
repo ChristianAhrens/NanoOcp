@@ -25,31 +25,65 @@
 namespace NanoOcp1
 {
 
-/** 
- * Enumeration that describes all available base data types. 
- * Same values as OcaBaseDataType in OcaBaseDataTypes.h
- * of the Bosch reference implementation.
+/**
+ * @brief Binary buffer type used throughout NanoOcp for all serialized OCP.1 data.
+ *
+ * Every `Ocp1Message::GetSerializedData()`, `DataFromX()`, and `Variant::ToParamData()`
+ * returns a `ByteVector`.  The `sendData()` / `sendMessage()` methods also take one.
+ * This is a drop-in replacement for `juce::MemoryBlock` that avoids the JUCE dependency
+ * in the data-layer headers.
+ */
+using ByteVector = std::vector<std::uint8_t>;
+
+
+/**
+ * @brief OCA base data type codes, matching `OcaBaseDataType` in the AES70 specification.
+ *
+ * Each `Ocp1CommandDefinition` stores a `m_propertyType` from this enum, which tells
+ * the marshaling helpers how to encode/decode the property value:
+ *
+ * | Value | Name | C++ type | Byte width |
+ * |---|---|---|---|
+ * | 0 | NONE | — | — |
+ * | 1 | BOOLEAN | bool | 1 |
+ * | 2–5 | INT8/16/32/64 | int8–64_t | 1–8 |
+ * | 6–9 | UINT8/16/32/64 | uint8–64_t | 1–8 |
+ * | 10 | FLOAT32 | float_t | 4 |
+ * | 11 | FLOAT64 | double_t | 8 |
+ * | 12 | STRING | std::string | 2 (len) + N |
+ * | 13 | BIT_STRING | — | variable |
+ * | 14 | BLOB | ByteVector | variable |
+ * | 15 | BLOB_FIXED_LEN | ByteVector | fixed |
+ * | 32 | DB_POSITION | 3 × float_t | 12 — used by `CdbOcaPositionAgentDeprecated` |
+ * | 128 | CUSTOM | user-defined | — |
+ *
+ * In `Ocp1DS100ObjectDefinitions.h`, most DS100 spatial properties use
+ * `OCP1DATATYPE_BLOB` with a known fixed layout (e.g. 3 × 4-byte floats for XYZ,
+ * 6 × 4-byte floats for aiming+position).  `Variant::ToPosition()` and
+ * `Variant::ToAimingAndPosition()` decode those layouts.
+ *
+ * Values match `OcaBaseDataType` in the Bosch AES70 reference implementation.
  */
 enum Ocp1DataType
 {
-    OCP1DATATYPE_NONE               = 0,
-    OCP1DATATYPE_BOOLEAN            = 1,
-    OCP1DATATYPE_INT8               = 2,
-    OCP1DATATYPE_INT16              = 3,
-    OCP1DATATYPE_INT32              = 4,
-    OCP1DATATYPE_INT64              = 5,
-    OCP1DATATYPE_UINT8              = 6,
-    OCP1DATATYPE_UINT16             = 7,
-    OCP1DATATYPE_UINT32             = 8,
-    OCP1DATATYPE_UINT64             = 9,
-    OCP1DATATYPE_FLOAT32            = 10,
-    OCP1DATATYPE_FLOAT64            = 11,
-    OCP1DATATYPE_STRING             = 12,
-    OCP1DATATYPE_BIT_STRING         = 13,
-    OCP1DATATYPE_BLOB               = 14,
-    OCP1DATATYPE_BLOB_FIXED_LEN     = 15,
-    OCP1DATATYPE_DB_POSITION        = 32,   // Type used by CdbOcaPositionAgentDeprecated
-    OCP1DATATYPE_CUSTOM             = 128   // User-defined types
+    OCP1DATATYPE_NONE               = 0,    ///< No type; used as "not set" sentinel.
+    OCP1DATATYPE_BOOLEAN            = 1,    ///< Single byte: 0 = false, non-zero = true.
+    OCP1DATATYPE_INT8               = 2,    ///< Signed 8-bit integer.
+    OCP1DATATYPE_INT16              = 3,    ///< Signed 16-bit integer, big-endian.
+    OCP1DATATYPE_INT32              = 4,    ///< Signed 32-bit integer, big-endian.
+    OCP1DATATYPE_INT64              = 5,    ///< Signed 64-bit integer, big-endian.
+    OCP1DATATYPE_UINT8              = 6,    ///< Unsigned 8-bit integer.
+    OCP1DATATYPE_UINT16             = 7,    ///< Unsigned 16-bit integer, big-endian.
+    OCP1DATATYPE_UINT32             = 8,    ///< Unsigned 32-bit integer, big-endian.
+    OCP1DATATYPE_UINT64             = 9,    ///< Unsigned 64-bit integer, big-endian.
+    OCP1DATATYPE_FLOAT32            = 10,   ///< IEEE 754 single-precision float, big-endian (4 bytes).
+    OCP1DATATYPE_FLOAT64            = 11,   ///< IEEE 754 double-precision float, big-endian (8 bytes).
+    OCP1DATATYPE_STRING             = 12,   ///< OCA string: 2-byte big-endian length prefix followed by UTF-8 bytes.
+    OCP1DATATYPE_BIT_STRING         = 13,   ///< Packed bit string.
+    OCP1DATATYPE_BLOB               = 14,   ///< Variable-length binary blob; layout is property-specific.
+    OCP1DATATYPE_BLOB_FIXED_LEN     = 15,   ///< Fixed-length binary blob; size determined by the property definition.
+    OCP1DATATYPE_DB_POSITION        = 32,   ///< d&b-specific 3D position blob (3 × float32); used by deprecated position agent.
+    OCP1DATATYPE_CUSTOM             = 128   ///< User-defined / vendor-specific type.
 };
 
 
@@ -59,14 +93,14 @@ enum Ocp1DataType
  * @param  pOk           Optional parameter to verify if the conversion was successful.
  * @return               The value contained in the parameterData as bool.
  */
-bool DataToBool(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+bool DataToBool(const ByteVector& parameterData, bool* pOk = nullptr);
 
 /**
  * @brief  Convenience helper method to convert a bool into a byte vector
  * @param  boolValue Value to be converted.
  * @return           The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromBool(bool boolValue);
+ByteVector DataFromBool(bool boolValue);
 
 /**
  * Convenience helper method to convert a byte vector into a Int32
@@ -75,7 +109,7 @@ std::vector<std::uint8_t> DataFromBool(bool boolValue);
  * @param[in] pOk               Optional parameter to verify if the conversion was successful.
  * @return  The value contained in the parameterData as a Int32.
  */
-std::int32_t DataToInt32(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+std::int32_t DataToInt32(const ByteVector& parameterData, bool* pOk = nullptr);
 
 /**
  * Convenience helper method to convert a Int32 into a byte vector
@@ -83,7 +117,7 @@ std::int32_t DataToInt32(const std::vector<std::uint8_t>& parameterData, bool* p
  * @param[in] value     Value to be converted.
  * @return  The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromInt32(std::int32_t value);
+ByteVector DataFromInt32(std::int32_t value);
 
 /**
  * Convenience helper method to convert a byte vector into a Uint8
@@ -92,7 +126,7 @@ std::vector<std::uint8_t> DataFromInt32(std::int32_t value);
  * @param[in] pOk               Optional parameter to verify if the conversion was successful.
  * @return  The value contained in the parameterData as a Uint8.
  */
-std::uint8_t DataToUint8(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+std::uint8_t DataToUint8(const ByteVector& parameterData, bool* pOk = nullptr);
 
 /**
  * Convenience helper method to convert a Uint8 into a byte vector
@@ -100,7 +134,7 @@ std::uint8_t DataToUint8(const std::vector<std::uint8_t>& parameterData, bool* p
  * @param[in] value     Value to be converted.
  * @return  The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromUint8(std::uint8_t value);
+ByteVector DataFromUint8(std::uint8_t value);
 
 /**
  * Convenience helper method to convert a byte vector into a Uint16
@@ -109,7 +143,7 @@ std::vector<std::uint8_t> DataFromUint8(std::uint8_t value);
  * @param[in] pOk               Optional parameter to verify if the conversion was successful.
  * @return  The value contained in the parameterData as a Uint16.
  */
-std::uint16_t DataToUint16(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+std::uint16_t DataToUint16(const ByteVector& parameterData, bool* pOk = nullptr);
 
 /**
  * Convenience helper method to convert a Uint16 into a byte vector
@@ -117,7 +151,7 @@ std::uint16_t DataToUint16(const std::vector<std::uint8_t>& parameterData, bool*
  * @param[in] value     Value to be converted.
  * @return  The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromUint16(std::uint16_t value);
+ByteVector DataFromUint16(std::uint16_t value);
 
 /**
  * Convenience helper method to convert a byte vector into a Uint32
@@ -126,7 +160,7 @@ std::vector<std::uint8_t> DataFromUint16(std::uint16_t value);
  * @param[in] pOk               Optional parameter to verify if the conversion was successful.
  * @return  The value contained in the parameterData as a Uint32.
  */
-std::uint32_t DataToUint32(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+std::uint32_t DataToUint32(const ByteVector& parameterData, bool* pOk = nullptr);
 
 /**
  * Convenience helper method to convert a Uint32 into a byte vector
@@ -134,7 +168,7 @@ std::uint32_t DataToUint32(const std::vector<std::uint8_t>& parameterData, bool*
  * @param[in] value     Value to be converted.
  * @return  The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromUint32(std::uint32_t value);
+ByteVector DataFromUint32(std::uint32_t value);
 
 /**
  * Convenience helper method to convert a byte vector into a Uint64
@@ -143,7 +177,7 @@ std::vector<std::uint8_t> DataFromUint32(std::uint32_t value);
  * @param[in] pOk               Optional parameter to verify if the conversion was successful.
  * @return  The value contained in the parameterData as a Uint64.
  */
-std::uint64_t DataToUint64(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+std::uint64_t DataToUint64(const ByteVector& parameterData, bool* pOk = nullptr);
 
 /**
  * Convenience helper method to convert a Uint64 into a byte vector
@@ -151,7 +185,7 @@ std::uint64_t DataToUint64(const std::vector<std::uint8_t>& parameterData, bool*
  * @param[in] value     Value to be converted.
  * @return  The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromUint64(std::uint64_t value);
+ByteVector DataFromUint64(std::uint64_t value);
 
 /**
  * Convenience helper method to convert a byte vector into a std::string
@@ -161,7 +195,7 @@ std::vector<std::uint8_t> DataFromUint64(std::uint64_t value);
  * @param[in] pOk               Optional parameter to verify if the conversion was successful.
  * @return  The string contained in the parameterData as a std::string.
  */
-std::string DataToString(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+std::string DataToString(const ByteVector& parameterData, bool* pOk = nullptr);
 
 /**
  * Convenience helper method to convert a std::string into a byte vector
@@ -169,7 +203,7 @@ std::string DataToString(const std::vector<std::uint8_t>& parameterData, bool* p
  * @param[in] string     std::string to be converted.
  * @return  The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromString(const std::string& string);
+ByteVector DataFromString(const std::string& string);
 
 /**
  * Convenience helper method to convert a byte vector into a 32-bit float.
@@ -178,7 +212,7 @@ std::vector<std::uint8_t> DataFromString(const std::string& string);
  * @param[in] pOk               Optional parameter to verify if the conversion was successful.
  * @return  The value contained in the parameterData as a float.
  */
-std::float_t DataToFloat(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+std::float_t DataToFloat(const ByteVector& parameterData, bool* pOk = nullptr);
 
 /**
  * Convenience helper method to convert a 32-bit float into a byte vector
@@ -186,7 +220,7 @@ std::float_t DataToFloat(const std::vector<std::uint8_t>& parameterData, bool* p
  * @param[in] floatValue     Value to be converted.
  * @return  The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromFloat(std::float_t floatValue);
+ByteVector DataFromFloat(std::float_t floatValue);
 
 /**
  * Convenience helper method to convert a byte vector into a 64-bit double.
@@ -195,7 +229,7 @@ std::vector<std::uint8_t> DataFromFloat(std::float_t floatValue);
  * @param[in] pOk               Optional parameter to verify if the conversion was successful.
  * @return  The value contained in the parameterData as a double.
  */
-std::double_t DataToDouble(const std::vector<std::uint8_t>& parameterData, bool* pOk = nullptr);
+std::double_t DataToDouble(const ByteVector& parameterData, bool* pOk = nullptr);
 
 /**
  * Convenience helper method to convert a 64-bit double into a byte vector
@@ -203,7 +237,7 @@ std::double_t DataToDouble(const std::vector<std::uint8_t>& parameterData, bool*
  * @param[in] doubleValue    Value to be converted.
  * @return  The value as a byte vector.
  */
-std::vector<std::uint8_t> DataFromDouble(std::double_t doubleValue);
+ByteVector DataFromDouble(std::double_t doubleValue);
 
 /**
  * Convenience helper method to convert a 3D position (three 32-bit floats) into a byte vector
@@ -213,7 +247,7 @@ std::vector<std::uint8_t> DataFromDouble(std::double_t doubleValue);
  * @param[in] z     Position along z axis.
  * @return  The values as a byte vector.
  */
-std::vector<std::uint8_t> DataFromPosition(std::float_t x, std::float_t y, std::float_t z);
+ByteVector DataFromPosition(std::float_t x, std::float_t y, std::float_t z);
 
 /**
  * Convenience helper method to convert a 3D aiming and position (six 32-bit floats) into a byte vector
@@ -228,11 +262,11 @@ std::vector<std::uint8_t> DataFromPosition(std::float_t x, std::float_t y, std::
  * @param[in] z     Position along z axis.
  * @return  The values as a byte vector.
  */
-std::vector<std::uint8_t> DataFromAimingAndPosition(std::float_t hor, std::float_t vert, std::float_t rot, std::float_t x, std::float_t y, std::float_t z);
+ByteVector DataFromAimingAndPosition(std::float_t hor, std::float_t vert, std::float_t rot, std::float_t x, std::float_t y, std::float_t z);
 
 [[deprecated("Use DataFromAimingAndPosition instead, this method will be removed in the future. "
   "NOTE: The order of the input parameters in the new method has been changed to be more consistent with the marshaling order.")]]
-std::vector<std::uint8_t> DataFromPositionAndRotation(std::float_t x, std::float_t y, std::float_t z, std::float_t hor, std::float_t vert, std::float_t rot);
+ByteVector DataFromPositionAndRotation(std::float_t x, std::float_t y, std::float_t z, std::float_t hor, std::float_t vert, std::float_t rot);
 
 /**
  * Convenience helper method to generate a byte vector containing the parameters
@@ -242,7 +276,7 @@ std::vector<std::uint8_t> DataFromPositionAndRotation(std::float_t x, std::float
  * @param[in] add     True to generate a AddSubscription command. False to generate a RemoveSubscription command.
  * @return  The parameters as a byte vector.
  */
-std::vector<std::uint8_t> DataFromOnoForSubscription(std::uint32_t ono, bool add = true);
+ByteVector DataFromOnoForSubscription(std::uint32_t ono, bool add = true);
 
 /**
  * Convenience method to convert an integer representing an OcaStatus to its string representation.
