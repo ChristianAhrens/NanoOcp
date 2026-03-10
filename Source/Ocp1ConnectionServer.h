@@ -31,26 +31,58 @@ namespace NanoOcp1
 class Ocp1Connection;
 
 
-//==============================================================================
 /**
-    Class taken from JUCE and modified to act as regular TCP connection without
-    the magic header contents and all pipe related methods, etc.
-
-    @see NanoOcp1::Ocp1Connection
-*/
+ * @class Ocp1ConnectionServer
+ * @brief TCP accept-loop server base class for OCP.1 connections.
+ *
+ * Runs a background `juce::Thread` that blocks on `accept()` and calls the
+ * pure-virtual `createConnectionObject()` each time a new TCP client connects.
+ * The concrete subclass (`NanoOcp1Server`) implements `createConnectionObject()`
+ * to return a `NanoOcp1Client` peer wired to the server's callbacks.
+ *
+ * Derived from and inspired by `juce::InterprocessConnectionServer`, stripped of
+ * named-pipe and JUCE IPC handshake support.
+ *
+ * @see NanoOcp1::Ocp1Connection
+ * @see NanoOcp1::NanoOcp1Server
+ */
 class Ocp1ConnectionServer : private juce::Thread
 {
 public:
     //==============================================================================
+    /**
+     * @brief Constructs the server.
+     * @param threadPriority  OS priority of the accept-loop thread.
+     */
     Ocp1ConnectionServer(const juce::Thread::Priority threadPriority = juce::Thread::Priority::normal);
     ~Ocp1ConnectionServer() override;
 
+    /**
+     * @brief Binds a TCP socket to the given port and starts the accept-loop thread.
+     * @param portNumber    Local TCP port to listen on.
+     * @param bindAddress   Local IP address to bind to (empty = all interfaces).
+     * @return True if the socket was bound and the thread started.
+     */
     bool beginWaitingForSocket(int portNumber, const juce::String& bindAddress = juce::String());
+
+    /** @brief Stops the accept-loop thread and closes the listening socket. */
     void stop();
+
+    /** @brief Returns the port number the server is bound to, or -1 if not listening. */
     int getBoundPort() const noexcept;
 
 protected:
     //==============================================================================
+    /**
+     * @brief Called by the accept loop each time a new TCP client connects.
+     *
+     * Implementations should create and return a new `Ocp1Connection`-derived object
+     * (typically `NanoOcp1Client`) configured for the accepted socket.  The server
+     * takes ownership.
+     *
+     * @return A heap-allocated `Ocp1Connection` object for the new client, or nullptr
+     *         to reject the connection.
+     */
     virtual Ocp1Connection* createConnectionObject() = 0;
 
 private:

@@ -25,35 +25,65 @@
 namespace NanoOcp1
 {
 
-/// a replacement for juce::MemoryBlock
+/**
+ * @brief Binary buffer type used throughout NanoOcp for all serialized OCP.1 data.
+ *
+ * Every `Ocp1Message::GetSerializedData()`, `DataFromX()`, and `Variant::ToParamData()`
+ * returns a `ByteVector`.  The `sendData()` / `sendMessage()` methods also take one.
+ * This is a drop-in replacement for `juce::MemoryBlock` that avoids the JUCE dependency
+ * in the data-layer headers.
+ */
 using ByteVector = std::vector<std::uint8_t>;
 
 
-/** 
- * Enumeration that describes all available base data types. 
- * Same values as OcaBaseDataType in OcaBaseDataTypes.h
- * of the Bosch reference implementation.
+/**
+ * @brief OCA base data type codes, matching `OcaBaseDataType` in the AES70 specification.
+ *
+ * Each `Ocp1CommandDefinition` stores a `m_propertyType` from this enum, which tells
+ * the marshaling helpers how to encode/decode the property value:
+ *
+ * | Value | Name | C++ type | Byte width |
+ * |---|---|---|---|
+ * | 0 | NONE | — | — |
+ * | 1 | BOOLEAN | bool | 1 |
+ * | 2–5 | INT8/16/32/64 | int8–64_t | 1–8 |
+ * | 6–9 | UINT8/16/32/64 | uint8–64_t | 1–8 |
+ * | 10 | FLOAT32 | float_t | 4 |
+ * | 11 | FLOAT64 | double_t | 8 |
+ * | 12 | STRING | std::string | 2 (len) + N |
+ * | 13 | BIT_STRING | — | variable |
+ * | 14 | BLOB | ByteVector | variable |
+ * | 15 | BLOB_FIXED_LEN | ByteVector | fixed |
+ * | 32 | DB_POSITION | 3 × float_t | 12 — used by `CdbOcaPositionAgentDeprecated` |
+ * | 128 | CUSTOM | user-defined | — |
+ *
+ * In `Ocp1DS100ObjectDefinitions.h`, most DS100 spatial properties use
+ * `OCP1DATATYPE_BLOB` with a known fixed layout (e.g. 3 × 4-byte floats for XYZ,
+ * 6 × 4-byte floats for aiming+position).  `Variant::ToPosition()` and
+ * `Variant::ToAimingAndPosition()` decode those layouts.
+ *
+ * Values match `OcaBaseDataType` in the Bosch AES70 reference implementation.
  */
 enum Ocp1DataType
 {
-    OCP1DATATYPE_NONE               = 0,
-    OCP1DATATYPE_BOOLEAN            = 1,
-    OCP1DATATYPE_INT8               = 2,
-    OCP1DATATYPE_INT16              = 3,
-    OCP1DATATYPE_INT32              = 4,
-    OCP1DATATYPE_INT64              = 5,
-    OCP1DATATYPE_UINT8              = 6,
-    OCP1DATATYPE_UINT16             = 7,
-    OCP1DATATYPE_UINT32             = 8,
-    OCP1DATATYPE_UINT64             = 9,
-    OCP1DATATYPE_FLOAT32            = 10,
-    OCP1DATATYPE_FLOAT64            = 11,
-    OCP1DATATYPE_STRING             = 12,
-    OCP1DATATYPE_BIT_STRING         = 13,
-    OCP1DATATYPE_BLOB               = 14,
-    OCP1DATATYPE_BLOB_FIXED_LEN     = 15,
-    OCP1DATATYPE_DB_POSITION        = 32,   // Type used by CdbOcaPositionAgentDeprecated
-    OCP1DATATYPE_CUSTOM             = 128   // User-defined types
+    OCP1DATATYPE_NONE               = 0,    ///< No type; used as "not set" sentinel.
+    OCP1DATATYPE_BOOLEAN            = 1,    ///< Single byte: 0 = false, non-zero = true.
+    OCP1DATATYPE_INT8               = 2,    ///< Signed 8-bit integer.
+    OCP1DATATYPE_INT16              = 3,    ///< Signed 16-bit integer, big-endian.
+    OCP1DATATYPE_INT32              = 4,    ///< Signed 32-bit integer, big-endian.
+    OCP1DATATYPE_INT64              = 5,    ///< Signed 64-bit integer, big-endian.
+    OCP1DATATYPE_UINT8              = 6,    ///< Unsigned 8-bit integer.
+    OCP1DATATYPE_UINT16             = 7,    ///< Unsigned 16-bit integer, big-endian.
+    OCP1DATATYPE_UINT32             = 8,    ///< Unsigned 32-bit integer, big-endian.
+    OCP1DATATYPE_UINT64             = 9,    ///< Unsigned 64-bit integer, big-endian.
+    OCP1DATATYPE_FLOAT32            = 10,   ///< IEEE 754 single-precision float, big-endian (4 bytes).
+    OCP1DATATYPE_FLOAT64            = 11,   ///< IEEE 754 double-precision float, big-endian (8 bytes).
+    OCP1DATATYPE_STRING             = 12,   ///< OCA string: 2-byte big-endian length prefix followed by UTF-8 bytes.
+    OCP1DATATYPE_BIT_STRING         = 13,   ///< Packed bit string.
+    OCP1DATATYPE_BLOB               = 14,   ///< Variable-length binary blob; layout is property-specific.
+    OCP1DATATYPE_BLOB_FIXED_LEN     = 15,   ///< Fixed-length binary blob; size determined by the property definition.
+    OCP1DATATYPE_DB_POSITION        = 32,   ///< d&b-specific 3D position blob (3 × float32); used by deprecated position agent.
+    OCP1DATATYPE_CUSTOM             = 128   ///< User-defined / vendor-specific type.
 };
 
 
