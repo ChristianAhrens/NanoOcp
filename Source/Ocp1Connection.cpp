@@ -39,11 +39,7 @@ struct Ocp1Connection::ConnectionThread : public juce::Thread
     {
     }
 
-    ~ConnectionThread() override
-    {
-        signalThreadShouldExit();
-        stopThread(4000);
-    }
+    ~ConnectionThread() override = default;
 
     void run() override { owner.runThread(); }
 
@@ -110,7 +106,17 @@ Ocp1Connection::~Ocp1Connection()
     jassert(!safeAction->isSafe());
 
     callbackConnectionState = false;
-    disconnect(4000, Notify::no);
+
+    auto needsDisconnect = false;
+
+    {
+        const juce::ScopedReadLock sl(socketLock);
+        needsDisconnect = socket != nullptr;
+    }
+
+    if (thread != nullptr && (thread->isThreadRunning() || needsDisconnect))
+        disconnect(4000, Notify::no);
+
     thread.reset();
 }
 
