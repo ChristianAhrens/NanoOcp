@@ -140,14 +140,20 @@ bool Ocp1Connection::connectToSocket(const juce::String& hostName,
 
 void Ocp1Connection::disconnect(int timeoutMs, Notify notify)
 {
-    //should be called before socket->close to ensure that running processes on the thread
-    //are notified that the thread is about to exit.
-    thread->stopThread(timeoutMs);
+    if (thread != nullptr)
+    {
+        thread->signalThreadShouldExit();
+        thread->notify();
+    }
     
     {
         const juce::ScopedReadLock sl(socketLock);
-        if (socket != nullptr)  socket->close();
+        if (socket != nullptr)
+            socket->close();
     }
+
+    if (thread != nullptr && timeoutMs != 0)
+        jassert(thread->waitForThreadToExit(timeoutMs));
     
     deleteSocket();
 
