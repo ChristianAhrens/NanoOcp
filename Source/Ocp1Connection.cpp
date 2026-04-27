@@ -100,23 +100,10 @@ Ocp1Connection::~Ocp1Connection()
     // destroying the derived class, we'd end up calling the pure virtual implementations
     // of `messageReceived`, `connectionMade` and `connectionLost` which is definitely
     // not a good idea!
-
-    if (safeAction)
-        safeAction->setSafe(false);
     jassert(!safeAction->isSafe());
 
     callbackConnectionState = false;
-
-    auto needsDisconnect = false;
-
-    {
-        const juce::ScopedReadLock sl(socketLock);
-        needsDisconnect = socket != nullptr;
-    }
-
-    if (thread != nullptr && (thread->isThreadRunning() || needsDisconnect))
-        disconnect(4000, Notify::no);
-
+    disconnect(4000, Notify::no);
     thread.reset();
 }
 
@@ -140,21 +127,15 @@ bool Ocp1Connection::connectToSocket(const juce::String& hostName,
 
 void Ocp1Connection::disconnect(int timeoutMs, Notify notify)
 {
-    if (thread != nullptr)
-    {
-        thread->signalThreadShouldExit();
-        thread->notify();
-    }
-    
+    //should be called before socket->close to ensure that running processes on the thread
+    //are notified that the thread is about to exit.
+    thread->stopThread(timeoutMs);
+
     {
         const juce::ScopedReadLock sl(socketLock);
-        if (socket != nullptr)
-            socket->close();
+        if (socket != nullptr)  socket->close();
     }
 
-    if (thread != nullptr && timeoutMs != 0)
-        jassert(thread->waitForThreadToExit(timeoutMs));
-    
     deleteSocket();
 
     if (notify == Notify::yes)

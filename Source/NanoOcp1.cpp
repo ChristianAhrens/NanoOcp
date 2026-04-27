@@ -79,8 +79,7 @@ NanoOcp1Client::~NanoOcp1Client()
     stopTimer();
 
     // See comment in Ocp1Connection destructor. 
-    if (isConnected())
-        disconnect(4000, Notify::no);
+    disconnect(4000, Notify::no);
 }
 
 bool NanoOcp1Client::start()
