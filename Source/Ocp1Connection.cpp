@@ -33,7 +33,14 @@ namespace NanoOcp1
 
 struct Ocp1Connection::ConnectionThread : public juce::Thread
 {
-    ConnectionThread(Ocp1Connection& c) : juce::Thread("JUCE IPC"), owner(c) {}
+    ConnectionThread(Ocp1Connection& c) 
+        : juce::Thread("Ocp1Connection::ConnectionThread"), 
+          owner(c) 
+    {
+    }
+
+    ~ConnectionThread() override = default;
+
     void run() override { owner.runThread(); }
 
     Ocp1Connection& owner;
@@ -123,12 +130,12 @@ void Ocp1Connection::disconnect(int timeoutMs, Notify notify)
     //should be called before socket->close to ensure that running processes on the thread
     //are notified that the thread is about to exit.
     thread->stopThread(timeoutMs);
-    
+
     {
         const juce::ScopedReadLock sl(socketLock);
         if (socket != nullptr)  socket->close();
     }
-    
+
     deleteSocket();
 
     if (notify == Notify::yes)

@@ -74,11 +74,11 @@ struct Ocp1CommandDefinition
      * Standard struct constructor.
      */
     Ocp1CommandDefinition()
-        :   m_targetOno(static_cast<std::uint32_t>(0)),
-            m_propertyType(static_cast<std::uint16_t>(0)),
-            m_propertyDefLevel(static_cast<std::uint16_t>(0)),
-            m_propertyIndex(static_cast<std::uint16_t>(0)),
-            m_paramCount(static_cast<std::uint8_t>(0))
+        : Ocp1CommandDefinition(static_cast<std::uint32_t>(0),
+                                static_cast<std::uint16_t>(0),
+                                static_cast<std::uint16_t>(0),
+                                static_cast<std::uint16_t>(0),
+                                static_cast<std::uint8_t>(0))
     {
     }
 
