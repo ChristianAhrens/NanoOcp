@@ -7,11 +7,11 @@ No third-party dependencies — only the C++ standard library (C++17) and platfo
 Full API documentation is auto-generated from source and published at:
 [![Documentation](https://img.shields.io/badge/docs-doxygen-blue)](https://ChristianAhrens.github.io/NanoOcp/)
 
-|Appveyor CI build status|NanoOcp1Demo|
-|:----------------|:-----|
-| macOS Xcode           | [![Build status](https://ci.appveyor.com/api/projects/status/l680mk88wpwh8oq1?svg=true)](https://ci.appveyor.com/project/ChristianAhrens/nanoocp1demo-macos)   |
-| Windows Visual Studio | [![Build status](https://ci.appveyor.com/api/projects/status/okx9i5ptj1bv6wnr?svg=true)](https://ci.appveyor.com/project/ChristianAhrens/nanoocp1demo-windows) |
-| Linux makefile        | [![Build status](https://ci.appveyor.com/api/projects/status/18kcsabphbu2et4i?svg=true)](https://ci.appveyor.com/project/ChristianAhrens/nanoocp1demo-linux)   |
+|Platform|Status|
+|:---|:---|
+| macOS   | [![CI macOS](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml)   |
+| Windows | [![CI Windows](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml) |
+| Linux   | [![CI Linux](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml)   |
 
 ---
 
@@ -60,7 +60,9 @@ NanoOcp/
 ├── submodules/
 │   └── doxygen-awesome-css/        # Doxygen HTML theme (docs only)
 ├── Doxyfile                        # Doxygen configuration
-└── .github/workflows/docs.yml      # GitHub Actions: generate + publish docs to gh-pages
+└── .github/workflows/
+    ├── ci.yml                      # GitHub Actions: macOS / Windows / Linux
+    └── docs.yml                    # GitHub Actions: Doxygen → gh-pages
 ```
 
 ---
