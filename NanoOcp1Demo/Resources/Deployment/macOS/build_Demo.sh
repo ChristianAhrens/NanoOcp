@@ -1,26 +1,16 @@
-# we are in NanoOcp1Demo/Resources/Deployment/macOS/ -> change directory to demo root
-cd ../../..
+#!/usr/bin/env bash
+set -e
 
-# set convenience variables
-JUCEDir=../submodules/JUCE
-ProjucerPath="$JUCEDir"/extras/Projucer/Builds/MacOSX
-ProjucerBinPath="$ProjucerPath"/build/Release/Projucer.app/Contents/MacOS/Projucer
-JucerProjectPath=NanoOcp1Demo.jucer
-XCodeProjectPath=Builds/MacOSX/NanoOcp1Demo.xcodeproj
+# Navigate from NanoOcp1Demo/Resources/Deployment/macOS/ to the repo root.
+cd "$(dirname "$0")/../../../../"
 
-# manually get JUCE
-if test ! -d "$JUCEDir"; then git clone https://github.com/juce-framework/JUCE "$JUCEDir"
-fi
-cd "$JUCEDir"
-git checkout master
-git pull
-cd ../../NanoOcp1Demo
+echo "=== NanoOcp1Demo — CMake build (macOS) ==="
+echo "Working directory: $(pwd)"
 
-# build projucer
-xcodebuild -project "$ProjucerPath"/Projucer.xcodeproj -configuration Release -jobs 8
+cmake -B build -S . \
+      -DNANOOCP1_BUILD_DEMO=ON \
+      -DCMAKE_BUILD_TYPE=Release
 
-# export projucer project
-"$ProjucerBinPath" --resave "$JucerProjectPath" --fix-missing-dependencies
+cmake --build build --config Release
 
-# start building the project
-xcodebuild -project "$XCodeProjectPath" -configuration Release -jobs 8 CODE_SIGNING_ALLOWED=NO
+echo "=== Build complete ==="

@@ -45,12 +45,6 @@ NanoOcp/
 │   ├── Ocp1DataTypes.h / .cpp      # ByteVector, Ocp1DataType, marshal helpers
 │   ├── Variant.h / .cpp            # Type-erased OCA value (marshal/unmarshal)
 │   ├── Ocp1ObjectDefinitions.h     # Generic d&b amp object definitions
-├── NanoOcp1Demo/                   # Full JUCE demo application
-│   ├── NanoOcp1Demo.jucer          # Projucer project file
-│   └── Source/
-│       ├── Main.cpp
-│       ├── MainComponent.h/.cpp    # Demo UI: connect, subscribe, control a d&b amp
-│       └── …
 │   ├── Ocp1DS100ObjectDefinitions.h# DS100-specific object definitions
 │   ├── Ocp1Controller.h / .cpp     # Generic OCP.1 session controller (base class)
 │   ├── AmpController.h / .cpp      # d&b amplifier controller (Dx / Dy / 5D)
@@ -59,6 +53,9 @@ NanoOcp/
 │       ├── NanoSocket.h / .cpp     # Cross-platform TCP socket (POSIX / Winsock2)
 │       ├── NanoThread.h            # std::thread wrapper (replaces juce::Thread)
 │       └── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer)
+├── NanoOcp1Demo/                   # JUCE-free CLI demo application
+│   ├── CMakeLists.txt
+│   └── main.cpp                    # Two-mode terminal UI: amp control / DS100 SO control
 ├── CMakeLists.txt                  # Root CMake build (library + optional demo)
 ├── submodules/
 │   └── doxygen-awesome-css/        # Doxygen HTML theme (docs only)
@@ -435,14 +432,48 @@ Client                                     Device
 
 ## Demo application — NanoOcp1Demo
 
-`NanoOcp1Demo/` is a complete JUCE desktop application that demonstrates:
+`NanoOcp1Demo/main.cpp` is a JUCE-free **CLI application** with a live 19-row terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in two modes selected at startup:
 
-- Connecting to a d&b amplifier by IP/port.
-- Sending `AddSubscription` commands for power state and gain.
-- Displaying live property values as they arrive via notifications.
-- Sending `SetValue` commands from UI controls (power on/off button, gain slider).
+### Amp mode (`--amp`, default)
 
-Open `NanoOcp1Demo/NanoOcp1Demo.jucer` in the Projucer, export a native project, and build with Xcode / Visual Studio / make.
+Connects to a d&b amplifier via `AmpController`.  Shows per-channel gain bars, mute state, and protection indicators (ISP / GR / OVL / headroom).
+
+```
+a <ip>         set host address          p <n>       set port
+c              connect (or reconnect)    d           disconnect
+1 / 0          power on / off
+g <ch> <dB>    set channel gain  (ch: 1-4,  dB: -57.5 to +6.0)
+m <ch> <1|0>   mute / unmute channel
+q              quit
+```
+
+### Soundscape mode (`--soundscape <N>`)
+
+Connects to a d&b Soundscape signal engine (DS100, DS110, DS100M, or vCore) via `SoundscapeController`.  Monitors and controls sound object N: level meter, XYZ position, spread, delay mode, En-Space send gain.  The exact device model is identified automatically via the GUID handshake.
+
+```
+a <ip>         set host address          p <n>       set port
+c              connect (or reconnect)    d           disconnect
+x/y/z <0-1>   set position XYZ
+sp <0-1>       set spread
+dm <0|1|2>     set delay mode  (0=off  1=compensate  2=reflect)
+es <dB>        set En-Space send gain  (-57.5 to +6.0)
+q              quit
+```
+
+### Running the demo
+
+```bash
+# Build (CMake)
+cmake -B build -S . -DNANOOCP1_BUILD_DEMO=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+
+# Amp mode (default) — connect to a d&b Dy amplifier with 4 channels
+./build/NanoOcp1Demo/NanoOcp1Demo 192.168.1.100 50014 --amp --type dy --ch 4
+
+# Soundscape mode — monitor and control sound object 5 (works for DS100/DS110/DS100M/vCore)
+./build/NanoOcp1Demo/NanoOcp1Demo 192.168.1.100 50014 --soundscape 5
+```
 
 ---
 

@@ -12,7 +12,7 @@ CREATE_SUBDIRS         = NO
 #---------------------------------------------------------------------------
 # Input
 #---------------------------------------------------------------------------
-INPUT                  = Source NanoOcp1Demo/Source README.md
+INPUT                  = Source NanoOcp1Demo README.md
 RECURSIVE              = YES
 FILE_PATTERNS          = *.h *.cpp *.md
 EXCLUDE_PATTERNS       = */submodules/* */JuceLibraryCode/* */Builds/*
