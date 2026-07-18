@@ -18,13 +18,14 @@
 
 #pragma once
 
-#ifdef JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED
-    #include <juce_core/juce_core.h>
-#else
-    #include <JuceHeader.h>
-#endif
+#include <atomic>
+#include <memory>
+#include <shared_mutex>
+#include <string>
 
 #include "Ocp1DataTypes.h"
+#include "internal/NanoSocket.h"
+#include "internal/NanoThread.h"
 
 
 namespace NanoOcp1
@@ -38,21 +39,13 @@ class Ocp1ConnectionServer;
  * @class Ocp1Connection
  * @brief Low-level TCP socket manager for a single OCP.1 connection.
  *
- * Derived from and inspired by `juce::InterprocessConnection`, but stripped of
- * the JUCE IPC handshake header and all named-pipe support so it works as a
- * plain TCP byte-stream suitable for OCP.1.
- *
- * ## Role in the library
- * `Ocp1Connection` is **abstract** — it manages the socket, the dedicated read
- * thread, and message framing, but delegates the three events to pure-virtual
- * overrides:
+ * Manages the socket, the dedicated read thread, and message framing.
+ * Delegates three events to pure-virtual overrides:
  * - `connectionMade()` — TCP handshake succeeded.
  * - `connectionLost()` — TCP dropped or disconnected.
  * - `messageReceived()` — a complete OCP.1 frame arrived.
  *
- * `NanoOcp1Client` provides the concrete implementation: it bridges these calls
- * into the `NanoOcp1Base` callback functions (`onConnectionEstablished` etc.) and
- * optionally marshals them to the JUCE message thread.
+ * `NanoOcp1Client` provides the concrete implementation.
  *
  * ## Message framing
  * `readNextMessage()` reads from the socket, checks the OCP.1 sync byte (0x3b),
@@ -63,9 +56,8 @@ class Ocp1ConnectionServer;
  *
  * ## Thread safety
  * The read thread owns the socket exclusively.  Writes go through `sendMessage()`
- * which acquires `socketLock` (a `ReadWriteLock`).  Callbacks are either delivered
- * on the read thread (`callbacksOnMessageThread=false`) or posted asynchronously
- * to the JUCE message thread.
+ * which acquires `socketLock` (a `shared_mutex`).  Callbacks are always delivered
+ * on the read thread.
  */
 class Ocp1Connection
 {
@@ -80,24 +72,26 @@ public:
 public:
     /**
      * @brief Constructs the connection object.
-     * @param callbacksOnMessageThread  If true, `connectionMade()`, `connectionLost()`,
-     *                                  and `messageReceived()` are posted to the JUCE
-     *                                  message thread.  If false, they run directly on
-     *                                  the socket read thread (lower latency).
+     * @param callbacksOnMessageThread  Kept for API compatibility; has no effect —
+     *                                  callbacks always run on the socket read thread.
      * @param threadPriority            OS priority of the socket read thread.
      */
-    Ocp1Connection(bool callbacksOnMessageThread = true, const juce::Thread::Priority threadPriority = juce::Thread::Priority::normal);
+    Ocp1Connection(bool callbacksOnMessageThread = true,
+                   ThreadPriority threadPriority = ThreadPriority::normal);
     virtual ~Ocp1Connection();
+
+    Ocp1Connection(const Ocp1Connection&)            = delete;
+    Ocp1Connection& operator=(const Ocp1Connection&) = delete;
 
     /**
      * @brief Attempts a TCP connection to the given host and port.
      * Spawns the read thread on success.
      * @param hostName          IP address or hostname of the remote device.
-     * @param portNumber        TCP port number (DS100 default: 50014).
+     * @param portNumber        TCP port number.
      * @param timeOutMillisecs  Maximum time to wait for the TCP handshake.
      * @return True if the connection was established.
      */
-    bool connectToSocket(const juce::String& hostName, int portNumber, int timeOutMillisecs);
+    bool connectToSocket(const std::string& hostName, int portNumber, int timeOutMillisecs);
 
     /**
      * @brief Closes the TCP socket and stops the read thread.
@@ -110,15 +104,14 @@ public:
     /** @brief Returns true if the TCP socket is currently open. */
     bool isConnected() const;
 
-    /** @brief Returns the underlying JUCE socket (for diagnostics). */
-    juce::StreamingSocket* getSocket() const noexcept { return socket.get(); }
+    /** @brief Returns the underlying socket (for diagnostics). */
+    NanoSocket* getSocket() const noexcept { return socket.get(); }
 
     /** @brief Returns the hostname of the currently connected remote peer, or an empty string. */
-    juce::String getConnectedHostName() const;
+    std::string getConnectedHostName() const;
 
     /**
      * @brief Sends a complete OCP.1 frame over the TCP socket.
-     * Acquires the write lock, then writes all bytes in one blocking call.
      * @param message  Complete serialized OCP.1 message bytes.
      * @return True if all bytes were written successfully.
      */
@@ -137,34 +130,32 @@ public:
 
 private:
     //==============================================================================
-    juce::ReadWriteLock socketLock;
-    std::unique_ptr<juce::StreamingSocket> socket;
-    bool callbackConnectionState = false;
-    const bool useMessageThread;
+    mutable std::shared_mutex        socketLock;
+    std::unique_ptr<NanoSocket>      socket;
+    bool                             callbackConnectionState = false;
+    const bool                       useMessageThread;
 
     friend class Ocp1ConnectionServer;
     void initialise();
-    void initialiseWithSocket(std::unique_ptr<juce::StreamingSocket>);
+    void initialiseWithSocket(std::unique_ptr<NanoSocket>);
     void deleteSocket();
     void connectionMadeInt();
     void connectionLostInt();
     void deliverDataInt(const ByteVector&);
     bool readNextMessage();
-    int readData(void*, int);
+    int  readData(void*, int);
 
     struct ConnectionThread;
     std::unique_ptr<ConnectionThread> thread;
-    std::atomic<bool> threadIsRunning{ false };
+    std::atomic<bool>                 threadIsRunning{ false };
 
     class SafeAction;
-    std::shared_ptr<SafeAction> safeAction;
+    std::shared_ptr<SafeAction>       safeAction;
 
     void runThread();
-    int writeData(void*, int);
-    
-    juce::Thread::Priority m_threadPriority;
+    int  writeData(void*, int);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Ocp1Connection)
+    ThreadPriority m_threadPriority;
 };
 
-}
+} // namespace NanoOcp1

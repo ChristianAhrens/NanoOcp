@@ -18,22 +18,19 @@
 
 #pragma once
 
-#ifdef JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED
-    #include <juce_core/juce_core.h>
-    #include <juce_events/juce_events.h>
-#else
-    #include <JuceHeader.h>
-#endif
-
+#include <functional>
+#include <memory>
+#include <string>
 
 #include "Ocp1Connection.h"
 #include "Ocp1ConnectionServer.h"
 #include "Ocp1DataTypes.h"
+#include "internal/NanoTimer.h"
 
 
 /**
  * @namespace NanoOcp1
- * @brief Minimal AES70 / OCP.1 TCP client/server library built on JUCE.
+ * @brief Minimal AES70 / OCP.1 TCP client/server library.
  *
  * ## Overview
  * NanoOcp is a lightweight implementation of the OCA (Open Control Architecture) wire
@@ -52,54 +49,11 @@
  * | **KeepAlive** | Heartbeat exchanged in both directions to detect dropped connections. |
  * | **AddSubscription** | Command that registers interest in a property: the device will send Notifications whenever that property changes. |
  *
- * ## Typical usage pattern (client side, as used by `DeviceController` in Umsci)
- * ```cpp
- * // 1. Create client, choose whether callbacks fire on the JUCE message thread
- * // callbacksOnMessageThread=false: callbacks fire on the socket thread
- * auto client = std::make_unique<NanoOcp1::NanoOcp1Client>(
- *     "192.168.1.100", 50014, false);
- *
- * // 2. Wire up callbacks BEFORE start()
- * client->onConnectionEstablished = [this]() { handleConnected(); };
- * client->onConnectionLost        = [this]() { handleDisconnected(); };
- * client->onDataReceived = [this](const NanoOcp1::ByteVector& data) -> bool {
- *     auto msg = NanoOcp1::Ocp1Message::UnmarshalOcp1Message(data);
- *     if (!msg) return false;
- *     if (msg->GetMessageType() == NanoOcp1::Ocp1Message::Notification) {
- *         auto* notif = static_cast<NanoOcp1::Ocp1Notification*>(msg.get());
- *         // match notif->GetEmitterOno() against your subscription table …
- *     }
- *     return true;
- * };
- *
- * // 3. Start — begins reconnect timer; first successful TCP connect fires onConnectionEstablished
- * client->start();
- *
- * // 4. Subscribe to a property (e.g. source position of sound object 5 on a DS100)
- * NanoOcp1::DS100::dbOcaObjectDef_Positioning_Source_Position posDef(5);
- * std::uint32_t subHandle;
- * auto subCmd = NanoOcp1::Ocp1CommandResponseRequired(posDef.AddSubscriptionCommand(), subHandle);
- * client->sendData(subCmd.GetSerializedData());
- *
- * // 5. Get the current value
- * std::uint32_t getHandle;
- * auto getCmd = NanoOcp1::Ocp1CommandResponseRequired(posDef.GetValueCommand(), getHandle);
- * client->sendData(getCmd.GetSerializedData());
- *
- * // 6. Set a new value
- * NanoOcp1::Variant newPos(0.5f, 0.5f, 0.0f); // x, y, z normalised
- * std::uint32_t setHandle;
- * auto setCmd = NanoOcp1::Ocp1CommandResponseRequired(
- *     posDef.SetValueCommand(newPos), setHandle);
- * client->sendData(setCmd.GetSerializedData());
- * ```
- *
  * ## Threading model
  * `NanoOcp1Client` runs its socket I/O on a dedicated `Ocp1Connection::ConnectionThread`.
- * When `callbacksOnMessageThread=false` (as `DeviceController` uses), all three callbacks
- * (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`) fire **on the socket
- * thread**. When `callbacksOnMessageThread=true`, they are marshaled to the JUCE message
- * thread via `juce::MessageManager::callAsync`.
+ * All three callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`)
+ * fire on the socket thread. The `callbacksOnMessageThread` constructor parameter is
+ * retained for API compatibility but has no effect.
  *
  * ## File map
  * | Header | Contents |
@@ -121,27 +75,24 @@ namespace NanoOcp1
  * @brief Abstract base class shared by `NanoOcp1Client` and `NanoOcp1Server`.
  *
  * Holds the target address/port, exposes the three user-facing callbacks, and
- * provides `processReceivedData()` which invokes `onDataReceived` — the only
- * point at which raw received bytes are handed to the caller.
- *
- * Concrete subclasses implement `start()`, `stop()`, and `sendData()`.
+ * provides `processReceivedData()` which invokes `onDataReceived`.
  */
 class NanoOcp1Base
 {
 public:
     //==============================================================================
-    NanoOcp1Base(const juce::String& address, const int port);
+    NanoOcp1Base(const std::string& address, const int port);
     virtual ~NanoOcp1Base();
 
     /** @brief Sets the IP address or hostname of the remote OCA device. */
-    void setAddress(const juce::String& address);
+    void setAddress(const std::string& address);
     /** @brief Returns the current target address. */
-    const juce::String& getAddress();
+    const std::string& getAddress() const;
 
     /** @brief Sets the TCP port number of the remote OCA device. DS100 default: 50014. */
     void setPort(const int port);
     /** @brief Returns the current target port number. */
-    const int getPort();
+    int getPort() const;
 
     //==============================================================================
     /** @brief Starts the client/server.  For the client, begins periodic reconnect attempts. */
@@ -164,9 +115,6 @@ public:
      * The caller should unmarshal the bytes with `Ocp1Message::UnmarshalOcp1Message()`,
      * then dispatch on `GetMessageType()`.
      *
-     * **Threading**: fires on the socket thread when `callbacksOnMessageThread=false`
-     * (as used by `DeviceController`), or on the JUCE message thread otherwise.
-     *
      * @return Return true to indicate the data was handled; returning false has no
      *         special effect in the current implementation.
      */
@@ -174,21 +122,11 @@ public:
 
     /**
      * @brief Fired once after a successful TCP connection is established.
-     *
-     * **DeviceController usage**: resets the device state and sends the first
-     * `GetValue` command to read `Fixed_GUID` for firmware/model detection.
-     *
-     * **Threading**: same thread as `onDataReceived`.
      */
     std::function<void()> onConnectionEstablished;
 
     /**
      * @brief Fired when the TCP connection is dropped or a connect attempt fails.
-     *
-     * **DeviceController usage**: clears all pending command handles, resets the
-     * connection state, and lets the client's internal retry timer re-attempt.
-     *
-     * **Threading**: same thread as `onDataReceived`.
      */
     std::function<void()> onConnectionLost;
 
@@ -196,58 +134,39 @@ protected:
     //==============================================================================
     /**
      * @brief Called by derived classes when bytes arrive from the socket.
-     * Invokes `onDataReceived` if set; the frame has already been delimited by
-     * `Ocp1Connection::readNextMessage()`.
+     * Invokes `onDataReceived` if set.
      */
     bool processReceivedData(const ByteVector& data);
 
 private:
     //==============================================================================
-    juce::String    m_address;  ///< Target IP address or hostname.
-    int             m_port{ 0 }; ///< Target TCP port number.
-
+    std::string m_address;   ///< Target IP address or hostname.
+    int         m_port{ 0 }; ///< Target TCP port number.
 };
 
 /**
  * @class NanoOcp1Client
  * @brief OCP.1 TCP client with automatic reconnection.
  *
- * Inherits socket I/O from `Ocp1Connection` and reconnect timing from `juce::Timer`.
- * When `start()` is called, a `juce::Timer` fires periodically and attempts
+ * Inherits socket I/O from `Ocp1Connection` and reconnect timing from `NanoTimer`.
+ * When `start()` is called, a timer fires periodically and attempts
  * `connectToSocket()` until it succeeds.  Once connected, `connectionMade()` calls
  * `onConnectionEstablished`.  On disconnect (detected by the read thread),
  * `connectionLost()` calls `onConnectionLost` and the timer resumes retrying.
- *
- * ## Usage in DeviceController (Umsci)
- * `DeviceController` creates a `NanoOcp1Client` with `callbacksOnMessageThread=false`
- * so that OCP.1 parsing runs on the socket thread, avoiding latency on the JUCE
- * message thread.  Parsed `RemoteObject` values are then posted to the message thread
- * via `juce::MessageListener`.
- *
- * ```cpp
- * m_ocp1Client = std::make_unique<NanoOcp1Client>("192.168.1.100", 50014, false);
- * m_ocp1Client->onConnectionEstablished = [this]() { handleConnected(); };
- * m_ocp1Client->onConnectionLost        = [this]() { handleDisconnected(); };
- * m_ocp1Client->onDataReceived = [this](const ByteVector& d) {
- *     return ocp1MessageReceived(d);
- * };
- * m_ocp1Client->start();
- * ```
  */
-class NanoOcp1Client : public NanoOcp1Base, public Ocp1Connection, public juce::Timer
+class NanoOcp1Client : public NanoOcp1Base, public Ocp1Connection, public NanoTimer
 {
 public:
     //==============================================================================
     /**
      * @brief Constructs a client without an initial address/port.
      *        Call `setAddress()` and `setPort()` before `start()`.
-     * @param callbacksOnMessageThread  If true, all three callbacks are marshaled to
-     *                                  the JUCE message thread.  If false, they fire
-     *                                  on the socket thread (lower latency, but you
-     *                                  must be thread-safe in the callbacks).
+     * @param callbacksOnMessageThread  Kept for API compatibility; has no effect —
+     *                                  callbacks always fire on the socket thread.
      * @param threadPriority            OS thread priority for the socket I/O thread.
      */
-    NanoOcp1Client(const bool callbacksOnMessageThread, const juce::Thread::Priority threadPriority=juce::Thread::Priority::normal);
+    NanoOcp1Client(bool callbacksOnMessageThread,
+                   ThreadPriority threadPriority = ThreadPriority::normal);
 
     /**
      * @brief Constructs a client with address and port pre-configured.
@@ -256,7 +175,9 @@ public:
      * @param callbacksOnMessageThread  See other constructor.
      * @param threadPriority            See other constructor.
      */
-    NanoOcp1Client(const juce::String& address, const int port, const bool callbacksOnMessageThread, const juce::Thread::Priority threadPriority=juce::Thread::Priority::normal);
+    NanoOcp1Client(const std::string& address, int port,
+                   bool callbacksOnMessageThread,
+                   ThreadPriority threadPriority = ThreadPriority::normal);
     ~NanoOcp1Client() override;
 
     //==============================================================================
@@ -278,8 +199,6 @@ public:
     //==============================================================================
     /**
      * @brief Sends serialized OCP.1 bytes over the active TCP connection.
-     * The bytes must be a complete, framed OCP.1 message as produced by
-     * `Ocp1Message::GetSerializedData()`.
      */
     bool sendData(const ByteVector& data) override;
 
@@ -305,17 +224,12 @@ private:
  * @class NanoOcp1Server
  * @brief OCP.1 TCP server that accepts a single incoming connection at a time.
  *
- * Useful when the local application acts as an OCA *device* (or simulator) and a
- * remote controller connects to it.  For the more common case of controlling a
- * hardware device, use `NanoOcp1Client` instead.
- *
  * Internally wraps `Ocp1ConnectionServer` (accept loop) and creates a
  * `NanoOcp1Client` peer object when a connection arrives.  The same three
  * callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`) are
  * available and behave identically to `NanoOcp1Client`.
  *
- * Only one simultaneous connection is supported.  A new incoming connection while
- * one is already active replaces the previous one.
+ * Only one simultaneous connection is supported.
  */
 class NanoOcp1Server : public NanoOcp1Base, public Ocp1ConnectionServer
 {
@@ -323,19 +237,22 @@ public:
     //==============================================================================
     /**
      * @brief Constructs a server without an initial bind address/port.
-     * @param callbacksOnMessageThread  See `NanoOcp1Client` constructor.
+     * @param callbacksOnMessageThread  Kept for API compatibility; has no effect.
      * @param threadPriority            OS thread priority for the accept thread.
      */
-    NanoOcp1Server(const bool callbacksOnMessageThread, const juce::Thread::Priority threadPriority=juce::Thread::Priority::normal);
+    NanoOcp1Server(bool callbacksOnMessageThread,
+                   ThreadPriority threadPriority = ThreadPriority::normal);
 
     /**
      * @brief Constructs a server with bind address and port pre-configured.
      * @param address               Local address to bind to (empty = all interfaces).
      * @param port                  TCP port to listen on.
-     * @param callbacksOnMessageThread  See `NanoOcp1Client` constructor.
+     * @param callbacksOnMessageThread  See other constructor.
      * @param threadPriority            See other constructor.
      */
-    NanoOcp1Server(const juce::String& address, const int port, const bool callbacksOnMessageThread, const juce::Thread::Priority threadPriority=juce::Thread::Priority::normal);
+    NanoOcp1Server(const std::string& address, int port,
+                   bool callbacksOnMessageThread,
+                   ThreadPriority threadPriority = ThreadPriority::normal);
     ~NanoOcp1Server() override;
 
     //==============================================================================
@@ -369,8 +286,8 @@ protected:
 private:
     //==============================================================================
     std::unique_ptr<NanoOcp1Client> m_activeConnection;     ///< The currently connected peer.
-    bool m_callbacksOnMessageThread{ true };                ///< Propagated to the peer client.
-    juce::Thread::Priority m_threadPriority;                ///< Propagated to the peer client.
+    bool           m_callbacksOnMessageThread{ true };      ///< Propagated to the peer client.
+    ThreadPriority m_threadPriority;                        ///< Propagated to the peer client.
 };
 
-}
+} // namespace NanoOcp1

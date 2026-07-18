@@ -16,12 +16,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifdef JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED
-    #include <juce_core/juce_core.h>
-#else
-    #include <JuceHeader.h>
-#endif
-
+#include <cassert>
+#include <cstring>
 
 #include "Ocp1DataTypes.h"
 
@@ -188,9 +184,15 @@ std::uint64_t DataToUint64(const ByteVector& parameterData, bool* pOk)
     bool ok = (parameterData.size() >= sizeof(std::uint64_t)); // 8 bytes expected.
     if (ok)
     {
-        std::uint64_t tmp;
-        memcpy(&tmp, parameterData.data(), sizeof(juce::uint64));
-        ret = juce::ByteOrder::swapIfLittleEndian<juce::uint64>(tmp);
+        // Assemble from big-endian bytes (same pattern as DataToUint32).
+        ret = ((static_cast<std::uint64_t>(parameterData[0]) << 56) & 0xff00000000000000ULL)
+            | ((static_cast<std::uint64_t>(parameterData[1]) << 48) & 0x00ff000000000000ULL)
+            | ((static_cast<std::uint64_t>(parameterData[2]) << 40) & 0x0000ff0000000000ULL)
+            | ((static_cast<std::uint64_t>(parameterData[3]) << 32) & 0x000000ff00000000ULL)
+            | ((static_cast<std::uint64_t>(parameterData[4]) << 24) & 0x00000000ff000000ULL)
+            | ((static_cast<std::uint64_t>(parameterData[5]) << 16) & 0x0000000000ff0000ULL)
+            | ((static_cast<std::uint64_t>(parameterData[6]) <<  8) & 0x000000000000ff00ULL)
+            |  (static_cast<std::uint64_t>(parameterData[7])        & 0x00000000000000ffULL);
     }
 
     if (pOk != nullptr)
@@ -223,7 +225,7 @@ std::string DataToString(const ByteVector& parameterData, bool* pOk)
     bool ok = parameterData.size() >= 2; // At least 2 bytes for the string length
     if (ok)
         ret = std::string(parameterData.begin() + 2, parameterData.end());
-    
+
     if (pOk != nullptr)
     {
         *pOk = ok;
@@ -238,11 +240,11 @@ ByteVector DataFromString(const std::string& string)
 
     const char* pStringData = string.c_str();
     std::size_t stringLength = string.length();
-    
+
     ret.reserve(stringLength + static_cast<std::size_t>(2));
     ret.push_back(static_cast<std::uint8_t>(stringLength >> static_cast<std::size_t>(8)));
     ret.push_back(static_cast<std::uint8_t>(stringLength));
-    for (int i = 0; i < stringLength; i++)
+    for (int i = 0; i < (int)stringLength; i++)
     {
         ret.push_back(static_cast<std::uint8_t>(pStringData[i]));
     }
@@ -277,7 +279,7 @@ ByteVector DataFromFloat(std::float_t floatValue)
     ByteVector ret;
     ret.reserve(4);
 
-    jassert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast to work
+    assert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast to work
     std::uint32_t intValue = *(std::uint32_t*)&floatValue;
 
     ret.push_back(static_cast<std::uint8_t>(intValue >> 24));
@@ -302,7 +304,7 @@ std::double_t DataToDouble(const ByteVector& parameterData, bool* pOk)
                                   ((static_cast<std::uint64_t>(parameterData[3]) << uint8_32) & 0x000000ff00000000ULL) +
                                   ((static_cast<std::uint64_t>(parameterData[4]) << uint8_24) & 0x00000000ff000000ULL) +
                                   ((static_cast<std::uint64_t>(parameterData[5]) << uint8_16) & 0x0000000000ff0000ULL) +
-                                  ((static_cast<std::uint64_t>(parameterData[6]) << uint8_8)  & 0x000000000000ff00ULL) + 
+                                  ((static_cast<std::uint64_t>(parameterData[6]) << uint8_8)  & 0x000000000000ff00ULL) +
                                   parameterData[7]);
         ret = *(std::double_t*)&intValue;
     }
@@ -317,11 +319,11 @@ std::double_t DataToDouble(const ByteVector& parameterData, bool* pOk)
 
 ByteVector DataFromDouble(std::double_t doubleValue)
 {
-    jassert(sizeof(std::uint64_t) == sizeof(std::double_t)); // Required for pointer cast to work
+    assert(sizeof(std::uint64_t) == sizeof(std::double_t)); // Required for pointer cast to work
     std::uint64_t intValue = *(std::uint64_t*)&doubleValue;
 
     return ByteVector
-        ({ 
+        ({
             static_cast<std::uint8_t>(intValue >> 56),
             static_cast<std::uint8_t>(intValue >> 48),
             static_cast<std::uint8_t>(intValue >> 40),
@@ -335,7 +337,7 @@ ByteVector DataFromDouble(std::double_t doubleValue)
 
 ByteVector DataFromPosition(std::float_t x, std::float_t y, std::float_t z)
 {
-    jassert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast below
+    assert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast below
     std::uint32_t xInt = *(std::uint32_t*)&x;
     std::uint32_t yInt = *(std::uint32_t*)&y;
     std::uint32_t zInt = *(std::uint32_t*)&z;
@@ -369,7 +371,7 @@ ByteVector DataFromAimingAndPosition(std::float_t hor, std::float_t vert, std::f
     ByteVector ret;
     ret.reserve(6 * 4);
 
-    jassert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast to work
+    assert(sizeof(std::uint32_t) == sizeof(std::float_t)); // Required for pointer cast to work
 
     std::uint32_t intValue = *(std::uint32_t*)&hor;
     ret.push_back(static_cast<std::uint8_t>(intValue >> 24));
@@ -420,19 +422,19 @@ ByteVector DataFromOnoForSubscription(std::uint32_t ono, bool add)
     ret.push_back(static_cast<std::uint8_t>(ono >> 8));
     ret.push_back(static_cast<std::uint8_t>(ono));
     ret.push_back(static_cast<std::uint8_t>(0x00)); // EventID def level: OcaRoot
-    ret.push_back(static_cast<std::uint8_t>(0x01)); 
+    ret.push_back(static_cast<std::uint8_t>(0x01));
     ret.push_back(static_cast<std::uint8_t>(0x00)); // EventID idx: PropertyChanged
-    ret.push_back(static_cast<std::uint8_t>(0x01)); 
+    ret.push_back(static_cast<std::uint8_t>(0x01));
 
     ret.push_back(static_cast<std::uint8_t>(ono >> 24)); // Subscriber ONo
     ret.push_back(static_cast<std::uint8_t>(ono >> 16));
     ret.push_back(static_cast<std::uint8_t>(ono >> 8));
     ret.push_back(static_cast<std::uint8_t>(ono));
     ret.push_back(static_cast<std::uint8_t>(0x00)); // Method def level: OcaSubscriptionManager
-    ret.push_back(static_cast<std::uint8_t>(0x03)); 
+    ret.push_back(static_cast<std::uint8_t>(0x03));
     ret.push_back(static_cast<std::uint8_t>(0x00)); // Method idx: AddSubscription
-    ret.push_back(static_cast<std::uint8_t>(0x01)); 
-    
+    ret.push_back(static_cast<std::uint8_t>(0x01));
+
     if (!add)
         return ret;
 
@@ -456,57 +458,23 @@ std::string StatusToString(std::uint8_t status)
 
     switch (status)
     {
-        case 0: // OCASTATUS_OK:
-            result = std::string("OK");
-            break;
-        case 1: // OCASTATUS_PROTOCOL_VERSION_ERROR:
-            result = std::string("ProtocolVersionError");
-            break;
-        case 2: // OCASTATUS_DEVICE_ERROR:
-            result = std::string("DeviceError");
-            break;
-        case 3: // OCASTATUS_LOCKED:
-            result = std::string("Locked");
-            break;
-        case 4: // OCASTATUS_BAD_FORMAT:
-            result = std::string("BadFormat");
-            break;
-        case 5: // OCASTATUS_BAD_ONO:
-            result = std::string("BadONo");
-            break;
-        case 6: // OCASTATUS_PARAMETER_ERROR:
-            result = std::string("ParameterError");
-            break;
-        case 7: // OCASTATUS_PARAMETER_OUT_OF_RANGE:
-            result = std::string("ParameterOutOfRange");
-            break;
-        case 8: // OCASTATUS_NOT_IMPLEMENTED:
-            result = std::string("NotImplemented");
-            break;
-        case 9: // OCASTATUS_INVALID_REQUEST:
-            result = std::string("InvalidRequest");
-            break;
-        case 10: // OCASTATUS_PROCESSING_FAILED:
-            result = std::string("ProcessingFailed");
-            break;
-        case 11: // OCASTATUS_BAD_METHOD:
-            result = std::string("BadMethod");
-            break;
-        case 12: // OCASTATUS_PARTIALLY_SUCCEEDED:
-            result = std::string("PartiallySucceeded");
-            break;
-        case 13: // OCASTATUS_TIMEOUT:
-            result = std::string("Timeout");
-            break;
-        case 14: // OCASTATUS_BUFFER_OVERFLOW:
-            result = std::string("BufferOverflow");
-            break;
-        case 15: // OCASTATUS_PERMISSION_DENIED:
-            result = std::string("PermissionDenied");
-            break;
-        default:
-            result = std::to_string(status);
-            break;
+        case 0:  result = "OK";                     break;
+        case 1:  result = "ProtocolVersionError";   break;
+        case 2:  result = "DeviceError";            break;
+        case 3:  result = "Locked";                 break;
+        case 4:  result = "BadFormat";              break;
+        case 5:  result = "BadONo";                 break;
+        case 6:  result = "ParameterError";         break;
+        case 7:  result = "ParameterOutOfRange";    break;
+        case 8:  result = "NotImplemented";         break;
+        case 9:  result = "InvalidRequest";         break;
+        case 10: result = "ProcessingFailed";       break;
+        case 11: result = "BadMethod";              break;
+        case 12: result = "PartiallySucceeded";     break;
+        case 13: result = "Timeout";                break;
+        case 14: result = "BufferOverflow";         break;
+        case 15: result = "PermissionDenied";       break;
+        default: result = std::to_string(status);   break;
     }
 
     return result;
@@ -518,59 +486,24 @@ std::string DataTypeToString(int dataType)
 
     switch (dataType)
     {
-    case OCP1DATATYPE_BOOLEAN: 
-        result = std::string("Boolean");
-        break;
-    case OCP1DATATYPE_INT8:
-        result = std::string("Int8");
-        break;
-    case OCP1DATATYPE_INT16:
-        result = std::string("Int16");
-        break;
-    case OCP1DATATYPE_INT32:
-        result = std::string("Int32");
-        break;
-    case OCP1DATATYPE_INT64:
-        result = std::string("Int64");
-        break;
-    case OCP1DATATYPE_UINT8:
-        result = std::string("UInt8");
-        break;
-    case OCP1DATATYPE_UINT16:
-        result = std::string("UInt16");
-        break;
-    case OCP1DATATYPE_UINT32:
-        result = std::string("UInt32");
-        break;
-    case OCP1DATATYPE_UINT64:
-        result = std::string("UInt64");
-        break;
-    case OCP1DATATYPE_FLOAT32:
-        result = std::string("Float32");
-        break;
-    case OCP1DATATYPE_FLOAT64:
-        result = std::string("Float64");
-        break;
-    case OCP1DATATYPE_STRING:
-        result = std::string("String");
-        break;
-    case OCP1DATATYPE_BIT_STRING:
-        result = std::string("BitString");
-        break;
-    case OCP1DATATYPE_BLOB:
-        result = std::string("Blob");
-        break;
-    case OCP1DATATYPE_BLOB_FIXED_LEN:
-        result = std::string("BlobFixedLength");
-        break;
-    case OCP1DATATYPE_DB_POSITION:
-        result = std::string("Position (d&b)");
-        break;
-    case OCP1DATATYPE_CUSTOM:
-        result = std::string("Custom");
-        break;
-    default:
-        break;
+    case OCP1DATATYPE_BOOLEAN:      result = "Boolean";         break;
+    case OCP1DATATYPE_INT8:         result = "Int8";            break;
+    case OCP1DATATYPE_INT16:        result = "Int16";           break;
+    case OCP1DATATYPE_INT32:        result = "Int32";           break;
+    case OCP1DATATYPE_INT64:        result = "Int64";           break;
+    case OCP1DATATYPE_UINT8:        result = "UInt8";           break;
+    case OCP1DATATYPE_UINT16:       result = "UInt16";          break;
+    case OCP1DATATYPE_UINT32:       result = "UInt32";          break;
+    case OCP1DATATYPE_UINT64:       result = "UInt64";          break;
+    case OCP1DATATYPE_FLOAT32:      result = "Float32";         break;
+    case OCP1DATATYPE_FLOAT64:      result = "Float64";         break;
+    case OCP1DATATYPE_STRING:       result = "String";          break;
+    case OCP1DATATYPE_BIT_STRING:   result = "BitString";       break;
+    case OCP1DATATYPE_BLOB:         result = "Blob";            break;
+    case OCP1DATATYPE_BLOB_FIXED_LEN: result = "BlobFixedLength"; break;
+    case OCP1DATATYPE_DB_POSITION:  result = "Position (d&b)"; break;
+    case OCP1DATATYPE_CUSTOM:       result = "Custom";          break;
+    default: break;
     }
 
     return result;
@@ -582,15 +515,9 @@ std::string HandleToString(std::uint32_t handle)
 
     switch (handle)
     {
-        case 0: // OCA_INVALID_SESSIONID
-            result = std::string("InvalidSessionID");
-            break;
-        case 1: // OCA_LOCAL_SESSIONID
-            result = std::string("LocalSessionID");
-            break;
-        default: 
-            result = std::to_string(handle);
-            break;
+        case 0: result = "InvalidSessionID"; break;
+        case 1: result = "LocalSessionID";   break;
+        default: result = std::to_string(handle); break;
     }
 
     return result;
