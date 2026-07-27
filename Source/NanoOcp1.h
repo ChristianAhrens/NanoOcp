@@ -52,8 +52,9 @@
  * ## Threading model
  * `NanoOcp1Client` runs its socket I/O on a dedicated `Ocp1Connection::ConnectionThread`.
  * All three callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`)
- * fire on the socket thread. The `callbacksOnMessageThread` constructor parameter is
- * retained for API compatibility but has no effect.
+ * fire on the socket thread when `callbacksOnMessageThread = false`. When it is `true`
+ * (the default), they are instead posted to a dedicated `NanoAsyncDispatcher` worker
+ * thread — see `Ocp1Connection`'s constructor documentation.
  *
  * ## File map
  * | Header | Contents |
@@ -161,8 +162,10 @@ public:
     /**
      * @brief Constructs a client without an initial address/port.
      *        Call `setAddress()` and `setPort()` before `start()`.
-     * @param callbacksOnMessageThread  Kept for API compatibility; has no effect —
-     *                                  callbacks always fire on the socket thread.
+     * @param callbacksOnMessageThread  See `Ocp1Connection`'s constructor: if true
+     *                                  (the default), callbacks are posted to a
+     *                                  dedicated worker thread instead of firing
+     *                                  directly on the socket thread.
      * @param threadPriority            OS thread priority for the socket I/O thread.
      */
     NanoOcp1Client(bool callbacksOnMessageThread,
@@ -237,7 +240,8 @@ public:
     //==============================================================================
     /**
      * @brief Constructs a server without an initial bind address/port.
-     * @param callbacksOnMessageThread  Kept for API compatibility; has no effect.
+     * @param callbacksOnMessageThread  Propagated to the accepted peer `NanoOcp1Client`;
+     *                                  see `Ocp1Connection`'s constructor.
      * @param threadPriority            OS thread priority for the accept thread.
      */
     NanoOcp1Server(bool callbacksOnMessageThread,

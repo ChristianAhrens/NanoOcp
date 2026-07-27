@@ -54,9 +54,13 @@ namespace NanoOcp1
  * 4. Call disconnect() to stop.
  *
  * ## Threading
- * All ValueCallbacks and onStateChanged fire on the NanoOcp1 socket thread.
- * Callers that need to marshal to a specific thread (e.g. the JUCE message
- * thread) must do so inside their callback implementations.
+ * By default (`callbacksOnMessageThread = true`, the constructor parameter),
+ * all ValueCallbacks and onStateChanged are posted to a dedicated
+ * `NanoAsyncDispatcher` worker thread rather than firing directly on the
+ * NanoOcp1 socket thread — see `Ocp1Connection`'s constructor documentation.
+ * Pass `false` to receive callbacks synchronously on the socket thread instead.
+ * Either way, callers that need to marshal onto a specific thread of their own
+ * (e.g. a GUI thread) must still do so inside their callback implementations.
  *
  * ## Subclassing
  * Override afterConnected() to insert a device-specific handshake before the
@@ -81,7 +85,11 @@ public:
     /** Callback invoked with raw OCA parameter bytes when a tracked object changes. */
     using ValueCallback = std::function<void(const ByteVector& paramData)>;
 
-    Ocp1Controller();
+    /**
+     * @param callbacksOnMessageThread  See "Threading" above. Forwarded to the
+     *                                  internal `NanoOcp1Client` on every connect().
+     */
+    explicit Ocp1Controller(bool callbacksOnMessageThread = true);
     virtual ~Ocp1Controller();
 
     //==========================================================================
@@ -227,6 +235,7 @@ private:
     std::string                            m_host;
     int                                    m_port{50014};
     int                                    m_timeoutMs{150};
+    bool                                   m_callbacksOnMessageThread;
 
     std::atomic<State>                     m_state{State::Disconnected};
 

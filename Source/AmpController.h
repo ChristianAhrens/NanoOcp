@@ -77,7 +77,8 @@ public:
         FiveD  ///< d&b 5D amplifier (named FiveD because identifiers cannot start with a digit).
     };
 
-    AmpController();
+    /** @param callbacksOnMessageThread  See `Ocp1Controller`'s constructor. */
+    explicit AmpController(bool callbacksOnMessageThread = true);
     ~AmpController() override;
 
     //==========================================================================
@@ -116,7 +117,7 @@ public:
     bool setChannelMute(std::uint16_t channel, bool mute);
 
     //==========================================================================
-    // Typed callbacks — all fired on the NanoOcp1 socket thread.
+    // Typed callbacks — see Ocp1Controller's "Threading" documentation.
 
     /** Fired when the amplifier power state changes or is queried. */
     std::function<void(bool on)>                                 onPower;

@@ -31,7 +31,8 @@ namespace NanoOcp1
 
 // ── Construction / destruction ────────────────────────────────────────────────
 
-SoundscapeController::SoundscapeController()
+SoundscapeController::SoundscapeController(bool callbacksOnMessageThread)
+    : Ocp1Controller(callbacksOnMessageThread)
 {
     createKnownONosMap();
 }

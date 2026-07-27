@@ -95,6 +95,9 @@ Ocp1Connection::Ocp1Connection(bool callbacksOnMessageThread,
       m_threadPriority(threadPriority)
 {
     thread.reset(new ConnectionThread(*this));
+
+    if (useMessageThread)
+        dispatcher = std::make_unique<NanoAsyncDispatcher>();
 }
 
 Ocp1Connection::~Ocp1Connection()
@@ -222,14 +225,33 @@ void Ocp1Connection::initialiseWithSocket(std::unique_ptr<NanoSocket> newSocket)
 
 
 // ── Callback dispatch ─────────────────────────────────────────────────────────
-// Callbacks always fire on the socket thread (useMessageThread is ignored).
+// When useMessageThread is false, callbacks fire synchronously on the socket
+// thread. When true, they are posted to `dispatcher` and run on its dedicated
+// worker thread instead — see the constructor documentation in the header.
+
+void Ocp1Connection::dispatchOrCall(std::function<void(Ocp1Connection&)> fn)
+{
+    if (useMessageThread && dispatcher)
+    {
+        // Capture safeAction by value so the guard (and the connection object it
+        // refers to) stays valid for the lifetime of the queued task, even if
+        // this Ocp1Connection is torn down before the task runs — ifSafe() will
+        // simply no-op once setSafe(false) has been called.
+        auto action = safeAction;
+        dispatcher->post([action, fn]() { action->ifSafe(fn); });
+    }
+    else
+    {
+        safeAction->ifSafe(fn);
+    }
+}
 
 void Ocp1Connection::connectionMadeInt()
 {
     if (!callbackConnectionState)
     {
         callbackConnectionState = true;
-        safeAction->ifSafe([](Ocp1Connection& owner) { owner.connectionMade(); });
+        dispatchOrCall([](Ocp1Connection& owner) { owner.connectionMade(); });
     }
 }
 
@@ -238,14 +260,16 @@ void Ocp1Connection::connectionLostInt()
     if (callbackConnectionState)
     {
         callbackConnectionState = false;
-        safeAction->ifSafe([](Ocp1Connection& owner) { owner.connectionLost(); });
+        dispatchOrCall([](Ocp1Connection& owner) { owner.connectionLost(); });
     }
 }
 
 void Ocp1Connection::deliverDataInt(const ByteVector& data)
 {
     assert(callbackConnectionState);
-    safeAction->ifSafe([&data](Ocp1Connection& owner) { owner.messageReceived(data); });
+    // Copy: when dispatched asynchronously this runs after the caller's local
+    // buffer (see readNextMessage()) has gone out of scope.
+    dispatchOrCall([data](Ocp1Connection& owner) { owner.messageReceived(data); });
 }
 
 

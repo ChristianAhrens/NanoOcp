@@ -30,7 +30,10 @@ namespace NanoOcp1
 
 // ── Construction / destruction ────────────────────────────────────────────────
 
-AmpController::AmpController() = default;
+AmpController::AmpController(bool callbacksOnMessageThread)
+    : Ocp1Controller(callbacksOnMessageThread)
+{
+}
 
 AmpController::~AmpController()
 {

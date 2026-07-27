@@ -30,7 +30,10 @@ namespace NanoOcp1
 
 // ── Construction / destruction ────────────────────────────────────────────────
 
-Ocp1Controller::Ocp1Controller() = default;
+Ocp1Controller::Ocp1Controller(bool callbacksOnMessageThread)
+    : m_callbacksOnMessageThread(callbacksOnMessageThread)
+{
+}
 
 Ocp1Controller::~Ocp1Controller()
 {
@@ -67,7 +70,7 @@ void Ocp1Controller::connect(const std::string& host, int port, int timeoutMs)
     m_port      = port;
     m_timeoutMs = timeoutMs;
 
-    m_client = std::make_unique<NanoOcp1Client>(host, port, /*callbacksOnMessageThread=*/false);
+    m_client = std::make_unique<NanoOcp1Client>(host, port, m_callbacksOnMessageThread);
 
     m_client->onConnectionEstablished = [this]() {
         afterConnected();

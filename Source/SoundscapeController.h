@@ -68,7 +68,8 @@ namespace NanoOcp1
  * speaker-position object definitions before subscribing and querying.
  *
  * ## Threading
- * `onRemoteObjectReceived` and `onStateChanged` fire on the NanoOcp1 socket thread.
+ * See `Ocp1Controller`'s "Threading" documentation — `onRemoteObjectReceived` and
+ * `onStateChanged` follow the same `callbacksOnMessageThread` constructor parameter.
  */
 class SoundscapeController : public Ocp1Controller
 {
@@ -251,7 +252,8 @@ public:
 
     // ── Construction / destruction ────────────────────────────────────────────
 
-    SoundscapeController();
+    /** @param callbacksOnMessageThread  See `Ocp1Controller`'s constructor. */
+    explicit SoundscapeController(bool callbacksOnMessageThread = true);
     ~SoundscapeController() override;
 
     //==========================================================================
@@ -289,8 +291,9 @@ public:
 
     //==========================================================================
     /**
-     * Fired on the socket thread when a subscribed or queried object delivers a
-     * new value.  Return true if the object was handled; false is ignored.
+     * Fired (see class-level "Threading" documentation) when a subscribed or
+     * queried object delivers a new value.  Return true if the object was
+     * handled; false is ignored.
      *
      * The `RemoteObject::Var` field contains the decoded value.
      */

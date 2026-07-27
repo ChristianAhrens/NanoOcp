@@ -19,11 +19,13 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <shared_mutex>
 #include <string>
 
 #include "Ocp1DataTypes.h"
+#include "internal/NanoAsyncDispatcher.h"
 #include "internal/NanoSocket.h"
 #include "internal/NanoThread.h"
 
@@ -56,8 +58,11 @@ class Ocp1ConnectionServer;
  *
  * ## Thread safety
  * The read thread owns the socket exclusively.  Writes go through `sendMessage()`
- * which acquires `socketLock` (a `shared_mutex`).  Callbacks are always delivered
- * on the read thread.
+ * which acquires `socketLock` (a `shared_mutex`).  When `callbacksOnMessageThread
+ * = false`, callbacks are delivered synchronously on the read thread.  When it is
+ * `true` (the default), callbacks are instead posted to a dedicated
+ * `NanoAsyncDispatcher` worker thread, decoupling their execution from socket I/O —
+ * see the constructor documentation.
  */
 class Ocp1Connection
 {
@@ -72,8 +77,16 @@ public:
 public:
     /**
      * @brief Constructs the connection object.
-     * @param callbacksOnMessageThread  Kept for API compatibility; has no effect —
-     *                                  callbacks always run on the socket read thread.
+     * @param callbacksOnMessageThread  If true, `connectionMade()`, `connectionLost()`,
+     *                                  and `messageReceived()` are posted to a dedicated
+     *                                  `NanoAsyncDispatcher` worker thread instead of being
+     *                                  invoked directly on the socket read thread. This keeps
+     *                                  slow or blocking callback code from stalling socket I/O.
+     *                                  If false, callbacks run synchronously on the read thread.
+     *                                  Replaces the pre-refactor behaviour of marshaling onto
+     *                                  the JUCE message thread; callers that specifically need
+     *                                  their own UI/message thread must still marshal onward
+     *                                  from inside their callback implementation.
      * @param threadPriority            OS priority of the socket read thread.
      */
     Ocp1Connection(bool callbacksOnMessageThread = true,
@@ -151,6 +164,12 @@ private:
 
     class SafeAction;
     std::shared_ptr<SafeAction>       safeAction;
+
+    // Non-null only when useMessageThread is true. Owns the worker thread that
+    // connectionMadeInt()/connectionLostInt()/deliverDataInt() post to instead of
+    // calling directly.
+    std::unique_ptr<NanoAsyncDispatcher> dispatcher;
+    void dispatchOrCall(std::function<void(Ocp1Connection&)> fn);
 
     void runThread();
     int  writeData(void*, int);

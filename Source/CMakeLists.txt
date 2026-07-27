@@ -24,6 +24,8 @@ add_library(NanoOcp1 STATIC
     internal/NanoThread.h
     internal/NanoTimer.cpp
     internal/NanoTimer.h
+    internal/NanoAsyncDispatcher.cpp
+    internal/NanoAsyncDispatcher.h
 )
 
 target_include_directories(NanoOcp1 PUBLIC
