@@ -189,7 +189,12 @@ int NanoSocket::read(void* data, int num, bool blockUntilFull)
     char* buf = static_cast<char*>(data);
 
     if (!blockUntilFull)
-        return static_cast<int>(::recv(m_fd, buf, static_cast<size_t>(num), 0));
+    {
+        int n = static_cast<int>(::recv(m_fd, buf, static_cast<size_t>(num), 0));
+        if (n <= 0)
+            m_connected = false; // 0 = peer closed gracefully, < 0 = socket error
+        return n;
+    }
 
     int total = 0;
     while (total < num)
@@ -198,6 +203,7 @@ int NanoSocket::read(void* data, int num, bool blockUntilFull)
             ::recv(m_fd, buf + total, static_cast<size_t>(num - total), 0));
         if (n <= 0)
         {
+            m_connected = false; // 0 = peer closed gracefully, < 0 = socket error
             if (n == 0) return total; // graceful close
             return -1;
         }

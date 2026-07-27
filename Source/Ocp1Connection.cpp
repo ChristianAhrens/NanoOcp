@@ -284,8 +284,17 @@ bool Ocp1Connection::readNextMessage()
             auto numThisTime = std::min(bytesLeft, 65536);
             auto bytesIn     = readData(messageData.data() + readPosition, numThisTime);
 
+            // A closed or broken connection mid-message (0 = peer closed gracefully,
+            // < 0 = socket error) must be treated the same as a lost connection —
+            // delivering a truncated frame to messageReceived() would be wrong.
             if (bytesIn <= 0)
-                break;
+            {
+                if (socket != nullptr)
+                    deleteSocket();
+
+                connectionLostInt();
+                return false;
+            }
 
             readPosition += bytesIn;
             bytesLeft    -= bytesIn;
@@ -295,7 +304,12 @@ bool Ocp1Connection::readNextMessage()
         return true;
     }
 
-    if (bytes < 0)
+    // bytes == 0: peer performed a graceful close (TCP FIN), typically observed
+    // while idle between messages. bytes < 0: socket error. Both mean the
+    // connection is gone and must be reported via connectionLostInt() so that
+    // NanoOcp1Client retries and any dependent state machine (Ocp1Controller and
+    // subclasses) is notified instead of silently going idle forever.
+    if (bytes <= 0)
     {
         if (socket != nullptr)
             deleteSocket();
