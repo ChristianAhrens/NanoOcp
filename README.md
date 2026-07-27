@@ -472,10 +472,10 @@ cmake -B build -S . -DNANOOCP1_BUILD_DEMO=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 
 # Amp mode (default) — connect to a d&b Dy amplifier with 4 channels
-./build/NanoOcp1Demo/NanoOcp1Demo 192.168.1.100 50014 --amp --type dy --ch 4
+./build/NanoOcp1Demo/<Debug/Release>/NanoOcp1Demo 192.168.1.100 50014 --amp --type dy --ch 4
 
 # Soundscape mode — monitor and control sound object 5 (works for DS100/DS110/DS100M/vCore)
-./build/NanoOcp1Demo/NanoOcp1Demo 192.168.1.100 50014 --soundscape 5
+./build/NanoOcp1Demo/<Debug/Release>/NanoOcp1Demo 192.168.1.100 50014 --soundscape 5
 ```
 
 ---
