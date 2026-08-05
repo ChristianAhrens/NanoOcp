@@ -37,6 +37,9 @@ namespace NanoOcp1
  * and the timer thread exits its loop after the callback returns; the actual join
  * happens when stopTimer() is later called from outside the timer thread (or in
  * the destructor).
+ * startTimer()/stopTimer() may be called concurrently from different threads (e.g.
+ * one thread resetting a watchdog while another tears it down); m_lifecycleMutex
+ * serializes those calls so m_thread itself is never touched by two threads at once.
  */
 class NanoTimer
 {
@@ -56,6 +59,7 @@ protected:
 
 private:
     std::thread                           m_thread;
+    std::mutex                            m_lifecycleMutex; // guards m_thread create/join/detach
     std::mutex                            m_mutex;
     std::condition_variable               m_cv;
     bool                                  m_stop{true};
