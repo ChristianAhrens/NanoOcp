@@ -31,10 +31,15 @@ namespace NanoOcp1
  * stopTimer / timerCallback).
  *
  * The callback fires on a dedicated background thread at the requested interval.
+ * Calling startTimer() again while already running reschedules the next tick
+ * in place (no thread is torn down/recreated).
  * Calling stopTimer() from within timerCallback() is safe: the stop flag is set
  * and the timer thread exits its loop after the callback returns; the actual join
  * happens when stopTimer() is later called from outside the timer thread (or in
  * the destructor).
+ * startTimer()/stopTimer() may be called concurrently from different threads (e.g.
+ * one thread resetting a watchdog while another tears it down); m_lifecycleMutex
+ * serializes those calls so m_thread itself is never touched by two threads at once.
  */
 class NanoTimer
 {
@@ -53,11 +58,13 @@ protected:
     NanoTimer() = default;
 
 private:
-    std::thread              m_thread;
-    std::mutex               m_mutex;
-    std::condition_variable  m_cv;
-    bool                     m_stop{true};
-    int                      m_intervalMs{500};
+    std::thread                           m_thread;
+    std::mutex                            m_lifecycleMutex; // guards m_thread create/join/detach
+    std::mutex                            m_mutex;
+    std::condition_variable               m_cv;
+    bool                                  m_stop{true};
+    int                                   m_intervalMs{500};
+    std::chrono::steady_clock::time_point m_deadline{};
 };
 
 } // namespace NanoOcp1
