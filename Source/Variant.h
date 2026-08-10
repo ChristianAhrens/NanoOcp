@@ -80,7 +80,7 @@ namespace NanoOcp1
  * incoming `Ocp1Notification` and `Ocp1Response` parameter data, using the
  * `Ocp1DataType` stored in the matching `Ocp1CommandDefinition` to guide deserialization.
  * The resulting `Variant` is stored in a `RemoteObject` and delivered to
- * `onRemoteObjectReceived` on the JUCE message thread.
+ * `onRemoteObjectReceived` on the application's callback thread.
  *
  * ## Supported types
  * | Constructor | Internal TypeIndex | `GetDataType()` returns |

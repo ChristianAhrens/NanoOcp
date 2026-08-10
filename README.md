@@ -1,15 +1,18 @@
 # NanoOcp
 
-NanoOcp is a C++ library built on the [JUCE](https://juce.com/) framework that provides a minimal **AES70 / OCP.1** TCP client and server, plus the message structures and device-specific object definitions needed to control AES70-compatible audio devices over a plain TCP connection.
+NanoOcp is a **JUCE-free, C++17** library that provides a minimal **AES70 / OCP.1** TCP client and server, plus the message structures and device-specific object definitions needed to control AES70-compatible audio devices over a plain TCP connection.
+
+No third-party dependencies — only the C++ standard library (C++17) and platform sockets (POSIX / Winsock2).
 
 Full API documentation is auto-generated from source and published at:
 [![Documentation](https://img.shields.io/badge/docs-doxygen-blue)](https://ChristianAhrens.github.io/NanoOcp/)
 
-|Appveyor CI build status|NanoOcp1Demo|
-|:----------------|:-----|
-| macOS Xcode           | [![Build status](https://ci.appveyor.com/api/projects/status/l680mk88wpwh8oq1?svg=true)](https://ci.appveyor.com/project/ChristianAhrens/nanoocp1demo-macos)   |
-| Windows Visual Studio | [![Build status](https://ci.appveyor.com/api/projects/status/okx9i5ptj1bv6wnr?svg=true)](https://ci.appveyor.com/project/ChristianAhrens/nanoocp1demo-windows) |
-| Linux makefile        | [![Build status](https://ci.appveyor.com/api/projects/status/18kcsabphbu2et4i?svg=true)](https://ci.appveyor.com/project/ChristianAhrens/nanoocp1demo-linux)   |
+|Platform|Status|
+|:---|:---|
+| macOS   | [![CI macOS](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml)   |
+| Windows | [![CI Windows](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml) |
+| Linux   | [![CI Linux](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml)   |
+| Unit Tests | [![Unit Tests](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml) |
 
 ---
 
@@ -43,50 +46,95 @@ NanoOcp/
 │   ├── Ocp1DataTypes.h / .cpp      # ByteVector, Ocp1DataType, marshal helpers
 │   ├── Variant.h / .cpp            # Type-erased OCA value (marshal/unmarshal)
 │   ├── Ocp1ObjectDefinitions.h     # Generic d&b amp object definitions
-│   └── Ocp1DS100ObjectDefinitions.h# DS100-specific object definitions
-├── NanoOcp1Demo/                   # Full JUCE demo application
-│   ├── NanoOcp1Demo.jucer          # Projucer project file
-│   └── Source/
-│       ├── Main.cpp
-│       ├── MainComponent.h/.cpp    # Demo UI: connect, subscribe, control a d&b amp
-│       └── …
+│   ├── Ocp1DS100ObjectDefinitions.h# DS100-specific object definitions
+│   ├── Ocp1Controller.h / .cpp     # Generic OCP.1 session controller (base class)
+│   ├── AmpController.h / .cpp      # d&b amplifier controller (Dx / Dy / 5D)
+│   ├── SoundscapeController.h / .cpp    # d&b DS100 signal engine controller
+│   └── internal/                   # Platform helpers (no external deps)
+│       ├── NanoSocket.h / .cpp     # Cross-platform TCP socket (POSIX / Winsock2)
+│       ├── NanoThread.h            # std::thread wrapper (replaces juce::Thread)
+│       └── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer)
+├── NanoOcp1Demo/                   # JUCE-free CLI demo application
+│   ├── CMakeLists.txt
+│   └── main.cpp                    # Two-mode terminal UI: amp control / DS100 SO control
+├── CMakeLists.txt                  # Root CMake build (library + optional demo)
 ├── submodules/
-│   ├── JUCE/                       # JUCE framework
-│   └── doxygen-awesome-css/        # Doxygen HTML theme
+│   └── doxygen-awesome-css/        # Doxygen HTML theme (docs only)
 ├── Doxyfile                        # Doxygen configuration
-└── .github/workflows/docs.yml      # GitHub Actions: generate + publish docs to gh-pages
+└── .github/workflows/
+    ├── ci.yml                      # GitHub Actions: macOS / Windows / Linux
+    └── docs.yml                    # GitHub Actions: Doxygen → gh-pages
 ```
 
 ---
 
 ## Architecture
 
-NanoOcp is structured in three layers:
+NanoOcp is structured in four layers.  The controller layer sits on top of the existing low-level stack and is the recommended entry point for application code:
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                  Your application                   │
-│  onDataReceived / onConnectionEstablished / onLost  │
+│  onStateChanged / onPower / onChannelGain / …       │
 └──────────────────────┬──────────────────────────────┘
-                       │  callbacks
+                       │  typed callbacks (socket thread)
 ┌──────────────────────▼──────────────────────────────┐
-│          NanoOcp1Client  /  NanoOcp1Server           │  Layer 1 – Connection
-│  (NanoOcp1Base + Ocp1Connection + juce::Timer)       │
+│              Ocp1Controller  (base)                  │  Layer 1 – Controllers
+│  Connection lifecycle, auto-reconnect, sub/query     │
+│  ├── AmpController  (d&b Dx / Dy / 5D amplifiers)   │
+│  │     typed: onPower, onChannelGain, onChannelMute  │
+│  │           onChannelISP/GR/OVL, onChannelHeadroom  │
+│  └── SoundscapeController  (d&b DS100 signal engine)      │
+│        GUID handshake, RemoteObject vocabulary,      │
+│        setActiveRemoteObjects / onRemoteObjectReceived│
+└──────────────────────┬──────────────────────────────┘
+                       │  callbacks (socket thread)
+┌──────────────────────▼──────────────────────────────┐
+│          NanoOcp1Client  /  NanoOcp1Server           │  Layer 2 – Connection
+│  (NanoOcp1Base + Ocp1Connection + NanoTimer)         │
 └──────────────────────┬──────────────────────────────┘
                        │  ByteVector (raw OCP.1 frame)
 ┌──────────────────────▼──────────────────────────────┐
-│   Ocp1Message  (Command / Response / Notification /  │  Layer 2 – Protocol
+│   Ocp1Message  (Command / Response / Notification /  │  Layer 3 – Protocol
 │                 KeepAlive)  +  Ocp1Header             │
 │   Ocp1CommandResponseRequired  ←  Ocp1CommandDefinition│
 └──────────────────────┬──────────────────────────────┘
                        │  Ocp1CommandDefinition subclasses
 ┌──────────────────────▼──────────────────────────────┐
-│  Ocp1ObjectDefinitions  /  Ocp1DS100ObjectDefinitions│  Layer 3 – Device objects
+│  Ocp1ObjectDefinitions  /  Ocp1DS100ObjectDefinitions│  Layer 4 – Device objects
 │  dbOcaObjectDef_*  structs  (per parameter, per ONo) │
 └─────────────────────────────────────────────────────┘
 ```
 
-### Layer 1 — Connection (`NanoOcp1.h`)
+### Layer 1 — Controllers (`Ocp1Controller.h`, `AmpController.h`, `SoundscapeController.h`)
+
+The controller layer handles the complete session lifecycle so application code never has to manage subscribe/query sequencing, handle maps, or reconnection timers.
+
+**`Ocp1Controller`** — generic base class.  Call `trackObject()` to register parameters of interest, then `connect(host, port)`.  The controller transitions automatically through:
+
+```
+Disconnected → Connecting → Subscribing → Subscribed → GetValues → Connected
+```
+
+On connection loss the underlying client retries automatically and the controller re-subscribes on the next successful connect.  Override `afterConnected()` to insert a device-specific handshake before the standard subscribe/query sequence.
+
+**`AmpController`** — targets d&b Dx, Dy, and 5D amplifiers.  Call `setAmpType(type, channelCount)` before `connect()`.  Fires typed callbacks:
+
+| Callback | Payload |
+|---|---|
+| `onPower` | `bool` — amp is on / off |
+| `onChannelGain` | `uint16_t ch, float dB` |
+| `onChannelMute` | `uint16_t ch, bool muted` |
+| `onChannelISP` | `uint16_t ch, bool active` |
+| `onChannelGR` | `uint16_t ch, bool active` |
+| `onChannelOVL` | `uint16_t ch, bool active` |
+| `onChannelHeadroom` | `uint16_t ch, float dB` |
+
+Write commands: `setPower(bool)`, `setChannelGain(ch, dB)`, `setChannelMute(ch, bool)`.
+
+**`SoundscapeController`** — targets d&b DS100 signal engines (DS100, DS110, DS100M, vCore).  Performs a GUID read on first connect to determine the OCA revision before subscribing.  The full `RemoteObject` vocabulary (74 parameter identifiers) is expressed as `RemoteObject::RemObjIdent` enumerators.  Set the parameters to monitor via `setActiveRemoteObjects()` and receive value updates through `onRemoteObjectReceived`.  Write values via `setObjectValue()`.
+
+### Layer 2 — Connection (`NanoOcp1.h`)
 
 `NanoOcp1Base` is the abstract base class that holds the target address/port and exposes three `std::function` callbacks:
 
@@ -96,11 +144,11 @@ NanoOcp is structured in three layers:
 | `onConnectionLost` | TCP connection dropped or failed |
 | `onDataReceived(ByteVector)` | A complete OCP.1 frame arrived |
 
-**`NanoOcp1Client`** — inherits `NanoOcp1Base`, `Ocp1Connection` (raw socket), and `juce::Timer`.  `start()` starts a periodic timer that retries `connectToSocket()` until it succeeds.  Reconnects automatically after a disconnect.
+**`NanoOcp1Client`** — inherits `NanoOcp1Base`, `Ocp1Connection` (raw socket via `NanoSocket`), and `NanoTimer`.  `start()` starts a periodic timer that retries `connectToSocket()` until it succeeds.  Reconnects automatically after a disconnect.
 
 **`NanoOcp1Server`** — inherits `NanoOcp1Base` and `Ocp1ConnectionServer` (accept loop).  `start()` binds a port and waits for an incoming connection.  Only one simultaneous peer is supported.
 
-### Layer 2 — Protocol (`Ocp1Message.h`)
+### Layer 3 — Protocol (`Ocp1Message.h`)
 
 `Ocp1Message` is the abstract base for all five OCP.1 message types.  Use the static factory `Ocp1Message::UnmarshalOcp1Message(bytes)` to parse incoming data, then dispatch on `GetMessageType()`:
 
@@ -119,7 +167,7 @@ NanoOcp is structured in three layers:
 - `GetValueCommand()` — read the current value
 - `SetValueCommand(Variant)` — write a new value
 
-### Layer 3 — Device objects (`Ocp1ObjectDefinitions.h`, `Ocp1DS100ObjectDefinitions.h`)
+### Layer 4 — Device objects (`Ocp1ObjectDefinitions.h`, `Ocp1DS100ObjectDefinitions.h`)
 
 Concrete `dbOcaObjectDef_*` structs subclass `Ocp1CommandDefinition`.  Each struct represents one controllable parameter on one class of device.  Constructors accept the channel/record/object numbers and compute the correct **ONo** internally — callers never compose ONos manually.
 
@@ -145,30 +193,147 @@ covers all DS100 parameter boxes (MatrixInput, MatrixOutput, Positioning, Coordi
 
 ## Threading model
 
-`NanoOcp1Client` runs all socket I/O on a dedicated `Ocp1Connection::ConnectionThread`.
+`NanoOcp1Client` runs all socket I/O on a dedicated `Ocp1Connection::ConnectionThread` (a thin `std::thread` wrapper).
 
-The `callbacksOnMessageThread` constructor parameter controls where callbacks fire:
+All low-level callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`) fire on the **socket thread**.  The `callbacksOnMessageThread` constructor parameter is retained for API compatibility but has no effect — dispatch to another thread is the caller's responsibility if needed.
 
-| Value | Callback thread | Use when |
-|---|---|---|
-| `false` | Socket thread (lower latency) | You manage your own thread safety in the callbacks |
-| `true` | JUCE message thread (via `MessageManager::callAsync`) | Callbacks directly update UI components |
+Controller callbacks (`onStateChanged`, `onPower`, `onChannelGain`, `onRemoteObjectReceived`, …) likewise fire on the **socket thread**.  If you need to update GUI elements or call framework APIs that require a specific thread (e.g. the JUCE message thread), marshal inside the callback — for example via `juce::MessageManager::callAsync` or by posting a message to a `juce::MessageListener`.
 
 ---
 
 ## Integration
 
-NanoOcp has no CMake or Meson build system — it is designed to be added directly to a [Projucer](https://juce.com/discover/projucer) or CMake-based JUCE project.
+NanoOcp uses **CMake ≥ 3.15** as its build system.  The library requires only a C++17-capable compiler and platform sockets — no third-party dependencies.
 
-1. Add the `Source/` directory to your project's include paths.
-2. Add all `.cpp` files from `Source/` to your build target.
-3. Ensure `juce_core` and `juce_events` JUCE modules are linked.
+### As a CMake subdirectory
+
+```cmake
+add_subdirectory(path/to/NanoOcp)
+target_link_libraries(YourTarget PRIVATE NanoOcp1)
+```
+
+### Building the demo manually
+
+```bash
+cmake -B build -S . -DNANOOCP1_BUILD_DEMO=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+```
+
+### Adding source files directly
+
+1. Add `Source/` to your project's include paths.
+2. Add all `.cpp` files from `Source/` and `Source/internal/` to your build target.
+3. Require C++17 (`-std=c++17` / `cxx_std_17`).
+4. On Windows, link `ws2_32`.
 
 ---
 
 ## Usage examples
 
-### Client — connect, subscribe, get, set
+### AmpController — typed amplifier control
+
+```cpp
+#include "AmpController.h"
+
+auto amp = std::make_unique<NanoOcp1::AmpController>();
+
+// Configure before connect
+amp->setAmpType(NanoOcp1::AmpController::AmpType::Dy, 4 /*channels*/);
+
+// Wire typed callbacks (fired on socket thread)
+amp->onStateChanged = [](NanoOcp1::Ocp1Controller::State s) {
+    // Disconnected / Connecting / Subscribing / Subscribed / GetValues / Connected
+};
+amp->onPower = [](bool on) {
+    // power state changed
+};
+amp->onChannelGain = [](std::uint16_t ch, float dB) {
+    // ch is 1-based; dB range: -57.5 to +6.0
+};
+amp->onChannelMute = [](std::uint16_t ch, bool muted) {};
+amp->onChannelISP  = [](std::uint16_t ch, bool active) {};
+amp->onChannelGR   = [](std::uint16_t ch, bool active) {};
+amp->onChannelOVL  = [](std::uint16_t ch, bool active) {};
+amp->onChannelHeadroom = [](std::uint16_t ch, float dB) {};
+
+// Connect — auto-reconnect and re-subscribe on loss
+amp->connect("192.168.1.100", 50014);
+
+// Send commands (no-op unless Connected)
+amp->setPower(true);
+amp->setChannelGain(1, -12.0f);
+amp->setChannelMute(2, true);
+
+// Stop
+amp->disconnect();
+```
+
+### SoundscapeController — DS100 remote object control
+
+```cpp
+#include "SoundscapeController.h"
+
+auto ds100 = std::make_unique<NanoOcp1::SoundscapeController>();
+
+using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
+using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
+using RO  = NanoOcp1::SoundscapeController::RemoteObject;
+
+// Declare which parameters to subscribe and query on every connect
+ds100->setActiveRemoteObjects({
+    RO{ ROI::MatrixInput_LevelMeterPreMute, ROA{5, 0} },  // level meter SO 5
+    RO{ ROI::Positioning_SourcePosition,   ROA{5, 0} },  // XYZ position SO 5
+    RO{ ROI::Positioning_SourceSpread,     ROA{5, 0} },  // spread SO 5
+    RO{ ROI::ReverbInput_Gain,             ROA{1, 5} },  // En-Space send gain SO 5
+});
+
+// Value-change callback (fired on socket thread)
+ds100->onRemoteObjectReceived = [](const NanoOcp1::SoundscapeController::RemoteObject& ro) -> bool {
+    bool ok = false;
+    switch (ro.Id)
+    {
+    case ROI::Positioning_SourcePosition:
+    {
+        auto xyz = ro.Var.ToPosition(&ok);
+        if (ok)
+        {
+            // xyz[0]=X, xyz[1]=Y, xyz[2]=Z  (all 0.0–1.0)
+        }
+        break;
+    }
+    case ROI::MatrixInput_LevelMeterPreMute:
+    {
+        float dBFS = ro.Var.ToFloat(&ok);
+        break;
+    }
+    default:
+        break;
+    }
+    return ok;
+};
+
+ds100->onStateChanged = [&](NanoOcp1::Ocp1Controller::State s) {
+    if (s == NanoOcp1::Ocp1Controller::State::Connected)
+    {
+        // Device model identified after GUID handshake
+        auto model = ds100->getConnectedDeviceModel(); // DS100 / DS110 / DS100M / vCore
+    }
+};
+
+// Connect — GUID handshake runs automatically, then subscribe+query
+ds100->connect("192.168.1.100", 50014);
+
+// Write a value
+ds100->setObjectValue(RO{
+    ROI::Positioning_SourcePosition,
+    ROA{5, 0},
+    NanoOcp1::Variant{0.5f, 0.3f, 0.0f}
+});
+
+ds100->disconnect();
+```
+
+### Low-level client — connect, subscribe, get, set
 
 ```cpp
 #include "NanoOcp1.h"
@@ -238,7 +403,7 @@ client->sendData(setCmd.GetSerializedData());
 ```cpp
 // The server binds port 50014 and waits for a controller to connect.
 auto server = std::make_unique<NanoOcp1::NanoOcp1Server>(
-    "", 50014, /*callbacksOnMessageThread=*/true);
+    "", 50014, /*callbacksOnMessageThread=*/false);
 
 server->onConnectionEstablished = [&]() { /* controller connected */ };
 server->onConnectionLost        = [&]() { /* controller disconnected */ };
@@ -270,14 +435,48 @@ Client                                     Device
 
 ## Demo application — NanoOcp1Demo
 
-`NanoOcp1Demo/` is a complete JUCE desktop application that demonstrates:
+`NanoOcp1Demo/main.cpp` is a JUCE-free **CLI application** with a live 19-row terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in two modes selected at startup:
 
-- Connecting to a d&b amplifier by IP/port.
-- Sending `AddSubscription` commands for power state and gain.
-- Displaying live property values as they arrive via notifications.
-- Sending `SetValue` commands from UI controls (power on/off button, gain slider).
+### Amp mode (`--amp`, default)
 
-Open `NanoOcp1Demo/NanoOcp1Demo.jucer` in the Projucer, export a native project, and build with Xcode / Visual Studio / make.
+Connects to a d&b amplifier via `AmpController`.  Shows per-channel gain bars, mute state, and protection indicators (ISP / GR / OVL / headroom).
+
+```
+a <ip>         set host address          p <n>       set port
+c              connect (or reconnect)    d           disconnect
+1 / 0          power on / off
+g <ch> <dB>    set channel gain  (ch: 1-4,  dB: -57.5 to +6.0)
+m <ch> <1|0>   mute / unmute channel
+q              quit
+```
+
+### Soundscape mode (`--soundscape <N>`)
+
+Connects to a d&b Soundscape signal engine (DS100, DS110, DS100M, or vCore) via `SoundscapeController`.  Monitors and controls sound object N: level meter, XYZ position, spread, delay mode, En-Space send gain.  The exact device model is identified automatically via the GUID handshake.
+
+```
+a <ip>         set host address          p <n>       set port
+c              connect (or reconnect)    d           disconnect
+x/y/z <0-1>   set position XYZ
+sp <0-1>       set spread
+dm <0|1|2>     set delay mode  (0=off  1=compensate  2=reflect)
+es <dB>        set En-Space send gain  (-57.5 to +6.0)
+q              quit
+```
+
+### Running the demo
+
+```bash
+# Build (CMake)
+cmake -B build -S . -DNANOOCP1_BUILD_DEMO=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+
+# Amp mode (default) — connect to a d&b Dy amplifier with 4 channels
+./build/NanoOcp1Demo/<Debug/Release>/NanoOcp1Demo 192.168.1.100 50014 --amp --type dy --ch 4
+
+# Soundscape mode — monitor and control sound object 5 (works for DS100/DS110/DS100M/vCore)
+./build/NanoOcp1Demo/<Debug/Release>/NanoOcp1Demo 192.168.1.100 50014 --soundscape 5
+```
 
 ---
 

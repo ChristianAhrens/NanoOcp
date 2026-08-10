@@ -35,3 +35,5 @@ NanoOcp1Demo/Builds
 NanoOcp1Demo/JuceLibraryCode
 submodules
 .DS_Store
+NanoOcp1Demo/NanoOcp1Demo
+build

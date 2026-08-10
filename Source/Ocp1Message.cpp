@@ -18,12 +18,7 @@
 
 #include "Ocp1Message.h"
 
-#ifdef JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED
-    #include <juce_core/juce_core.h>
-    #include <juce_events/juce_events.h>
-#else
-    #include <JuceHeader.h>
-#endif
+#include <cassert>
 
 
 namespace NanoOcp1
@@ -92,23 +87,23 @@ Ocp1Header::Ocp1Header(const ByteVector& memory)
         m_msgType(static_cast<std::uint8_t>(0)),
         m_msgCnt(static_cast<std::uint16_t>(0))
 {
-    jassert(memory.size() >= 10); // Not enough data to fit even an Ocp1Header.
+    assert(memory.size() >= 10); // Not enough data to fit even an Ocp1Header.
     if (memory.size() >= 10)
     {
         m_syncVal = memory.at(0);
-        jassert(m_syncVal == 0x3b); // Message does not start with the sync byte.
+        assert(m_syncVal == 0x3b); // Message does not start with the sync byte.
 
         m_protoVers = ReadUint16(memory.data() + 1);
-        jassert(m_protoVers == 1); // Protocol version is expected to be 1.
+        assert(m_protoVers == 1); // Protocol version is expected to be 1.
 
         m_msgSize = ReadUint32(memory.data() + 3);
-        jassert(m_msgSize >= Ocp1HeaderSize); // Message has unexpected size.
+        assert(m_msgSize >= Ocp1HeaderSize); // Message has unexpected size.
 
         m_msgType = memory.at(7);
-        jassert(m_msgType <= Ocp1Message::KeepAlive); // Message type outside expected range.
+        assert(m_msgType <= Ocp1Message::KeepAlive); // Message type outside expected range.
 
         m_msgCnt = ReadUint16(memory.data() + 8);
-        jassert(m_msgCnt > 0); // At least one message expected.
+        assert(m_msgCnt > 0); // At least one message expected.
     }
 }
 
@@ -260,7 +255,7 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector&
                     else
                         return ByteVector(receivedData.begin() + 20, receivedData.end());
                     }();
-                jassert(parameterData.size() == parameterDataLength);
+                assert(parameterData.size() == parameterDataLength);
 
                 return std::make_unique<Ocp1Response>(handle, status, paramCount, parameterData);
             }

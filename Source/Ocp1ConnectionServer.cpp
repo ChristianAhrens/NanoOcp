@@ -24,7 +24,9 @@ namespace NanoOcp1
 {
 
 
-Ocp1ConnectionServer::Ocp1ConnectionServer(const juce::Thread::Priority threadPriority) : juce::Thread("NanoOcp1 connection server"), m_threadPriority(threadPriority)
+Ocp1ConnectionServer::Ocp1ConnectionServer(ThreadPriority threadPriority)
+    : NanoThread("NanoOcp1 connection server"),
+      m_threadPriority(threadPriority)
 {
 }
 
@@ -34,12 +36,12 @@ Ocp1ConnectionServer::~Ocp1ConnectionServer()
 }
 
 //==============================================================================
-bool Ocp1ConnectionServer::beginWaitingForSocket(const int portNumber, const juce::String& bindAddress)
+bool Ocp1ConnectionServer::beginWaitingForSocket(const int portNumber,
+                                                  const std::string& bindAddress)
 {
     stop();
 
-    socket.reset(new juce::StreamingSocket());
-
+    socket.reset(new NanoSocket());
     if (socket->createListener(portNumber, bindAddress))
     {
         startThread(m_threadPriority);
@@ -68,9 +70,9 @@ int Ocp1ConnectionServer::getBoundPort() const noexcept
 
 void Ocp1ConnectionServer::run()
 {
-    while ((!threadShouldExit()) && socket != nullptr)
+    while (!threadShouldExit() && socket != nullptr)
     {
-        std::unique_ptr<juce::StreamingSocket> clientSocket(socket->waitForNextConnection());
+        std::unique_ptr<NanoSocket> clientSocket(socket->waitForNextConnection());
 
         if (clientSocket != nullptr)
             if (auto* newConnection = createConnectionObject())
@@ -78,4 +80,4 @@ void Ocp1ConnectionServer::run()
     }
 }
 
-}
+} // namespace NanoOcp1

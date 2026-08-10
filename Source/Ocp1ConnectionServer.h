@@ -18,11 +18,11 @@
 
 #pragma once
 
-#ifdef JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED
-    #include <juce_core/juce_core.h>
-#else
-    #include <JuceHeader.h>
-#endif
+#include <memory>
+#include <string>
+
+#include "internal/NanoSocket.h"
+#include "internal/NanoThread.h"
 
 
 namespace NanoOcp1
@@ -35,18 +35,15 @@ class Ocp1Connection;
  * @class Ocp1ConnectionServer
  * @brief TCP accept-loop server base class for OCP.1 connections.
  *
- * Runs a background `juce::Thread` that blocks on `accept()` and calls the
+ * Runs a background thread that blocks on `accept()` and calls the
  * pure-virtual `createConnectionObject()` each time a new TCP client connects.
  * The concrete subclass (`NanoOcp1Server`) implements `createConnectionObject()`
  * to return a `NanoOcp1Client` peer wired to the server's callbacks.
  *
- * Derived from and inspired by `juce::InterprocessConnectionServer`, stripped of
- * named-pipe and JUCE IPC handshake support.
- *
  * @see NanoOcp1::Ocp1Connection
  * @see NanoOcp1::NanoOcp1Server
  */
-class Ocp1ConnectionServer : private juce::Thread
+class Ocp1ConnectionServer : private NanoThread
 {
 public:
     //==============================================================================
@@ -54,8 +51,11 @@ public:
      * @brief Constructs the server.
      * @param threadPriority  OS priority of the accept-loop thread.
      */
-    Ocp1ConnectionServer(const juce::Thread::Priority threadPriority = juce::Thread::Priority::normal);
+    explicit Ocp1ConnectionServer(ThreadPriority threadPriority = ThreadPriority::normal);
     ~Ocp1ConnectionServer() override;
+
+    Ocp1ConnectionServer(const Ocp1ConnectionServer&)            = delete;
+    Ocp1ConnectionServer& operator=(const Ocp1ConnectionServer&) = delete;
 
     /**
      * @brief Binds a TCP socket to the given port and starts the accept-loop thread.
@@ -63,7 +63,7 @@ public:
      * @param bindAddress   Local IP address to bind to (empty = all interfaces).
      * @return True if the socket was bound and the thread started.
      */
-    bool beginWaitingForSocket(int portNumber, const juce::String& bindAddress = juce::String());
+    bool beginWaitingForSocket(int portNumber, const std::string& bindAddress = {});
 
     /** @brief Stops the accept-loop thread and closes the listening socket. */
     void stop();
@@ -77,8 +77,7 @@ protected:
      * @brief Called by the accept loop each time a new TCP client connects.
      *
      * Implementations should create and return a new `Ocp1Connection`-derived object
-     * (typically `NanoOcp1Client`) configured for the accepted socket.  The server
-     * takes ownership.
+     * (typically `NanoOcp1Client`) configured for the accepted socket.
      *
      * @return A heap-allocated `Ocp1Connection` object for the new client, or nullptr
      *         to reject the connection.
@@ -87,13 +86,11 @@ protected:
 
 private:
     //==============================================================================
-    std::unique_ptr<juce::StreamingSocket> socket;
+    std::unique_ptr<NanoSocket> socket;
 
     void run() override;
-    
-    juce::Thread::Priority m_threadPriority;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Ocp1ConnectionServer)
+    ThreadPriority m_threadPriority;
 };
 
-}
+} // namespace NanoOcp1
