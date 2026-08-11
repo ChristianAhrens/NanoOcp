@@ -45,6 +45,7 @@
  *   NanoOcp1Demo [host [port]] [--amp | --soundscape <N> [--param <name> [--addr2 <n>]]]
  *                [--type dx|dy|5d] [--ch <n>]
  *   NanoOcp1Demo -h | --help
+ *   NanoOcp1Demo -v | --version
  *   NanoOcp1Demo --soundscape --list-params
  *   Defaults: 127.0.0.1  50014  --amp  --type dy  --ch 4
  *
@@ -71,6 +72,8 @@
 #include "FocusParams.h"
 #include "Panels.h"
 #include "Terminal.h"
+
+#include "NanoOcp1Version.h"
 
 // ── Help ──────────────────────────────────────────────────────────────────────
 
@@ -249,6 +252,12 @@ int main(int argc, char** argv)
         if (a == "-h" || a == "--help")
         {
             printHelp(argv[0]);
+            return 0;
+        }
+        if (a == "-v" || a == "--version")
+        {
+            std::cout << "NanoOcp1Demo " << NANOOCP1_VERSION_STRING
+                       << " (NanoOcp1 " << NanoOcp1::GetVersionString() << ")\n";
             return 0;
         }
         if (a == "--list-params")

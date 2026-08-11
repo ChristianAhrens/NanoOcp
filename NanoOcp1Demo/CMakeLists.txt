@@ -9,6 +9,15 @@ add_executable(NanoOcp1Demo
     Demo.h
 )
 
+if(WIN32)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/NanoOcp1Demo.rc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/NanoOcp1Demo.rc
+        @ONLY
+    )
+    target_sources(NanoOcp1Demo PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/NanoOcp1Demo.rc)
+endif()
+
 target_link_libraries(NanoOcp1Demo PRIVATE NanoOcp1)
 
 target_compile_features(NanoOcp1Demo PRIVATE cxx_std_17)
@@ -21,3 +30,5 @@ target_compile_features(NanoOcp1Demo PRIVATE cxx_std_17)
 set_target_properties(NanoOcp1Demo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/NanoOcp1Demo/$<CONFIG>"
 )
+
+install(TARGETS NanoOcp1Demo RUNTIME DESTINATION bin)

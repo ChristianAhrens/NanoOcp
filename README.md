@@ -7,6 +7,9 @@ No third-party dependencies — only the C++ standard library (C++17) and platfo
 Full API documentation is auto-generated from source and published at:
 [![Documentation](https://img.shields.io/badge/docs-doxygen-blue)](https://ChristianAhrens.github.io/NanoOcp/)
 
+[![Latest Release](https://img.shields.io/github/v/release/ChristianAhrens/NanoOcp)](https://github.com/ChristianAhrens/NanoOcp/releases/latest)
+Pushing a tag (`X.Y.Z`, matching the version in the root `CMakeLists.txt`) publishes a GitHub Release with prebuilt `NanoOcp1Demo` binaries and the `NanoOcp1` library + headers for macOS, Linux, and Windows attached — see [Releases](https://github.com/ChristianAhrens/NanoOcp/releases).
+
 |Platform|Status|
 |:---|:---|
 | macOS   | [![CI macOS](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ChristianAhrens/NanoOcp/actions/workflows/ci.yml)   |
@@ -232,6 +235,27 @@ cmake --build build --config Release
 2. Add all `.cpp` files from `Source/` and `Source/internal/` to your build target.
 3. Require C++17 (`-std=c++17` / `cxx_std_17`).
 4. On Windows, link `ws2_32`.
+
+### Prebuilt releases
+
+Every `X.Y.Z` tag is built for macOS, Linux, and Windows and attached to the
+corresponding [GitHub Release](https://github.com/ChristianAhrens/NanoOcp/releases)
+as `NanoOcp1-X.Y.Z-<platform>.{tar.gz,zip}`, each containing:
+
+```
+bin/NanoOcp1Demo[.exe]   # ready-to-run demo executable
+lib/libNanoOcp1.a        # (NanoOcp1.lib on Windows)
+include/*.h               # public headers, incl. the generated NanoOcp1Version.h
+```
+
+### Versioning
+
+The library and demo share a single version, defined once in the root
+`CMakeLists.txt`'s `project(NanoOcp1 VERSION X.Y.Z ...)` call. It's exposed to
+code via the generated `NanoOcp1Version.h` (`NANOOCP1_VERSION_STRING` /
+`NanoOcp1::GetVersionString()`), and `NanoOcp1Demo -v` / `--version` prints it
+on the command line. On Windows, it's also embedded as the `.exe`'s
+VERSIONINFO resource (visible under file Properties → Details).
 
 ---
 

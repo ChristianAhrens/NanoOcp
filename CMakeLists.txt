@@ -1,9 +1,15 @@
 cmake_minimum_required(VERSION 3.15)
 
 project(NanoOcp1
-    VERSION 1.0.0
+    VERSION 0.6.0
     LANGUAGES CXX
 )
+# The project version continues the numbering previously tracked in
+# NanoOcp1Demo.jucer's version="..." attribute (last bumped there to 0.5.1,
+# never tagged) -- this is now the single source of truth for both the
+# NanoOcp1 library and NanoOcp1Demo, propagated into build artifacts via the
+# generated NanoOcp1Version.h (see Source/CMakeLists.txt) and, on Windows,
+# NanoOcp1Demo's .exe VERSIONINFO resource.
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

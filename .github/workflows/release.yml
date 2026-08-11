@@ -1,0 +1,92 @@
+name: Release
+
+# Triggered by pushing a version tag, e.g. `git tag 0.6.0 && git push origin 0.6.0`
+# (matches the existing bare X.Y.Z tag convention, no "v" prefix).
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+# contents: write is required to create the release and upload assets via the
+# built-in GITHUB_TOKEN -- no additional PAT/secret needed.
+permissions:
+  contents: write
+
+jobs:
+  # A single job creates the GitHub Release first (idempotent w.r.t. the tag),
+  # so the three OS build jobs below can upload their own asset concurrently
+  # without racing each other to create it.
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}"
+          --repo "${{ github.repository }}"
+          --title "${{ github.ref_name }}"
+          --generate-notes
+
+  build-and-upload:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS
+          - os: ubuntu-latest
+            name: Linux
+          - os: windows-latest
+            name: Windows
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -B build -S .
+          -DNANOOCP1_BUILD_DEMO=ON
+          -DNANOOCP1_BUILD_TESTS=ON
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      # Gate the release on tests passing -- never publish a build nobody verified.
+      - name: Test
+        run: ctest --test-dir build --build-config Release --output-on-failure
+
+      - name: Stage release payload
+        run: >
+          cmake --install build --config Release
+          --prefix "staging/NanoOcp1-${{ github.ref_name }}-${{ matrix.name }}"
+
+      - name: Package (zip)
+        if: runner.os == 'Windows'
+        working-directory: staging
+        run: >
+          Compress-Archive
+          -Path "NanoOcp1-${{ github.ref_name }}-${{ matrix.name }}"
+          -DestinationPath "NanoOcp1-${{ github.ref_name }}-${{ matrix.name }}.zip"
+
+      - name: Package (tar.gz)
+        if: runner.os != 'Windows'
+        working-directory: staging
+        run: tar czf "NanoOcp1-${{ github.ref_name }}-${{ matrix.name }}.tar.gz" "NanoOcp1-${{ github.ref_name }}-${{ matrix.name }}"
+
+      - name: Upload release asset
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: staging
+        run: >
+          gh release upload "${{ github.ref_name }}"
+          --repo "${{ github.repository }}"
+          --clobber
+          NanoOcp1-${{ github.ref_name }}-${{ matrix.name }}.*
