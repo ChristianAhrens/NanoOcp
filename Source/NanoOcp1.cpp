@@ -24,7 +24,7 @@ namespace NanoOcp1
 
 
 //==============================================================================
-NanoOcp1Base::NanoOcp1Base(const juce::String& address, const int port)
+NanoOcp1Base::NanoOcp1Base(const std::string& address, const int port)
 {
     setAddress(address);
     setPort(port);
@@ -34,12 +34,12 @@ NanoOcp1Base::~NanoOcp1Base()
 {
 }
 
-void NanoOcp1Base::setAddress(const juce::String& address)
+void NanoOcp1Base::setAddress(const std::string& address)
 {
     m_address = address;
 }
 
-const juce::String& NanoOcp1Base::getAddress()
+const std::string& NanoOcp1Base::getAddress() const
 {
     return m_address;
 }
@@ -49,7 +49,7 @@ void NanoOcp1Base::setPort(const int port)
     m_port = port;
 }
 
-const int NanoOcp1Base::getPort()
+int NanoOcp1Base::getPort() const
 {
     return m_port;
 }
@@ -63,19 +63,27 @@ bool NanoOcp1Base::processReceivedData(const ByteVector& data)
 }
 
 //==============================================================================
-NanoOcp1Client::NanoOcp1Client(const bool callbacksOnMessageThread, const juce::Thread::Priority threadPriority) :
-    NanoOcp1Client(juce::String(), 0, callbacksOnMessageThread, threadPriority)
+NanoOcp1Client::NanoOcp1Client(bool callbacksOnMessageThread,
+                               ThreadPriority threadPriority)
+    : NanoOcp1Client(std::string{}, 0, callbacksOnMessageThread, threadPriority)
 {
 }
 
-NanoOcp1Client::NanoOcp1Client(const juce::String& address, const int port, const bool callbacksOnMessageThread, const juce::Thread::Priority threadPriority) :
-    NanoOcp1Base(address, port), Ocp1Connection(callbacksOnMessageThread, threadPriority)
+NanoOcp1Client::NanoOcp1Client(const std::string& address, int port,
+                               bool callbacksOnMessageThread,
+                               ThreadPriority threadPriority)
+    : NanoOcp1Base(address, port),
+      Ocp1Connection(callbacksOnMessageThread, threadPriority)
 {
 }
 
 NanoOcp1Client::~NanoOcp1Client()
 {
-    stop();
+    m_running = false;
+    stopTimer();
+
+    // See comment in Ocp1Connection destructor.
+    disconnect(4000, Notify::no);
 }
 
 bool NanoOcp1Client::start()
@@ -83,7 +91,7 @@ bool NanoOcp1Client::start()
     m_running = true;
 
     if (connectToSocket(getAddress(), getPort(), 50))
-        return true; // connection immediatly established
+        return true; // connection immediately established
     else
         startTimer(500); // start trying to establish connection
 
@@ -146,13 +154,19 @@ void NanoOcp1Client::timerCallback()
 }
 
 //==============================================================================
-NanoOcp1Server::NanoOcp1Server(const bool callbacksOnMessageThread, const juce::Thread::Priority threadPriority) :
-    NanoOcp1Server(juce::String(), 0, callbacksOnMessageThread, threadPriority)
+NanoOcp1Server::NanoOcp1Server(bool callbacksOnMessageThread,
+                               ThreadPriority threadPriority)
+    : NanoOcp1Server(std::string{}, 0, callbacksOnMessageThread, threadPriority)
 {
 }
 
-NanoOcp1Server::NanoOcp1Server(const juce::String& address, const int port, const bool callbacksOnMessageThread, const juce::Thread::Priority threadPriority) :
-    NanoOcp1Base(address, port), Ocp1ConnectionServer(threadPriority), m_callbacksOnMessageThread(callbacksOnMessageThread), m_threadPriority(threadPriority)
+NanoOcp1Server::NanoOcp1Server(const std::string& address, int port,
+                               bool callbacksOnMessageThread,
+                               ThreadPriority threadPriority)
+    : NanoOcp1Base(address, port),
+      Ocp1ConnectionServer(threadPriority),
+      m_callbacksOnMessageThread(callbacksOnMessageThread),
+      m_threadPriority(threadPriority)
 {
 }
 
@@ -187,11 +201,12 @@ bool NanoOcp1Server::sendData(const ByteVector& data)
 
 Ocp1Connection* NanoOcp1Server::createConnectionObject()
 {
-    m_activeConnection = std::make_unique<NanoOcp1Client>(m_callbacksOnMessageThread, m_threadPriority);
+    m_activeConnection = std::make_unique<NanoOcp1Client>(
+        m_callbacksOnMessageThread, m_threadPriority);
     m_activeConnection->onDataReceived = this->onDataReceived;
 
     return m_activeConnection.get();
 }
 
 
-}
+} // namespace NanoOcp1

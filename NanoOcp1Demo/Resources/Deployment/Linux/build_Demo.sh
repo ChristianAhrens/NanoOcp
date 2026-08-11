@@ -1,39 +1,16 @@
-# we are in NanoOcp1Demo/Resources/Deployment/Linux/ -> change directory to demo root
-cd ../../..
+#!/usr/bin/env bash
+set -e
 
-Cores=8
-if ! [ -z "$1" ]
-then
-  Cores="$1"
-fi
-echo Using "$Cores" cores to build
+# Navigate from NanoOcp1Demo/Resources/Deployment/Linux/ to the repo root.
+cd "$(dirname "$0")/../../../../"
 
-# set convenience variables
-JUCEDir=../submodules/JUCE
-ProjucerMakefilePath="$JUCEDir"/extras/Projucer/Builds/LinuxMakefile
-ProjucerBinPath="$ProjucerMakefilePath"/build/Projucer
-JucerProjectPath=NanoOcp1Demo.jucer
-ProjectMakefilePath=Builds/LinuxMakefile
+echo "=== NanoOcp1Demo — CMake build (Linux) ==="
+echo "Working directory: $(pwd)"
 
-# manually get JUCE
-if test ! -d "$JUCEDir"; then git clone https://github.com/juce-framework/JUCE "$JUCEDir"
-fi
-cd "$JUCEDir"
-git checkout master
-git pull
-cd ..
+cmake -B build -S . \
+      -DNANOOCP1_BUILD_DEMO=ON \
+      -DCMAKE_BUILD_TYPE=Release
 
-# build projucer
-echo Build Projucer
-cd "$ProjucerMakefilePath"
-make -j "$Cores" "LDFLAGS=-latomic" "CONFIG=Release"
-cd "../../../../../../NanoOcp1Demo"
+cmake --build build --config Release --parallel
 
-# export projucer project
-echo Export Projucer Project
-"$ProjucerBinPath" --resave "$JucerProjectPath" --fix-missing-dependencies
-
-# start building the project
-echo Build the project
-cd "$ProjectMakefilePath"
-make -j "$Cores" "LDFLAGS=-latomic" "CONFIG=Release"
+echo "=== Build complete ==="

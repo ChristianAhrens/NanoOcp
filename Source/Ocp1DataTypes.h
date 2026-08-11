@@ -21,6 +21,7 @@
 #include <vector>       //< USE std::vector
 #include <string>       //< USE std::to_string
 #include <cmath>        //< USE std::float_t, std::double_t
+#include <cstdint>      //< USE std::uint8_t, std::int32_t, etc.
 
 namespace NanoOcp1
 {
@@ -30,8 +31,7 @@ namespace NanoOcp1
  *
  * Every `Ocp1Message::GetSerializedData()`, `DataFromX()`, and `Variant::ToParamData()`
  * returns a `ByteVector`.  The `sendData()` / `sendMessage()` methods also take one.
- * This is a drop-in replacement for `juce::MemoryBlock` that avoids the JUCE dependency
- * in the data-layer headers.
+ * Replaces `juce::MemoryBlock` from the original JUCE-based implementation.
  */
 using ByteVector = std::vector<std::uint8_t>;
 

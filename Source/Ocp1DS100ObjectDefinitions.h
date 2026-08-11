@@ -188,6 +188,7 @@ static constexpr BoxAndObjNo Positioning_Source_DelayMode           = 0x0b; ///<
 static constexpr BoxAndObjNo FunctionGroup_Box            = 0x0e; ///< Box number for per-function-group parameters (groups 1–32).
 static constexpr BoxAndObjNo FunctionGroup_Name           = 0x01; ///< User-assignable function group name (string).
 static constexpr BoxAndObjNo FunctionGroup_Delay          = 0x02; ///< Group delay in ms (float32).
+static constexpr BoxAndObjNo FunctionGroup_Mode           = 0x03; ///< Group mode (0=None, >0 active).
 static constexpr BoxAndObjNo FunctionGroup_SpreadFactor   = 0x06; ///< Group spread factor (float32).
 
 // ─── En-Space reverb inputs ───────────────────────────────────────────────────
@@ -657,6 +658,20 @@ struct dbOcaObjectDef_FunctionGroup_Delay : Ocp1CommandDefinition
             OCP1DATATYPE_FLOAT32,           // Value type
             DefLevel_OcaDelay,
             1)                              // Prop_Delay_Time
+    {
+    }
+};
+
+/**
+ * FunctionGroup_Mode
+ */
+struct dbOcaObjectDef_FunctionGroup_Mode : Ocp1CommandDefinition
+{
+    dbOcaObjectDef_FunctionGroup_Mode(std::uint32_t channel)
+        : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, channel, FunctionGroup_Box, FunctionGroup_Mode), // ONO of FunctionGroup_Mode
+            OCP1DATATYPE_UINT16,            // Value type
+            DefLevel_OcaSwitch,
+            1)                              // Prop_Position
     {
     }
 };

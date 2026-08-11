@@ -19,58 +19,65 @@
 #include "Ocp1Connection.h"
 #include "Ocp1Message.h"
 
-#ifdef JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED
-    #include <juce_core/juce_core.h>
-    #include <juce_events/juce_events.h>
-#else
-    #include <JuceHeader.h>
-#endif
+#include <algorithm>
+#include <cassert>
+#include <mutex>
+#include <shared_mutex>
 
 
 namespace NanoOcp1
 {
 
 
-struct Ocp1Connection::ConnectionThread : public juce::Thread
+// ── ConnectionThread ──────────────────────────────────────────────────────────
+
+struct Ocp1Connection::ConnectionThread : public NanoThread
 {
-    ConnectionThread(Ocp1Connection& c) : juce::Thread("JUCE IPC"), owner(c) {}
+    explicit ConnectionThread(Ocp1Connection& c)
+        : NanoThread("Ocp1Connection::ConnectionThread"), owner(c) {}
+
+    ConnectionThread(const ConnectionThread&)            = delete;
+    ConnectionThread& operator=(const ConnectionThread&) = delete;
+
     void run() override { owner.runThread(); }
 
     Ocp1Connection& owner;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ConnectionThread)
 };
+
+
+// ── SafeAction guard ──────────────────────────────────────────────────────────
+// Guards against invoking pure-virtual callbacks after the derived object has
+// been destroyed.
 
 class SafeActionImpl
 {
 public:
-    explicit SafeActionImpl(Ocp1Connection& p)
-        : ref(p) {}
+    explicit SafeActionImpl(Ocp1Connection& p) : ref(p) {}
 
     template <typename Fn>
     void ifSafe(Fn&& fn)
     {
-        const juce::ScopedLock lock(mutex);
-
+        std::lock_guard<std::mutex> lock(mutex);
         if (safe)
             fn(ref);
     }
 
     void setSafe(bool s)
     {
-        const juce::ScopedLock lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex);
         safe = s;
     }
 
     bool isSafe()
     {
-        const juce::ScopedLock lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex);
         return safe;
     }
 
 private:
-    juce::CriticalSection mutex;
+    std::mutex      mutex;
     Ocp1Connection& ref;
-    bool safe = false;
+    bool            safe = false;
 };
 
 class Ocp1Connection::SafeAction : public SafeActionImpl
@@ -78,12 +85,19 @@ class Ocp1Connection::SafeAction : public SafeActionImpl
     using SafeActionImpl::SafeActionImpl;
 };
 
-//==============================================================================
-Ocp1Connection::Ocp1Connection(bool callbacksOnMessageThread , const juce::Thread::Priority threadPriority)
+
+// ── Construction / destruction ────────────────────────────────────────────────
+
+Ocp1Connection::Ocp1Connection(bool callbacksOnMessageThread,
+                               ThreadPriority threadPriority)
     : useMessageThread(callbacksOnMessageThread),
-    safeAction(std::make_shared<SafeAction>(*this)), m_threadPriority(threadPriority)
+      safeAction(std::make_shared<SafeAction>(*this)),
+      m_threadPriority(threadPriority)
 {
     thread.reset(new ConnectionThread(*this));
+
+    if (useMessageThread)
+        dispatcher = std::make_unique<NanoAsyncDispatcher>();
 }
 
 Ocp1Connection::~Ocp1Connection()
@@ -93,24 +107,25 @@ Ocp1Connection::~Ocp1Connection()
     // destroying the derived class, we'd end up calling the pure virtual implementations
     // of `messageReceived`, `connectionMade` and `connectionLost` which is definitely
     // not a good idea!
-    jassert(!safeAction->isSafe());
+    assert(!safeAction->isSafe());
 
     callbackConnectionState = false;
     disconnect(4000, Notify::no);
     thread.reset();
 }
 
-//==============================================================================
-bool Ocp1Connection::connectToSocket(const juce::String& hostName,
-    int portNumber, int timeOutMillisecs)
+
+// ── Connect / disconnect ──────────────────────────────────────────────────────
+
+bool Ocp1Connection::connectToSocket(const std::string& hostName,
+                                     int portNumber,
+                                     int timeOutMillisecs)
 {
     disconnect(1000);
 
-    auto s = std::make_unique<juce::StreamingSocket>();
-
+    auto s = std::make_unique<NanoSocket>();
     if (s->connect(hostName, portNumber, timeOutMillisecs))
     {
-        const juce::ScopedWriteLock sl(socketLock);
         initialiseWithSocket(std::move(s));
         return true;
     }
@@ -120,15 +135,21 @@ bool Ocp1Connection::connectToSocket(const juce::String& hostName,
 
 void Ocp1Connection::disconnect(int timeoutMs, Notify notify)
 {
-    //should be called before socket->close to ensure that running processes on the thread
-    //are notified that the thread is about to exit.
-    thread->stopThread(timeoutMs);
-    
+    // Signal exit and close the socket BEFORE joining the thread.
+    // The thread may be blocked in a blocking recv() inside readData(); closing the
+    // socket causes recv() to return -1 so the thread can observe threadShouldExit()
+    // and exit.  NanoThread::stopThread() joins unconditionally, so if the socket
+    // were closed *after* the join the two would deadlock: join waits for recv() to
+    // unblock, recv() waits for the socket to close.
+    thread->signalThreadShouldExit();
+
     {
-        const juce::ScopedReadLock sl(socketLock);
-        if (socket != nullptr)  socket->close();
+        std::shared_lock<std::shared_mutex> sl(socketLock);
+        if (socket != nullptr) socket->close();
     }
-    
+
+    thread->stopThread(timeoutMs);
+
     deleteSocket();
 
     if (notify == Notify::yes)
@@ -140,50 +161,45 @@ void Ocp1Connection::disconnect(int timeoutMs, Notify notify)
 
 void Ocp1Connection::deleteSocket()
 {
-    const juce::ScopedWriteLock sl(socketLock);
+    std::unique_lock<std::shared_mutex> sl(socketLock);
     socket.reset();
 }
 
 bool Ocp1Connection::isConnected() const
 {
-    const juce::ScopedReadLock sl(socketLock);
-
-    return (socket != nullptr && socket->isConnected())
-        && threadIsRunning;
+    std::shared_lock<std::shared_mutex> sl(socketLock);
+    return (socket != nullptr && socket->isConnected()) && threadIsRunning;
 }
 
-juce::String Ocp1Connection::getConnectedHostName() const
+std::string Ocp1Connection::getConnectedHostName() const
 {
-    {
-        const juce::ScopedReadLock sl(socketLock);
-
-        if (socket == nullptr)
-            return {};
-
-        if (socket != nullptr && !socket->isLocal())
-            return socket->getHostName();
-    }
-
-    return juce::IPAddress::local().toString();
+    std::shared_lock<std::shared_mutex> sl(socketLock);
+    if (socket != nullptr)
+        return socket->getHostName();
+    return {};
 }
 
-//==============================================================================
+
+// ── Send ──────────────────────────────────────────────────────────────────────
+
 bool Ocp1Connection::sendMessage(const ByteVector& message)
 {
-    return writeData(const_cast<std::uint8_t*>(message.data()), static_cast<int>(message.size())) == static_cast<int>(message.size());
+    return writeData(const_cast<std::uint8_t*>(message.data()),
+                     static_cast<int>(message.size()))
+           == static_cast<int>(message.size());
 }
 
 int Ocp1Connection::writeData(void* data, int dataSize)
 {
-    const juce::ScopedReadLock sl(socketLock);
-
+    std::shared_lock<std::shared_mutex> sl(socketLock);
     if (socket != nullptr)
         return socket->write(data, dataSize);
-
     return 0;
 }
 
-//==============================================================================
+
+// ── Initialise ────────────────────────────────────────────────────────────────
+
 void Ocp1Connection::initialise()
 {
     safeAction->setSafe(true);
@@ -192,47 +208,50 @@ void Ocp1Connection::initialise()
     thread->startThread(m_threadPriority);
 }
 
-void Ocp1Connection::initialiseWithSocket(std::unique_ptr<juce::StreamingSocket> newSocket)
+void Ocp1Connection::initialiseWithSocket(std::unique_ptr<NanoSocket> newSocket)
 {
-    jassert(socket == nullptr);
-    socket = std::move(newSocket);
+    // Assign the socket under the exclusive lock, then release before calling
+    // initialise().  initialise() fires connectionMadeInt() which triggers the
+    // onConnectionEstablished callback; that callback may call sendData() which
+    // calls isConnected() → shared_lock.  std::shared_mutex is NOT reentrant, so
+    // holding the unique_lock here while the callback runs would deadlock.
+    {
+        std::unique_lock<std::shared_mutex> sl(socketLock);
+        assert(socket == nullptr);
+        socket = std::move(newSocket);
+    }
     initialise();
 }
 
-//==============================================================================
-struct ConnectionStateMessage : public juce::MessageManager::MessageBase
+
+// ── Callback dispatch ─────────────────────────────────────────────────────────
+// When useMessageThread is false, callbacks fire synchronously on the socket
+// thread. When true, they are posted to `dispatcher` and run on its dedicated
+// worker thread instead — see the constructor documentation in the header.
+
+void Ocp1Connection::dispatchOrCall(std::function<void(Ocp1Connection&)> fn)
 {
-    ConnectionStateMessage(std::shared_ptr<SafeActionImpl> ipc, bool connected) noexcept
-        : safeAction(ipc), connectionMade(connected)
-    {}
-
-    void messageCallback() override
+    if (useMessageThread && dispatcher)
     {
-        safeAction->ifSafe([this](Ocp1Connection& owner)
-            {
-                if (connectionMade)
-                    owner.connectionMade();
-                else
-                    owner.connectionLost();
-            });
+        // Capture safeAction by value so the guard (and the connection object it
+        // refers to) stays valid for the lifetime of the queued task, even if
+        // this Ocp1Connection is torn down before the task runs — ifSafe() will
+        // simply no-op once setSafe(false) has been called.
+        auto action = safeAction;
+        dispatcher->post([action, fn]() { action->ifSafe(fn); });
     }
-
-    std::shared_ptr<SafeActionImpl> safeAction;
-    bool connectionMade;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ConnectionStateMessage)
-};
+    else
+    {
+        safeAction->ifSafe(fn);
+    }
+}
 
 void Ocp1Connection::connectionMadeInt()
 {
     if (!callbackConnectionState)
     {
         callbackConnectionState = true;
-
-        if (useMessageThread)
-            (new ConnectionStateMessage(safeAction, true))->post();
-        else
-            connectionMade();
+        dispatchOrCall([](Ocp1Connection& owner) { owner.connectionMade(); });
     }
 }
 
@@ -241,51 +260,27 @@ void Ocp1Connection::connectionLostInt()
     if (callbackConnectionState)
     {
         callbackConnectionState = false;
-
-        if (useMessageThread)
-            (new ConnectionStateMessage(safeAction, false))->post();
-        else
-            connectionLost();
+        dispatchOrCall([](Ocp1Connection& owner) { owner.connectionLost(); });
     }
 }
-
-struct DataDeliveryMessage : public juce::Message
-{
-    DataDeliveryMessage(std::shared_ptr<SafeActionImpl> ipc, const ByteVector& d)
-        : safeAction(ipc), data(d)
-    {}
-
-    void messageCallback() override
-    {
-        safeAction->ifSafe([this](Ocp1Connection& owner)
-            {
-                owner.messageReceived(data);
-            });
-    }
-
-    std::shared_ptr<SafeActionImpl> safeAction;
-    ByteVector data;
-};
 
 void Ocp1Connection::deliverDataInt(const ByteVector& data)
 {
-    jassert(callbackConnectionState);
-
-    if (useMessageThread)
-        (new DataDeliveryMessage(safeAction, data))->post();
-    else
-        messageReceived(data);
+    assert(callbackConnectionState);
+    // Copy: when dispatched asynchronously this runs after the caller's local
+    // buffer (see readNextMessage()) has gone out of scope.
+    dispatchOrCall([data](Ocp1Connection& owner) { owner.messageReceived(data); });
 }
 
-//==============================================================================
+
+// ── Read loop ─────────────────────────────────────────────────────────────────
+
 int Ocp1Connection::readData(void* data, int num)
 {
-    const juce::ScopedReadLock sl(socketLock);
-
+    std::shared_lock<std::shared_mutex> sl(socketLock);
     if (socket != nullptr)
         return socket->read(data, num, true);
-
-    jassertfalse;
+    assert(false);
     return -1;
 }
 
@@ -297,36 +292,48 @@ bool Ocp1Connection::readNextMessage()
 
     if (bytes == Ocp1Header::Ocp1HeaderSize)
     {
-        // Unmarshal the OCA header using a Ocp1Header helper object.
         Ocp1Header tmpHeader(messageData);
 
-        // Resize the ByteVector to fit the complete OCA message.
-        // NOTE: msgSize does not include the sync byte.
+        // Resize to fit the complete OCA message (msgSize does not include the sync byte).
         messageData.resize(static_cast<size_t>(tmpHeader.GetMessageSize()) + 1);
 
         auto readPosition = static_cast<int>(Ocp1Header::Ocp1HeaderSize);
-        auto bytesLeft = static_cast<int>(tmpHeader.GetMessageSize() + 1 - Ocp1Header::Ocp1HeaderSize);
+        auto bytesLeft    = static_cast<int>(tmpHeader.GetMessageSize() + 1
+                                              - Ocp1Header::Ocp1HeaderSize);
         while (bytesLeft > 0)
         {
             if (thread->threadShouldExit())
                 return false;
 
-            auto numThisTime = juce::jmin(bytesLeft, 65536);
-            auto bytesIn = readData(messageData.data() + readPosition, numThisTime);
+            auto numThisTime = std::min(bytesLeft, 65536);
+            auto bytesIn     = readData(messageData.data() + readPosition, numThisTime);
 
+            // A closed or broken connection mid-message (0 = peer closed gracefully,
+            // < 0 = socket error) must be treated the same as a lost connection —
+            // delivering a truncated frame to messageReceived() would be wrong.
             if (bytesIn <= 0)
-                break;
+            {
+                if (socket != nullptr)
+                    deleteSocket();
+
+                connectionLostInt();
+                return false;
+            }
 
             readPosition += bytesIn;
-            bytesLeft -= bytesIn;
+            bytesLeft    -= bytesIn;
         }
 
         deliverDataInt(messageData);
-
         return true;
     }
 
-    if (bytes < 0)
+    // bytes == 0: peer performed a graceful close (TCP FIN), typically observed
+    // while idle between messages. bytes < 0: socket error. Both mean the
+    // connection is gone and must be reported via connectionLostInt() so that
+    // NanoOcp1Client retries and any dependent state machine (Ocp1Controller and
+    // subclasses) is notified instead of silently going idle forever.
+    if (bytes <= 0)
     {
         if (socket != nullptr)
             deleteSocket();
@@ -370,4 +377,4 @@ void Ocp1Connection::runThread()
     threadIsRunning = false;
 }
 
-}
+} // namespace NanoOcp1
