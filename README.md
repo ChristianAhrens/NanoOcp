@@ -56,7 +56,14 @@ NanoOcp/
 │       └── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer)
 ├── NanoOcp1Demo/                   # JUCE-free CLI demo application
 │   ├── CMakeLists.txt
-│   └── main.cpp                    # Two-mode terminal UI: amp control / DS100 SO control
+│   ├── Terminal.h                  # Platform terminal setup / size query
+│   ├── Ansi.h                      # ANSI escape-sequence constants
+│   ├── AppState.h                  # Shared UI state + logging helpers
+│   ├── Format.h                    # Small text-formatting helpers (bars, state/type strings)
+│   ├── FocusParams.h               # Soundscape-focus parameter table, lookup, Variant format/parse
+│   ├── Panels.h                    # Panel renderers, canvas management, redraw thread
+│   ├── Demo.h                      # Demo controller class (wraps AmpController / SoundscapeController)
+│   └── main.cpp                    # CLI help/argument parsing + entry point (three-mode terminal UI)
 ├── CMakeLists.txt                  # Root CMake build (library + optional demo)
 ├── submodules/
 │   └── doxygen-awesome-css/        # Doxygen HTML theme (docs only)
@@ -435,11 +442,11 @@ Client                                     Device
 
 ## Demo application — NanoOcp1Demo
 
-`NanoOcp1Demo/main.cpp` is a JUCE-free **CLI application** with a live 19-row terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in two modes selected at startup:
+`NanoOcp1Demo/` is a JUCE-free **CLI application** (entry point `main.cpp`, split into a handful of single-header modules — see [Repository layout](#repository-layout)) with a live terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in three modes selected at startup:
 
 ### Amp mode (`--amp`, default)
 
-Connects to a d&b amplifier via `AmpController`.  Shows per-channel gain bars, mute state, and protection indicators (ISP / GR / OVL / headroom).
+Connects to a d&b amplifier via `AmpController`.  Shows per-channel gain bars, mute state, and protection indicators (ISP / GR / OVL / headroom), in a fixed 19-row panel.
 
 ```
 a <ip>         set host address          p <n>       set port
@@ -450,18 +457,42 @@ m <ch> <1|0>   mute / unmute channel
 q              quit
 ```
 
-### Soundscape mode (`--soundscape <N>`)
+### Soundscape overview mode (`--soundscape <N>`)
 
-Connects to a d&b Soundscape signal engine (DS100, DS110, DS100M, or vCore) via `SoundscapeController`.  Monitors and controls sound object N: level meter, XYZ position, spread, delay mode, En-Space send gain.  The exact device model is identified automatically via the GUID handshake.
+Connects to a d&b Soundscape signal engine (DS100, DS110, DS100M, or vCore) via `SoundscapeController`.  Monitors and controls sound object N: level meter, gain, mute, XYZ position, spread, delay mode, En-Space send gain — all at once, in a fixed 19-row panel.  The exact device model is identified automatically via the GUID handshake.
 
 ```
 a <ip>         set host address          p <n>       set port
 c              connect (or reconnect)    d           disconnect
-x/y/z <0-1>   set position XYZ
+x/y/z <m>      set position XYZ (meters)
 sp <0-1>       set spread
 dm <0|1|2>     set delay mode  (0=off  1=compensate  2=reflect)
-es <dB>        set En-Space send gain  (-57.5 to +6.0)
+ig <dB>        set matrix input gain  (-120.0 to +24.0)
+mm <1|0>       mute / unmute matrix input
+es <dB>        set En-Space send gain  (-120.0 to +24.0)
 q              quit
+```
+
+### Soundscape focus mode (`--soundscape <N> --param <name> [--addr2 <n>]`)
+
+Same connection as overview mode, but subscribes to exactly **one** OCP1 remote object instead of the fixed overview set, and monitors it in a scrolling, timestamped log that fills the whole terminal height — the panel adapts live as the terminal is resized, keeping only a handful of fixed rows (title, host/status, current value, commands) pinned above the log.  Use this to watch or drive any parameter in `RemoteObject::RemObjIdent`, not just the ones the overview panel hardcodes.
+
+- `<N>` (from `--soundscape`) is the parameter's primary address (sound-object / matrix-input channel, matrix-output channel, function group, reverb zone, or mapping area, depending on the parameter — see `--list-params` below).
+- `--addr2 <n>` supplies a secondary address for two-dimensional parameters (e.g. `MatrixNode_Gain`'s output channel). Defaults to 0.
+- The value type (bool / int / float / string / XYZ position) is learned from the first value received for that parameter, so the same `v` command works generically across the whole parameter space.
+
+```
+a <ip>         set host address          p <n>       set port
+c              connect (or reconnect)    d           disconnect
+v              enter a new value to send; type it on the next line,
+               or 'b' / 'back' to cancel
+q              quit
+```
+
+Enumerate every focusable parameter name (with its addressing hint and description) as a single-shot call — this does not connect to anything:
+
+```bash
+NanoOcp1Demo --soundscape --list-params
 ```
 
 ### Running the demo
@@ -472,11 +503,22 @@ cmake -B build -S . -DNANOOCP1_BUILD_DEMO=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 
 # Amp mode (default) — connect to a d&b Dy amplifier with 4 channels
-./build/NanoOcp1Demo/<Debug/Release>/NanoOcp1Demo 192.168.1.100 50014 --amp --type dy --ch 4
+./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 50014 --amp --type dy --ch 4
 
-# Soundscape mode — monitor and control sound object 5 (works for DS100/DS110/DS100M/vCore)
-./build/NanoOcp1Demo/<Debug/Release>/NanoOcp1Demo 192.168.1.100 50014 --soundscape 5
+# Soundscape overview mode — monitor and control sound object 5 (DS100/DS110/DS100M/vCore)
+./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 50014 --soundscape 5
+
+# Soundscape focus mode — monitor/set just MatrixInput_Gain on sound object 5
+./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 --soundscape 5 --param MatrixInput_Gain
+
+# Soundscape focus mode with a two-dimensional parameter (input 3 -> output 7)
+./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 --soundscape 3 --param MatrixNode_Gain --addr2 7
+
+# List every focusable Soundscape parameter and exit
+./build/NanoOcp1Demo/Release/NanoOcp1Demo --soundscape --list-params
 ```
+
+`build/NanoOcp1Demo/Release/` (or `Debug/`) is where the executable lands on every platform — CMake places it there consistently whether the generator is single-config (Makefiles/Ninja on macOS/Linux) or multi-config (Visual Studio/Xcode).
 
 ---
 
