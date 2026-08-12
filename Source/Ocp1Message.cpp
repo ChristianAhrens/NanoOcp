@@ -176,6 +176,10 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector&
     {
         case Notification:
             {
+                // Peer-declared msgSize only guarantees Ocp1HeaderSize bytes; guard the fixed fields read below.
+                if (receivedData.size() < 25)
+                    return nullptr;
+
                 std::uint32_t notificationSize(ReadUint32(receivedData.data() + 10));
                 std::uint32_t newValueSize = notificationSize - 28;
                 if (newValueSize < 1)
@@ -203,6 +207,10 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector&
 
                 std::uint16_t contextSize(ReadUint16(receivedData.data() + 23));
 
+                // contextSize is peer-controlled; re-validate before using it as a read offset.
+                if (receivedData.size() < static_cast<std::size_t>(37) + contextSize)
+                    return nullptr;
+
                 // Not a valid object number.
                 std::uint32_t emitterOno(ReadUint32(receivedData.data() + 25 + contextSize));
                 if (emitterOno == 0)
@@ -228,6 +236,10 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector&
                 if (propIdx == 0)
                     return nullptr;
 
+                // notificationSize (and thus newValueSize) is peer-controlled; re-validate before slicing.
+                if (receivedData.size() < static_cast<std::size_t>(37) + contextSize + newValueSize)
+                    return nullptr;
+
                 const auto parameterData = ByteVector(receivedData.begin() + 37 + contextSize,
                                                                      receivedData.begin() + 37 + contextSize + newValueSize);
 
@@ -236,6 +248,10 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector&
 
         case Response:
             {
+                // Peer-declared msgSize only guarantees Ocp1HeaderSize bytes; guard the fixed fields read below.
+                if (receivedData.size() < 20)
+                    return nullptr;
+
                 std::uint32_t responseSize(ReadUint32(receivedData.data() + 10));
                 std::uint32_t parameterDataLength = responseSize - 10;
                 if (responseSize < 10)
@@ -262,6 +278,10 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector&
 
         case KeepAlive:
             {
+                // Peer-declared msgSize only guarantees Ocp1HeaderSize bytes; guard the read below.
+                if (receivedData.size() < 12)
+                    return nullptr;
+
                 std::uint16_t heartbeat(ReadUint16(receivedData.data() + 10));
 
                 return std::make_unique<Ocp1KeepAlive>(heartbeat);
@@ -280,9 +300,14 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector&
                 constexpr std::size_t methodDefLevelOffset = targetOnoOffset + 4;
                 constexpr std::size_t methodIdxOffset = methodDefLevelOffset + 2;
                 constexpr std::size_t paramCountOffset = methodIdxOffset + 2;
-                constexpr std::uint32_t minimumCommandSize = 16; // Size without parameters
+                constexpr std::uint32_t minimumCommandSize = 17; // Size without parameters
                 constexpr std::size_t parameterDataOffset = paramCountOffset + 1;
 
+                // Guard against reading commandSize itself past the end of a truncated frame.
+                if (receivedData.size() < commandSizeOffset + sizeof(std::uint32_t))
+                    return nullptr;
+
+                // commandSize(4) + handle(4) + targetOno(4) + methodDefLevel(2) + methodIdx(2) + paramCount(1) = 17 bytes
                 const std::uint32_t commandSize(ReadUint32(receivedData.data() + commandSizeOffset));
                 if (commandSize < minimumCommandSize)
                     return nullptr;
