@@ -149,8 +149,21 @@ void NanoOcp1Client::messageReceived(const ByteVector& message)
 
 void NanoOcp1Client::timerCallback()
 {
-    if (connectToSocket(getAddress(), getPort(), 50))
-        stopTimer(); // connection established, no need to retry
+    // Do NOT call stopTimer() here on success. connectToSocket() already routes
+    // through initialise() -> connectionMadeInt() -> connectionMade(), and
+    // connectionMade() itself calls stopTimer(). When callbacksOnMessageThread
+    // is true (the default), that call happens asynchronously on the dispatcher
+    // thread — concurrently with this very callback still running on the timer
+    // thread. Two concurrent stopTimer() calls on the same NanoTimer deadlock:
+    // the foreign-thread call blocks in std::thread::join() waiting for this
+    // timer thread's callback to return, while this thread's own reentrant
+    // stopTimer() call (guarded to skip join() on self) still has to wait for
+    // the same m_lifecycleMutex the joining thread is holding — which it can
+    // never release until this thread returns. So leave stopping the timer
+    // solely to connectionMade(), and just avoid redialling an already-live
+    // connection while that callback is in flight.
+    if (!isConnected())
+        connectToSocket(getAddress(), getPort(), 50);
 }
 
 //==============================================================================
