@@ -213,13 +213,13 @@ std::int32_t Variant::ToInt32(bool* pOk) const
         case TypeUInt64:
             return static_cast<std::int32_t>(std::get<std::uint64_t>(m_value));
         case TypeFloat:
-            return std::lround(std::get<std::float_t>(m_value));
+            return static_cast<std::int32_t>(std::lround(std::get<std::float_t>(m_value)));
         case TypeDouble:
-            return std::lround(std::get<std::double_t>(m_value));
+            return static_cast<std::int32_t>(std::lround(std::get<std::double_t>(m_value)));
         case TypeString:
             try 
             { 
-                return std::stol(std::get<std::string>(m_value)); 
+                return static_cast<std::int32_t>(std::stol(std::get<std::string>(m_value))); 
             } 
             catch (...) 
             { 
