@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
 project(NanoOcp1
-    VERSION 0.6.2
+    VERSION 0.6.3
     LANGUAGES CXX
 )
 # The project version continues the numbering previously tracked in
