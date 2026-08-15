@@ -1,0 +1,7 @@
+<map id="NanoOcp1::SoundscapeController::RemoteObject" name="NanoOcp1::SoundscapeController::RemoteObject">
+<area shape="rect" id="Node000001" title="A fully&#45;qualified DS100 remote parameter: identifier, address, value." alt="" coords="112,108,351,148"/>
+<area shape="rect" id="Node000002" href="$structNanoOcp1_1_1SoundscapeController_1_1RemObjAddr.html" title="Two&#45;dimensional address of a DS100 remote object." alt="" coords="5,5,244,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="157,53,213,106,210,110,153,57"/>
+<area shape="rect" id="Node000003" href="$classNanoOcp1_1_1Variant.html" title="Type&#45;erased OCA parameter value with built&#45;in marshal/unmarshal support." alt="" coords="268,13,411,38"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="319,50,253,110,250,106,315,46"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="NanoOcp1::Ocp1Controller" name="NanoOcp1::Ocp1Controller">
+<area shape="rect" id="Node000001" title="Generic OCA/OCP.1 session controller." alt="" coords="5,79,200,104"/>
+<area shape="rect" id="Node000002" href="$classNanoOcp1_1_1NanoTimer.html" title=" " alt="" coords="18,5,187,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="105,44,105,79,100,79,100,44"/>
+</map>

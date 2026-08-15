@@ -1,0 +1,7 @@
+<map id="NanoOcp1::Ocp1CommandResponseRequired" name="NanoOcp1::Ocp1CommandResponseRequired">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,168,265,208"/>
+<area shape="rect" id="Node000002" href="$classNanoOcp1_1_1Ocp1Message.html" title="Abstract base class for all OCP.1 protocol messages." alt="" coords="41,93,229,119"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="138,132,138,168,133,168,133,132"/>
+<area shape="rect" id="Node000003" href="$classNanoOcp1_1_1Ocp1Header.html" title=" " alt="" coords="47,5,224,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="138,45,138,93,133,93,133,45"/>
+</map>

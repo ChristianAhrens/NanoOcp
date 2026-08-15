@@ -1,0 +1,7 @@
+<map id="NanoOcp1::Ocp1Connection::ConnectionThread" name="NanoOcp1::Ocp1Connection::ConnectionThread">
+<area shape="rect" id="Node000001" title=" " alt="" coords="99,93,301,133"/>
+<area shape="rect" id="Node000002" href="$classNanoOcp1_1_1NanoThread.html" title=" " alt="" coords="5,5,181,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="119,38,180,91,177,95,115,42"/>
+<area shape="rect" id="Node000003" href="$classNanoOcp1_1_1Ocp1Connection.html" title="Low&#45;level TCP socket manager for a single OCP.1 connection." alt="" coords="205,5,408,31"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="285,42,223,95,220,91,281,38"/>
+</map>

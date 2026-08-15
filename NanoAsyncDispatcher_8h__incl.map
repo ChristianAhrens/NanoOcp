@@ -1,0 +1,13 @@
+<map id="Source/internal/NanoAsyncDispatcher.h" name="Source/internal/NanoAsyncDispatcher.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="203,5,401,45"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,93,148,119"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="249,48,123,91,122,86,247,43"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="172,93,235,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="280,48,230,87,227,82,276,43"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="259,93,345,119"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="305,46,305,79,299,79,299,46"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="370,93,434,119"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="328,43,378,82,375,87,325,48"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="458,93,522,119"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="348,43,451,85,449,90,346,48"/>
+</map>

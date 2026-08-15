@@ -1,0 +1,15 @@
+var searchData=
+[
+  ['value_20notification_20response_0',['Decoding a received value (Notification / Response)',['../classNanoOcp1_1_1Variant.html#autotoc_md26',1,'']]],
+  ['value_20to_20send_20setvalue_1',['Constructing a value to send (SetValue)',['../classNanoOcp1_1_1Variant.html#autotoc_md25',1,'']]],
+  ['valuecallback_2',['ValueCallback',['../classNanoOcp1_1_1Ocp1Controller.html#afa90362d66a17d59d7c3e9e6ac7bb61f',1,'NanoOcp1::Ocp1Controller']]],
+  ['valueknown_3',['valueKnown',['../structAppState_1_1FocusState.html#a43461b32f07de5cbebfa4ef73f784b3d',1,'AppState::FocusState']]],
+  ['var_4',['Var',['../structNanoOcp1_1_1SoundscapeController_1_1RemoteObject.html#a35076b1a17f87b4415ef537c03775be0',1,'NanoOcp1::SoundscapeController::RemoteObject']]],
+  ['variant_5',['variant',['../classNanoOcp1_1_1Variant.html#ab7ddfac62ad6d234143451440474decc',1,'NanoOcp1::Variant::Variant(std::uint32_t v)'],['../classNanoOcp1_1_1Variant.html#a814686ca25fd97a82fef9e3dcc69d0b0',1,'NanoOcp1::Variant::Variant(const std::vector&lt; std::uint8_t &gt; &amp;data, Ocp1DataType type=OCP1DATATYPE_BLOB)'],['../classNanoOcp1_1_1Variant.html#a5adcce917518327780f4bc430762d8a9',1,'NanoOcp1::Variant::Variant()=default'],['../classNanoOcp1_1_1Variant.html#a18dcdaa5b586ab7549c208404d0a381e',1,'NanoOcp1::Variant::Variant(std::float_t x, std::float_t y, std::float_t z)'],['../classNanoOcp1_1_1Variant.html#a31f89cf55a301497b70f463f71fa9428',1,'NanoOcp1::Variant::Variant(const char *v)'],['../classNanoOcp1_1_1Variant.html#adc12f17368ea3d88d0fea22a0a861fc9',1,'NanoOcp1::Variant::Variant(const std::string &amp;v)'],['../classNanoOcp1_1_1Variant.html#a160887fea1d9f8a0d8781cf8a68ea57f',1,'NanoOcp1::Variant::Variant(std::double_t v)'],['../classNanoOcp1_1_1Variant.html#afa111f577fe21b47a8797d1d453582c0',1,'NanoOcp1::Variant::Variant(std::float_t v)'],['../classNanoOcp1_1_1Variant.html#ac11fb9837caa10a648201d2d9dfcc173',1,'NanoOcp1::Variant::Variant(std::uint64_t v)'],['../classNanoOcp1_1_1Variant.html#ab2dc5f939900db8e54eddff44ffb2940',1,'NanoOcp1::Variant::Variant(std::uint16_t v)'],['../classNanoOcp1_1_1Variant.html#ab380e034ad2128b7e0b3e79f303776d2',1,'NanoOcp1::Variant::Variant(std::uint8_t v)'],['../classNanoOcp1_1_1Variant.html#afe797bf2ab9947a058406e6035edd33a',1,'NanoOcp1::Variant::Variant(std::int32_t v)'],['../classNanoOcp1_1_1Variant.html#a4ec8688c5e7512c2d9fe6c59cdace593',1,'NanoOcp1::Variant::Variant(bool v)'],['../classNanoOcp1_1_1Variant.html',1,'NanoOcp1::Variant']]],
+  ['variant_2ecpp_6',['Variant.cpp',['../Variant_8cpp.html',1,'']]],
+  ['variant_2eh_7',['Variant.h',['../Variant_8h.html',1,'']]],
+  ['variants_8',['AmpType variants',['../classNanoOcp1_1_1AmpController.html#autotoc_md2',1,'']]],
+  ['varianttype_9',['VariantType',['../classNanoOcp1_1_1Variant.html#aa4b7fd8f03d3d518d6b7f9f8e994f7a0',1,'NanoOcp1::Variant']]],
+  ['vcore_10',['vCore',['../classNanoOcp1_1_1SoundscapeController.html#ab288c941c2a3a1e57817b7f26c98cc25ad57fe47d8dc5de2a4d7f0358a0730aef',1,'NanoOcp1::SoundscapeController']]],
+  ['versioning_11',['Versioning',['../index.html#autotoc_md50',1,'']]]
+];

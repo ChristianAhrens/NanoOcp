@@ -1,0 +1,51 @@
+<map id="Source/internal/NanoAsyncDispatcher.h" name="Source/internal/NanoAsyncDispatcher.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="738,5,935,45"/>
+<area shape="rect" id="Node000002" href="$Ocp1Connection_8h.html" title=" " alt="" coords="635,101,823,126"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="804,56,745,102,742,98,801,52"/>
+<area shape="rect" id="Node000019" href="$NanoAsyncDispatcher_8cpp.html" title=" " alt="" coords="847,93,1045,133"/>
+<area shape="poly" id="edge30_Node000001_Node000019" title=" " alt="" coords="873,52,923,91,920,95,870,56"/>
+<area shape="rect" id="Node000003" href="$NanoOcp1_8h.html" title=" " alt="" coords="454,181,603,207"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="688,134,559,184,557,179,686,129"/>
+<area shape="rect" id="Node000017" href="$Ocp1Connection_8cpp.html" title=" " alt="" coords="627,181,830,207"/>
+<area shape="poly" id="edge28_Node000002_Node000017" title=" " alt="" coords="731,140,731,181,726,181,726,140"/>
+<area shape="rect" id="Node000018" href="$Ocp1ConnectionServer_8cpp.html" title=" " alt="" coords="855,181,1099,207"/>
+<area shape="poly" id="edge29_Node000002_Node000018" title=" " alt="" coords="778,128,941,179,940,184,777,133"/>
+<area shape="rect" id="Node000004" href="$NanoOcp1_8cpp.html" title=" " alt="" coords="349,255,513,280"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="503,217,449,257,446,252,500,213"/>
+<area shape="rect" id="Node000005" href="$Ocp1Controller_8h.html" title=" " alt="" coords="538,255,717,280"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="557,212,613,252,610,257,554,217"/>
+<area shape="rect" id="Node000006" href="$AmpController_8h.html" title=" " alt="" coords="293,328,468,353"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="575,286,421,330,420,325,574,281"/>
+<area shape="rect" id="Node000013" href="$Ocp1Controller_8cpp.html" title=" " alt="" coords="763,328,956,353"/>
+<area shape="poly" id="edge18_Node000005_Node000013" title=" " alt="" coords="678,281,823,325,821,330,677,286"/>
+<area shape="rect" id="Node000014" href="$SoundscapeController_8h.html" title=" " alt="" coords="516,328,739,353"/>
+<area shape="poly" id="edge19_Node000005_Node000014" title=" " alt="" coords="630,294,630,328,625,328,625,294"/>
+<area shape="rect" id="Node000007" href="$AppState_8h.html" title=" " alt="" coords="279,401,482,427"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="383,367,383,401,378,401,378,367"/>
+<area shape="rect" id="Node000008" href="$Demo_8h.html" title=" " alt="" coords="348,548,531,573"/>
+<area shape="poly" id="edge15_Node000006_Node000008" title=" " alt="" coords="327,360,301,372,279,387,268,405,267,415,270,426,282,447,298,467,337,501,377,528,413,546,410,550,375,532,334,506,295,471,278,450,265,428,261,415,263,403,276,384,298,368,325,356"/>
+<area shape="rect" id="Node000010" href="$Format_8h.html" title=" " alt="" coords="424,475,615,500"/>
+<area shape="poly" id="edge16_Node000006_Node000010" title=" " alt="" coords="433,356,467,374,496,400,508,418,515,439,521,474,516,475,510,440,503,420,492,403,464,378,431,361"/>
+<area shape="rect" id="Node000012" href="$AmpController_8cpp.html" title=" " alt="" coords="5,401,196,427"/>
+<area shape="poly" id="edge17_Node000006_Node000012" title=" " alt="" coords="323,359,147,404,145,399,322,354"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="372,440,365,469,366,485,370,499,391,526,418,546,415,550,388,530,365,501,360,485,360,469,367,439"/>
+<area shape="rect" id="Node000009" href="$main_8cpp.html" title=" " alt="" coords="447,621,639,647"/>
+<area shape="poly" id="edge14_Node000007_Node000009" title=" " alt="" coords="365,439,347,469,332,503,327,539,331,556,339,572,358,586,391,599,471,619,470,624,389,604,356,591,335,575,325,558,322,540,327,502,343,466,361,437"/>
+<area shape="poly" id="edge9_Node000007_Node000010" title=" " alt="" coords="416,430,498,472,495,477,414,435"/>
+<area shape="rect" id="Node000011" href="$Panels_8h.html" title=" " alt="" coords="555,548,742,573"/>
+<area shape="poly" id="edge13_Node000007_Node000011" title=" " alt="" coords="386,440,396,471,404,485,414,498,440,512,480,525,573,545,572,551,478,531,438,517,411,502,399,489,391,473,381,441"/>
+<area shape="poly" id="edge8_Node000008_Node000009" title=" " alt="" coords="469,579,528,619,525,623,466,583"/>
+<area shape="poly" id="edge10_Node000010_Node000008" title=" " alt="" coords="498,511,454,550,451,546,495,507"/>
+<area shape="poly" id="edge11_Node000010_Node000011" title=" " alt="" coords="554,504,629,545,626,550,551,509"/>
+<area shape="poly" id="edge12_Node000011_Node000009" title=" " alt="" coords="622,583,562,623,559,619,619,579"/>
+<area shape="poly" id="edge20_Node000014_Node000007" title=" " alt="" coords="575,360,421,404,420,399,574,355"/>
+<area shape="poly" id="edge21_Node000014_Node000008" title=" " alt="" coords="638,366,645,396,648,431,645,468,629,502,609,517,578,530,502,551,500,545,576,525,607,512,625,498,639,467,643,431,640,397,633,367"/>
+<area shape="poly" id="edge26_Node000014_Node000010" title=" " alt="" coords="612,366,530,476,526,473,608,363"/>
+<area shape="rect" id="Node000015" href="$FocusParams_8h.html" title=" " alt="" coords="690,475,919,500"/>
+<area shape="poly" id="edge22_Node000014_Node000015" title=" " alt="" coords="653,360,732,425,791,472,788,476,728,429,650,364"/>
+<area shape="rect" id="Node000016" href="$SoundscapeController_8cpp.html" title=" " alt="" coords="741,401,980,427"/>
+<area shape="poly" id="edge27_Node000014_Node000016" title=" " alt="" coords="678,355,824,399,822,404,677,360"/>
+<area shape="poly" id="edge23_Node000015_Node000008" title=" " alt="" coords="733,505,499,551,498,545,732,500"/>
+<area shape="poly" id="edge25_Node000015_Node000009" title=" " alt="" coords="798,514,782,546,756,575,729,593,700,606,640,624,639,619,698,601,726,588,752,571,777,543,794,512"/>
+<area shape="poly" id="edge24_Node000015_Node000011" title=" " alt="" coords="768,508,675,550,673,545,766,503"/>
+</map>

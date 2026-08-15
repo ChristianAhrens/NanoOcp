@@ -1,0 +1,4 @@
+var structNanoOcp1_1_1DS100_1_1dbOcaObjectDef__MatrixSettings__PositioningEnable =
+[
+    [ "dbOcaObjectDef_MatrixSettings_PositioningEnable", "structNanoOcp1_1_1DS100_1_1dbOcaObjectDef__MatrixSettings__PositioningEnable.html#a83bf008969279d5f2edaab5835a501de", null ]
+];

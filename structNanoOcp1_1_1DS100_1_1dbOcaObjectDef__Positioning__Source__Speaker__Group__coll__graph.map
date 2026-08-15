@@ -1,0 +1,5 @@
+<map id="NanoOcp1::DS100::dbOcaObjectDef_Positioning_Source_Speaker_Group" name="NanoOcp1::DS100::dbOcaObjectDef_Positioning_Source_Speaker_Group">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,79,285,119"/>
+<area shape="rect" id="Node000002" href="$structNanoOcp1_1_1Ocp1CommandDefinition.html" title="Parameter bundle that fully describes one OCA controllable property." alt="" coords="15,5,275,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="148,44,148,79,143,79,143,44"/>
+</map>

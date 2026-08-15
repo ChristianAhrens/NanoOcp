@@ -1,0 +1,23 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" href="$classNanoOcp1_1_1NanoOcp1Base.html" title="Abstract base class shared by NanoOcp1Client and NanoOcp1Server." alt="" coords="233,129,429,155"/>
+<area shape="rect" id="Node000001" href="$classNanoOcp1_1_1NanoOcp1Client.html" title="OCP.1 TCP client with automatic reconnection." alt="" coords="482,80,685,105"/>
+<area shape="poly" id="edge1_Node000000_Node000001" title=" " alt="" coords="409,124,517,103,518,108,410,129"/>
+<area shape="rect" id="Node000007" href="$classNanoOcp1_1_1NanoOcp1Server.html" title="OCP.1 TCP server that accepts a single incoming connection at a time." alt="" coords="480,157,687,183"/>
+<area shape="poly" id="edge2_Node000000_Node000007" title=" " alt="" coords="443,152,480,156,479,161,442,157"/>
+<area shape="rect" id="Node000009" href="$classNanoOcp1_1_1NanoThread.html" title=" " alt="" coords="5,219,181,244"/>
+<area shape="rect" id="Node000010" href="$structNanoOcp1_1_1Ocp1Connection_1_1ConnectionThread.html" title=" " alt="" coords="229,243,432,283"/>
+<area shape="poly" id="edge3_Node000009_Node000010" title=" " alt="" coords="195,242,229,247,229,252,194,248"/>
+<area shape="rect" id="Node000008" href="$classNanoOcp1_1_1Ocp1ConnectionServer.html" title="TCP accept&#45;loop server base class for OCP.1 connections." alt="" coords="229,179,432,219"/>
+<area shape="poly" id="edge4_Node000009_Node000008" title=" " alt="" coords="194,215,229,210,229,216,195,220"/>
+<area shape="poly" id="edge5_Node000008_Node000007" title=" " alt="" coords="445,183,479,179,480,185,446,189"/>
+<area shape="rect" id="Node000002" href="$classNanoOcp1_1_1NanoTimer.html" title=" " alt="" coords="246,31,415,56"/>
+<area shape="poly" id="edge6_Node000002_Node000001" title=" " alt="" coords="410,56,518,77,517,83,409,61"/>
+<area shape="rect" id="Node000003" href="$classNanoOcp1_1_1Ocp1Controller.html" title="Generic OCA/OCP.1 session controller." alt="" coords="486,31,681,56"/>
+<area shape="poly" id="edge7_Node000002_Node000003" title=" " alt="" coords="429,41,486,41,486,46,429,46"/>
+<area shape="rect" id="Node000004" href="$classNanoOcp1_1_1AmpController.html" title="OCA/OCP.1 controller for d&amp;b audiotechnik amplifier products." alt="" coords="759,5,949,31"/>
+<area shape="poly" id="edge8_Node000003_Node000004" title=" " alt="" coords="695,30,758,24,759,30,695,36"/>
+<area shape="rect" id="Node000005" href="$classNanoOcp1_1_1SoundscapeController.html" title="OCA/OCP.1 controller for the d&amp;b audiotechnik DS100 signal engine." alt="" coords="735,55,973,80"/>
+<area shape="poly" id="edge9_Node000003_Node000005" title=" " alt="" coords="695,51,734,54,734,59,694,56"/>
+<area shape="rect" id="Node000006" href="$classNanoOcp1_1_1Ocp1Connection.html" title="Low&#45;level TCP socket manager for a single OCP.1 connection." alt="" coords="229,80,432,105"/>
+<area shape="poly" id="edge10_Node000006_Node000001" title=" " alt="" coords="446,90,482,90,482,95,446,95"/>
+</map>

@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['ch_0',['ch',['../structAppState_1_1AmpState.html#ab7c545844051cbb40f56abd00f9d7573',1,'AppState::AmpState']]],
+  ['channelcount_1',['channelcount',['../structAppState_1_1AmpState.html#afe888703375f7a03e616a3198b039447',1,'AppState::AmpState::channelCount'],['../structDemo_1_1Config.html#a7d84795011661ef8dbc2efccb697defc',1,'Demo::Config::channelCount']]],
+  ['chstatus_5fgr_2',['chstatus_gr',['../namespaceNanoOcp1_1_1AmpDxDy.html#ad5cf06074d8cd9ec45dec6598cdab243',1,'NanoOcp1::AmpDxDy::ChStatus_Gr'],['../namespaceNanoOcp1_1_1Amp5D.html#a5022a775846edff5b14c25388c52981d',1,'NanoOcp1::Amp5D::ChStatus_Gr']]],
+  ['chstatus_5fgrhead_3',['chstatus_grhead',['../namespaceNanoOcp1_1_1AmpDx.html#aa4aeae45961d11f519b7ba9a4e6b8845',1,'NanoOcp1::AmpDx::ChStatus_GrHead'],['../namespaceNanoOcp1_1_1AmpDy.html#a5eb451e85d1e4b94425c25c079e030f5',1,'NanoOcp1::AmpDy::ChStatus_GrHead'],['../namespaceNanoOcp1_1_1Amp5D.html#aba022d8761e180a54d399e0330e247db',1,'NanoOcp1::Amp5D::ChStatus_GrHead']]],
+  ['chstatus_5fisp_4',['chstatus_isp',['../namespaceNanoOcp1_1_1AmpDxDy.html#a0fa20d74dcbf4cabe4e4f11aa74ddc15',1,'NanoOcp1::AmpDxDy::ChStatus_Isp'],['../namespaceNanoOcp1_1_1Amp5D.html#ad7fb82eb4115e139a995a9f08e7ca78d',1,'NanoOcp1::Amp5D::ChStatus_Isp']]],
+  ['chstatus_5fovl_5',['chstatus_ovl',['../namespaceNanoOcp1_1_1AmpDxDy.html#aa8b643a1059cade5a4ee71e5e50fb7f3',1,'NanoOcp1::AmpDxDy::ChStatus_Ovl'],['../namespaceNanoOcp1_1_1Amp5D.html#aa88db3008784cfb3949bf4bf69aa35cf',1,'NanoOcp1::Amp5D::ChStatus_Ovl']]],
+  ['clear_6',['Clear',['../namespaceAnsi.html#a46ef674a21d8d63a14bf66de83063dfb',1,'Ansi']]],
+  ['config_5fmute_7',['Config_Mute',['../namespaceNanoOcp1_1_1AmpGeneric.html#a82345c12f29c695510631a82854942cb',1,'NanoOcp1::AmpGeneric']]],
+  ['config_5fpotilevel_8',['Config_PotiLevel',['../namespaceNanoOcp1_1_1AmpGeneric.html#a2f40b10a000df43a26a561a2a54eb73b',1,'NanoOcp1::AmpGeneric']]],
+  ['coordinatemapping_5fbox_9',['CoordinateMapping_Box',['../namespaceNanoOcp1_1_1DS100.html#ae65c72a84c3c0308ce01026412880844',1,'NanoOcp1::DS100']]],
+  ['coordinatemapping_5fsource_5fposition_10',['CoordinateMapping_Source_Position',['../namespaceNanoOcp1_1_1DS100.html#a3f4f02c15cdccfa75d8982380b6e9a9d',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5fbox_11',['CoordinateMappingSettings_Box',['../namespaceNanoOcp1_1_1DS100.html#ae1f3adcd44a367df96b1993dc8b690f3',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5fflip_12',['CoordinateMappingSettings_Flip',['../namespaceNanoOcp1_1_1DS100.html#a2a6f095895273e4d9db44fc4dfd13242',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5fname_13',['CoordinateMappingSettings_Name',['../namespaceNanoOcp1_1_1DS100.html#a0ea07ddf3c289e8669d6213931e46c79',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5fp1_5freal_14',['CoordinateMappingSettings_P1_real',['../namespaceNanoOcp1_1_1DS100.html#a80717e9391fb4613be5bec13e175a871',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5fp1_5fvirtual_15',['CoordinateMappingSettings_P1_virtual',['../namespaceNanoOcp1_1_1DS100.html#a7ae21bfc6c5098fed3d0ce7eb69d4c64',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5fp2_5freal_16',['CoordinateMappingSettings_P2_real',['../namespaceNanoOcp1_1_1DS100.html#a40034d347858265c0936869317bb8d70',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5fp3_5freal_17',['CoordinateMappingSettings_P3_real',['../namespaceNanoOcp1_1_1DS100.html#a09e4ea100f94fbc0f2e58699ded47046',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5fp3_5fvirtual_18',['CoordinateMappingSettings_P3_virtual',['../namespaceNanoOcp1_1_1DS100.html#a0bea870c2c312c7822a01cac21479c14',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5fp4_5freal_19',['CoordinateMappingSettings_P4_real',['../namespaceNanoOcp1_1_1DS100.html#aa0613b0bd78092dc9013f5b2aa155c28',1,'NanoOcp1::DS100']]],
+  ['coordinatemappingsettings_5ftype_20',['CoordinateMappingSettings_Type',['../namespaceNanoOcp1_1_1DS100.html#abd727b5e6b4555e7c34b1a764027499f',1,'NanoOcp1::DS100']]],
+  ['ctrlstate_21',['ctrlState',['../structAppState.html#ab3029a0ce031037f9f45fc5a1ed89ae1',1,'AppState']]],
+  ['cyan_22',['Cyan',['../namespaceAnsi.html#a24c0e2d5516b3f45f9e50c072149a952',1,'Ansi']]]
+];

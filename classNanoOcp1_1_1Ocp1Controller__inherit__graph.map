@@ -1,0 +1,9 @@
+<map id="NanoOcp1::Ocp1Controller" name="NanoOcp1::Ocp1Controller">
+<area shape="rect" id="Node000001" title="Generic OCA/OCP.1 session controller." alt="" coords="122,79,317,104"/>
+<area shape="rect" id="Node000003" href="$classNanoOcp1_1_1AmpController.html" title="OCA/OCP.1 controller for d&amp;b audiotechnik amplifier products." alt="" coords="5,152,196,177"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="190,113,121,154,119,149,187,109"/>
+<area shape="rect" id="Node000004" href="$classNanoOcp1_1_1SoundscapeController.html" title="OCA/OCP.1 controller for the d&amp;b audiotechnik DS100 signal engine." alt="" coords="220,152,459,177"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="252,109,321,149,318,154,249,113"/>
+<area shape="rect" id="Node000002" href="$classNanoOcp1_1_1NanoTimer.html" title=" " alt="" coords="135,5,304,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="222,44,222,79,217,79,217,44"/>
+</map>

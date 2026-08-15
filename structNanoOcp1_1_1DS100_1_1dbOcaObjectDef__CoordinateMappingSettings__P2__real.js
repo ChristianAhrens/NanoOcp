@@ -1,0 +1,4 @@
+var structNanoOcp1_1_1DS100_1_1dbOcaObjectDef__CoordinateMappingSettings__P2__real =
+[
+    [ "dbOcaObjectDef_CoordinateMappingSettings_P2_real", "structNanoOcp1_1_1DS100_1_1dbOcaObjectDef__CoordinateMappingSettings__P2__real.html#a3a2e568bd378c7c335b4fa63b59a690c", null ]
+];

@@ -1,0 +1,5 @@
+<map id="NanoOcp1::DS100::dbOcaObjectDef_Positioning_Source_Speaker_Position" name="NanoOcp1::DS100::dbOcaObjectDef_Positioning_Source_Speaker_Position">
+<area shape="rect" id="Node000001" title="OCA definition for loudspeaker 6&#45;DOF position — legacy firmware only (stack&#45;ident 0)." alt="" coords="18,79,253,133"/>
+<area shape="rect" id="Node000002" href="$structNanoOcp1_1_1Ocp1CommandDefinition.html" title="Parameter bundle that fully describes one OCA controllable property." alt="" coords="5,5,265,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="138,44,138,79,133,79,133,44"/>
+</map>
