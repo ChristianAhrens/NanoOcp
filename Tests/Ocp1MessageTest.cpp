@@ -217,6 +217,87 @@ TEST(Ocp1KeepAliveTest, MillisecondsVariantRoundTrips)
 }
 
 //==============================================================================
+// UnmarshalOcp1Message — truncated / malformed-frame guards.
+//
+// A peer only guarantees Ocp1HeaderSize (10) bytes of a received frame; the
+// declared msgSize/commandSize/responseSize/notificationSize fields are
+// themselves peer-controlled and must never be trusted to read or slice
+// beyond what's actually present in the buffer. These tests take a
+// byte-exact valid frame for each message type and truncate it to every
+// shorter length, asserting UnmarshalOcp1Message() always fails closed
+// (returns nullptr) rather than reading out of bounds or misinterpreting a
+// short buffer as a longer one.
+//==============================================================================
+
+namespace
+{
+    // Truncates `full` to every length in [0, full.size() - tolerantTrailingBytes)
+    // and expects UnmarshalOcp1Message to reject each one. `tolerantTrailingBytes`
+    // exists only for Ocp1Notification's serialized "ending byte" (see below),
+    // which is written on the wire but never read back by the parser, so a
+    // frame missing just that byte is legitimately still accepted.
+    void ExpectAllTruncationsRejected(const ByteVector& full, std::size_t tolerantTrailingBytes = 0)
+    {
+        ASSERT_LE(tolerantTrailingBytes, full.size());
+        for (std::size_t len = 0; len < full.size() - tolerantTrailingBytes; ++len)
+        {
+            ByteVector truncated(full.begin(), full.begin() + static_cast<long>(len));
+            auto msg = Ocp1Message::UnmarshalOcp1Message(truncated);
+            EXPECT_EQ(msg, nullptr) << "Unexpected non-null result for truncated length " << len
+                                     << " (full frame is " << full.size() << " bytes)";
+        }
+    }
+}
+
+TEST(Ocp1UnmarshalTruncationTest, CommandResponseRequiredRejectsAllTruncations)
+{
+    Ocp1CommandResponseRequired cmd(0x12345678, 4, 2, static_cast<std::uint8_t>(1), DataFromUint32(0xCAFEBABE));
+    cmd.SetHandle(42);
+    ExpectAllTruncationsRejected(cmd.GetSerializedData());
+}
+
+TEST(Ocp1UnmarshalTruncationTest, ResponseRejectsAllTruncations)
+{
+    // Non-empty parameter data exercises the parameterDataLength bounds check
+    // (Ocp1Message.cpp), which historically relied solely on an assert().
+    Ocp1Response resp(99, 7, static_cast<std::uint8_t>(1), DataFromString("ok"));
+    ExpectAllTruncationsRejected(resp.GetSerializedData());
+}
+
+TEST(Ocp1UnmarshalTruncationTest, ResponseWithNoParametersRejectsAllTruncations)
+{
+    Ocp1Response resp(7, 0, static_cast<std::uint8_t>(0), ByteVector{});
+    ExpectAllTruncationsRejected(resp.GetSerializedData());
+}
+
+TEST(Ocp1UnmarshalTruncationTest, NotificationRejectsAllTruncations)
+{
+    Ocp1Notification notif(0x42, 4, 1, static_cast<std::uint8_t>(1), DataFromFloat(0.75f));
+
+    // Ocp1Notification::GetSerializedData() appends a trailing "ending byte"
+    // (Ocp1Message.cpp) that UnmarshalOcp1Message's Notification case never
+    // reads back or validates; a frame missing only that last byte is thus
+    // (by design, not by bug) still accepted. Every other truncation must be
+    // rejected.
+    ExpectAllTruncationsRejected(notif.GetSerializedData(), /*tolerantTrailingBytes*/ 1);
+}
+
+TEST(Ocp1UnmarshalTruncationTest, KeepAliveRejectsAllTruncations)
+{
+    Ocp1KeepAlive keepAlive(static_cast<std::uint16_t>(5));
+    ExpectAllTruncationsRejected(keepAlive.GetSerializedData());
+}
+
+TEST(Ocp1UnmarshalTruncationTest, EmptyBufferIsRejected)
+{
+    EXPECT_EQ(Ocp1Message::UnmarshalOcp1Message(ByteVector{}), nullptr);
+}
+
+// Note: a "header-only" buffer (exactly Ocp1HeaderSize bytes, nothing else) is
+// already covered above — it's just the len==10 iteration of each
+// *RejectsAllTruncations test on a real, self-consistent message.
+
+//==============================================================================
 // Ocp1CommandDefinition factory methods (via a concrete object definition)
 //==============================================================================
 
