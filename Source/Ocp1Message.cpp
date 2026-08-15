@@ -168,6 +168,12 @@ std::uint32_t Ocp1Message::m_nextHandle = 2;
 
 std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector& receivedData)
 {
+    // Ocp1Header's own constructor asserts on this same condition, which aborts
+    // rather than failing gracefully in a debug build; check first so a short
+    // buffer is rejected instead of crashing the process.
+    if (receivedData.size() < Ocp1Header::Ocp1HeaderSize)
+        return nullptr;
+
     Ocp1Header header(receivedData);
     if (!header.IsValid())
         return nullptr;
@@ -265,11 +271,15 @@ std::unique_ptr<Ocp1Message> Ocp1Message::UnmarshalOcp1Message(const ByteVector&
                 const std::uint8_t status = receivedData[18];
                 const std::uint8_t paramCount = receivedData[19];
 
+                // responseSize (and thus parameterDataLength) is peer-controlled; re-validate before slicing.
+                if (receivedData.size() < static_cast<std::size_t>(20) + parameterDataLength)
+                    return nullptr;
+
                 const auto parameterData = [&receivedData, &parameterDataLength]() {
                     if (parameterDataLength == 0)
                         return ByteVector{};
                     else
-                        return ByteVector(receivedData.begin() + 20, receivedData.end());
+                        return ByteVector(receivedData.begin() + 20, receivedData.begin() + 20 + parameterDataLength);
                     }();
                 assert(parameterData.size() == parameterDataLength);
 
