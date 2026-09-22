@@ -56,7 +56,9 @@ NanoOcp/
 │   └── internal/                   # Platform helpers (no external deps)
 │       ├── NanoSocket.h / .cpp     # Cross-platform TCP socket (POSIX / Winsock2)
 │       ├── NanoThread.h            # std::thread wrapper (replaces juce::Thread)
-│       └── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer)
+│       ├── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer), backed by NanoTimerScheduler
+│       ├── NanoTimerScheduler.h / .cpp  # Shared one-thread scheduler servicing many periodic timers
+│       └── NanoAsyncDispatcher.h / .cpp # Single-worker task queue (replaces juce::MessageManager::callAsync)
 ├── NanoOcp1Demo/                   # JUCE-free CLI demo application
 │   ├── CMakeLists.txt
 │   ├── Terminal.h                  # Platform terminal setup / size query
@@ -67,7 +69,8 @@ NanoOcp/
 │   ├── Panels.h                    # Panel renderers, canvas management, redraw thread
 │   ├── Demo.h                      # Demo controller class (wraps AmpController / SoundscapeController)
 │   └── main.cpp                    # CLI help/argument parsing + entry point (three-mode terminal UI)
-├── CMakeLists.txt                  # Root CMake build (library + optional demo)
+├── Tests/                          # GoogleTest unit tests (NanoOcp1Tests target)
+├── CMakeLists.txt                  # Root CMake build (library + optional demo/tests)
 ├── submodules/
 │   └── doxygen-awesome-css/        # Doxygen HTML theme (docs only)
 ├── Doxyfile                        # Doxygen configuration
@@ -209,6 +212,8 @@ All low-level callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnect
 
 Controller callbacks (`onStateChanged`, `onPower`, `onChannelGain`, `onRemoteObjectReceived`, …) likewise fire on the **socket thread**.  If you need to update GUI elements or call framework APIs that require a specific thread (e.g. the JUCE message thread), marshal inside the callback — for example via `juce::MessageManager::callAsync` or by posting a message to a `juce::MessageListener`.
 
+**Timers.** `NanoOcp1Client` (reconnect) and `Ocp1Controller` (GetValues response-timeout) own no timer thread of their own: they take a caller-supplied `std::shared_ptr<NanoTimerScheduler>` and register their timers on it.  A single `NanoTimerScheduler` runs one background thread that services every timer registered on it, so callbacks it triggers (e.g. `onStateChanged` from a response-timeout) fire on that **scheduler thread**, not the socket thread.  The scheduler is a **required constructor argument** — NanoOcp provides no default or singleton; the owning application creates and shares it (one instance can back many clients and controllers).
+
 ---
 
 ## Integration
@@ -228,6 +233,16 @@ target_link_libraries(YourTarget PRIVATE NanoOcp1)
 cmake -B build -S . -DNANOOCP1_BUILD_DEMO=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
+
+### Building and running the unit tests
+
+```bash
+cmake -B build -S . -DNANOOCP1_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+`NANOOCP1_BUILD_TESTS` is `ON` by default; the tests build into the `NanoOcp1Tests` target and are registered with CTest via `gtest_discover_tests`.
 
 ### Adding source files directly
 
