@@ -18,6 +18,8 @@
 
 #include "NanoOcp1.h"
 
+#include <cassert>
+
 
 namespace NanoOcp1
 {
@@ -174,6 +176,8 @@ NanoOcp1Server::NanoOcp1Server(std::shared_ptr<NanoTimerScheduler> scheduler,
       m_callbacksOnMessageThread(callbacksOnMessageThread),
       m_threadPriority(threadPriority)
 {
+    // Stored now, dereferenced only when a client later connects; assert here to fail at the injection point.
+    assert(m_scheduler && "NanoOcp1Server requires a non-null scheduler");
 }
 
 NanoOcp1Server::~NanoOcp1Server()

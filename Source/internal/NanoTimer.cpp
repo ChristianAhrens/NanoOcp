@@ -18,12 +18,16 @@
 
 #include "NanoTimer.h"
 
+#include <cassert>
+
 namespace NanoOcp1
 {
 
 NanoTimer::NanoTimer(std::shared_ptr<NanoTimerScheduler> scheduler)
     : m_scheduler(std::move(scheduler)),
-      m_timerId(m_scheduler->CreateTimer([this]() { timerCallback(); }))
+      // Precondition checked here, before the CreateTimer deref — a body assert would fire too late.
+      m_timerId((assert(m_scheduler && "NanoTimer requires a non-null scheduler"),
+                 m_scheduler->CreateTimer([this]() { timerCallback(); })))
 {
 }
 
