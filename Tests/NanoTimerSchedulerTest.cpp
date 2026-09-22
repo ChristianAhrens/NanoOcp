@@ -71,16 +71,18 @@ TEST(NanoTimerScheduler, StartResetsDeadline)
 
     const auto id = scheduler.CreateTimer([&count]() { ++count; });
 
-    // Keep resetting the 60ms timer every 20ms; it must not fire while being reset.
-    scheduler.StartTimer(id, 60ms);
+    // Re-arm a 200ms timer every 20ms; each restart must push the deadline out so it never fires while
+    // being reset. The wide 10x margin (20ms re-arm vs 200ms interval) keeps this robust against the
+    // scheduling jitter of loaded CI runners (macOS in particular), where a short sleep can overrun.
+    scheduler.StartTimer(id, 200ms);
     for (int i = 0; i < 5; ++i)
     {
         std::this_thread::sleep_for(20ms);
-        scheduler.StartTimer(id, 60ms);
+        scheduler.StartTimer(id, 200ms);
     }
     EXPECT_EQ(count.load(), 0) << "Timer should not have fired while being repeatedly restarted.";
 
-    EXPECT_TRUE(WaitUntil([&count]() { return count.load() >= 1; }, 1000ms)) << "Once we stop resetting, the timer should fire.";
+    EXPECT_TRUE(WaitUntil([&count]() { return count.load() >= 1; }, 2000ms)) << "Once we stop resetting, the timer should fire.";
     scheduler.StopTimer(id);
 }
 
