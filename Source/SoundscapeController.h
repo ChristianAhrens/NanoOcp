@@ -252,8 +252,13 @@ public:
 
     // ── Construction / destruction ────────────────────────────────────────────
 
-    /** @param callbacksOnMessageThread  See `Ocp1Controller`'s constructor. */
-    explicit SoundscapeController(bool callbacksOnMessageThread = true);
+    /** 
+     * @brief Constructs a SoundscapeController with the given scheduler and threading behavior.
+     * @param scheduler Shared scheduler that runs the reconnect timer; must not be null.
+     * @param callbacksOnMessageThread  See `Ocp1Controller`'s constructor. 
+     */
+    explicit SoundscapeController(std::shared_ptr<NanoTimerScheduler> scheduler, bool callbacksOnMessageThread = true);
+
     ~SoundscapeController() override;
 
     //==========================================================================

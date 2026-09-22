@@ -55,10 +55,12 @@ namespace NanoOcp1
  *
  * ## Threading
  * By default (`callbacksOnMessageThread = true`, the constructor parameter),
- * all ValueCallbacks and onStateChanged are posted to a dedicated
+ * message-driven ValueCallbacks and onStateChanged are posted to a dedicated
  * `NanoAsyncDispatcher` worker thread rather than firing directly on the
  * NanoOcp1 socket thread — see `Ocp1Connection`'s constructor documentation.
  * Pass `false` to receive callbacks synchronously on the socket thread instead.
+ * The exception is onStateChanged from the GetValues response-timeout, which
+ * fires on the shared `NanoTimerScheduler` thread.
  * Either way, callers that need to marshal onto a specific thread of their own
  * (e.g. a GUI thread) must still do so inside their callback implementations.
  *
@@ -86,10 +88,13 @@ public:
     using ValueCallback = std::function<void(const ByteVector& paramData)>;
 
     /**
+     * @brief Constructs an Ocp1Controller with the given scheduler and threading behavior.
+     * @param scheduler Shared scheduler that runs this controller's response-timeout timer 
+     *                  and its client's reconnect timer. Must not be null.
      * @param callbacksOnMessageThread  See "Threading" above. Forwarded to the
      *                                  internal `NanoOcp1Client` on every connect().
      */
-    explicit Ocp1Controller(bool callbacksOnMessageThread = true);
+    explicit Ocp1Controller(std::shared_ptr<NanoTimerScheduler> scheduler, bool callbacksOnMessageThread = true);
     virtual ~Ocp1Controller();
 
     //==========================================================================
@@ -231,6 +236,7 @@ private:
     std::vector<TrackedObject>             m_trackedObjects;
     std::unordered_map<uint32_t, size_t>   m_onoToIdx;      ///< ONo → index in m_trackedObjects
 
+    std::shared_ptr<NanoTimerScheduler>    m_scheduler;     ///< Shared scheduler for this timer + the client.
     std::unique_ptr<NanoOcp1Client>        m_client;
     std::string                            m_host;
     int                                    m_port{50014};
