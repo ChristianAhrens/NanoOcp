@@ -18,53 +18,63 @@
 
 #pragma once
 
-#include <chrono>
-#include <condition_variable>
-#include <mutex>
-#include <thread>
+#include "NanoTimerScheduler.h"
+
+#include <memory>
 
 namespace NanoOcp1
 {
 
 /**
  * Minimal periodic timer that mirrors the juce::Timer interface (startTimer /
- * stopTimer / timerCallback).
+ * stopTimer / timerCallback), backed by a shared NanoTimerScheduler.
  *
- * The callback fires on a dedicated background thread at the requested interval.
- * Calling startTimer() again while already running reschedules the next tick
- * in place (no thread is torn down/recreated).
- * Calling stopTimer() from within timerCallback() is safe: the stop flag is set
- * and the timer thread exits its loop after the callback returns; the actual join
- * happens when stopTimer() is later called from outside the timer thread (or in
- * the destructor).
- * startTimer()/stopTimer() may be called concurrently from different threads (e.g.
- * one thread resetting a watchdog while another tears it down); m_lifecycleMutex
- * serializes those calls so m_thread itself is never touched by two threads at once.
+ * The timer owns no thread of its own: its callback fires on the injected
+ * scheduler's single background thread, shared with every other timer on that
+ * scheduler. Calling startTimer() (re)schedules a periodic tick; calling it again
+ * while running just resets the next deadline. stopTimer() and the destructor block
+ * until any in-flight callback has returned, and calling stopTimer() from within
+ * timerCallback() (or startTimer()/stopTimer() concurrently from other threads) is
+ * safe — the scheduler serializes and self-detects the callback thread.
+ *
+ * The scheduler is supplied by the owning (higher) layer; NanoOcp provides no
+ * default/singleton instance.
  */
 class NanoTimer
 {
 public:
-    virtual ~NanoTimer() { stopTimer(); }
+    virtual ~NanoTimer();
 
     NanoTimer(const NanoTimer&)            = delete;
     NanoTimer& operator=(const NanoTimer&) = delete;
 
+    /**
+     * @brief Starts the timer with the specified interval in milliseconds.
+     * @param intervalMs Interval in milliseconds between timer callbacks.
+     */
     void startTimer(int intervalMs);
+
+    /**
+     * @brief Stops the timer.
+     */
     void stopTimer();
 
+    /**
+     * @brief Callback function that is called when the timer interval elapses.
+     * This function must be implemented by derived classes.
+     */
     virtual void timerCallback() = 0;
 
 protected:
-    NanoTimer() = default;
+    /** 
+     * @brief Constructs a NanoTimer with the given shared scheduler.
+     * @param scheduler Shared scheduler that runs this timer's callback; must not be null. 
+     */
+    explicit NanoTimer(std::shared_ptr<NanoTimerScheduler> scheduler);
 
 private:
-    std::thread                           m_thread;
-    std::mutex                            m_lifecycleMutex; // guards m_thread create/join/detach
-    std::mutex                            m_mutex;
-    std::condition_variable               m_cv;
-    bool                                  m_stop{true};
-    int                                   m_intervalMs{500};
-    std::chrono::steady_clock::time_point m_deadline{};
+    std::shared_ptr<NanoTimerScheduler> m_scheduler; // Shared scheduler that runs this timer's callback.
+    NanoTimerScheduler::TimerId         m_timerId;   // Identifier for this timer within the scheduler.
 };
 
 } // namespace NanoOcp1
