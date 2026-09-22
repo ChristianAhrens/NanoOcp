@@ -63,17 +63,20 @@ bool NanoOcp1Base::processReceivedData(const ByteVector& data)
 }
 
 //==============================================================================
-NanoOcp1Client::NanoOcp1Client(bool callbacksOnMessageThread,
+NanoOcp1Client::NanoOcp1Client(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
-    : NanoOcp1Client(std::string{}, 0, callbacksOnMessageThread, threadPriority)
+    : NanoOcp1Client(std::move(scheduler), std::string{}, 0, callbacksOnMessageThread, threadPriority)
 {
 }
 
-NanoOcp1Client::NanoOcp1Client(const std::string& address, int port,
+NanoOcp1Client::NanoOcp1Client(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               const std::string& address, int port,
                                bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
     : NanoOcp1Base(address, port),
-      Ocp1Connection(callbacksOnMessageThread, threadPriority)
+      Ocp1Connection(callbacksOnMessageThread, threadPriority),
+      NanoTimer(std::move(scheduler))
 {
 }
 
@@ -167,17 +170,20 @@ void NanoOcp1Client::timerCallback()
 }
 
 //==============================================================================
-NanoOcp1Server::NanoOcp1Server(bool callbacksOnMessageThread,
+NanoOcp1Server::NanoOcp1Server(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
-    : NanoOcp1Server(std::string{}, 0, callbacksOnMessageThread, threadPriority)
+    : NanoOcp1Server(std::move(scheduler), std::string{}, 0, callbacksOnMessageThread, threadPriority)
 {
 }
 
-NanoOcp1Server::NanoOcp1Server(const std::string& address, int port,
+NanoOcp1Server::NanoOcp1Server(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               const std::string& address, int port,
                                bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
     : NanoOcp1Base(address, port),
       Ocp1ConnectionServer(threadPriority),
+      m_scheduler(std::move(scheduler)),
       m_callbacksOnMessageThread(callbacksOnMessageThread),
       m_threadPriority(threadPriority)
 {
@@ -215,7 +221,7 @@ bool NanoOcp1Server::sendData(const ByteVector& data)
 Ocp1Connection* NanoOcp1Server::createConnectionObject()
 {
     m_activeConnection = std::make_unique<NanoOcp1Client>(
-        m_callbacksOnMessageThread, m_threadPriority);
+        m_scheduler, m_callbacksOnMessageThread, m_threadPriority);
     m_activeConnection->onDataReceived = this->onDataReceived;
 
     return m_activeConnection.get();
