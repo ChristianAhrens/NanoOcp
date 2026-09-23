@@ -154,8 +154,10 @@ void NanoOcp1Client::messageReceived(const ByteVector& message)
 
 void NanoOcp1Client::timerCallback()
 {
-    if (connectToSocket(getAddress(), getPort(), 50))
-        stopTimer(); // connection established, no need to retry
+    // If already connected, short-circuit so connectToSocket is not called. The live connection is safe.
+    // If not connected, tries to connect. On success stopTimer() runs. On failure the timer keeps retrying.
+    if (!isConnected() && connectToSocket(getAddress(), getPort(), 50))
+        stopTimer();
 }
 
 //==============================================================================
