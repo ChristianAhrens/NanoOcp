@@ -49,7 +49,8 @@ namespace NanoOcp1
  *
  * ## Usage
  * ```cpp
- * AmpController ctrl;
+ * auto scheduler = std::make_shared<NanoTimerScheduler>(); // one shared instance can back many controllers
+ * AmpController ctrl(scheduler);
  * ctrl.setAmpType(AmpController::AmpType::Dy, 4);
  *
  * ctrl.onPower       = [](bool on) { ... };

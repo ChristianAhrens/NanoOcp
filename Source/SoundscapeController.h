@@ -45,7 +45,8 @@ namespace NanoOcp1
  *
  * ## Usage
  * ```cpp
- * SoundscapeController ctrl;
+ * auto scheduler = std::make_shared<NanoTimerScheduler>(); // one shared instance can back many controllers
+ * SoundscapeController ctrl(scheduler);
  * ctrl.setDeviceIOSize(64, 32);   // optional — defaults to max
  *
  * // Choose which objects to subscribe to and query on connect:

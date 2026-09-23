@@ -101,8 +101,11 @@ public:
     /**
      * Register an OCA object to be subscribed and queried on every connection.
      *
-     * The supplied callback is invoked on the socket thread whenever the device
-     * reports a new value for this object, via Notification or GetValue response.
+     * The supplied callback is invoked whenever the device reports a new value for this object, via
+     * Notification or GetValue response. It fires on the thread selected by `callbacksOnMessageThread`:
+     * the `NanoAsyncDispatcher` worker thread by default, or the socket thread when the controller was
+     * constructed with `false` (see the class **Threading** section). Marshal onto any GUI/framework
+     * thread from inside the callback if you need one.
      * May only be called while Disconnected; adding objects while connected is
      * not supported.
      *
@@ -138,14 +141,20 @@ public:
     State getState() const { return m_state.load(); }
 
     //==========================================================================
-    /** Fired on the socket thread whenever the connection state changes. */
+    /**
+     * Fired whenever the connection state changes, on the thread selected by `callbacksOnMessageThread`
+     * (the `NanoAsyncDispatcher` worker thread by default, or the socket thread when constructed with
+     * `false`) — except the transition driven by the GetValues response-timeout, which fires on the
+     * shared `NanoTimerScheduler` thread. See the class **Threading** section.
+     */
     std::function<void(State)> onStateChanged;
 
 protected:
     //==========================================================================
     /**
-     * Called on the socket thread immediately after the TCP connection is
-     * established.
+     * Called immediately after the TCP connection is established, on the same thread as the other
+     * message-driven callbacks (the `NanoAsyncDispatcher` worker thread by default, or the socket
+     * thread when constructed with `false`; see the class **Threading** section).
      *
      * The default implementation calls createObjectSubscriptions() followed by
      * queryObjectValues(), which is appropriate for devices that do not require
