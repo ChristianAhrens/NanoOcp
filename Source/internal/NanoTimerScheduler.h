@@ -36,7 +36,8 @@ namespace NanoOcp1
  * @details Each registered timer costs only a map entry, so thousands of timers (e.g. one per
  *          DeviceProperty in a large matrix) share a single OS thread instead of spawning one
  *          thread each. Callbacks fire on the scheduler thread and therefore run serially: they
- *          must be short and non-blocking, otherwise one callback delays every other timer.
+ *          must be short and non-blocking, otherwise one callback delays every other timer. Scheduling
+ *          is fixed-delay (next deadline set one interval after each callback returns), not fixed-rate.
  *
  *          Cancellation is safe against use-after-free: StopTimer()/DestroyTimer() called from a
  *          thread other than the scheduler thread block until any in-flight callback for that timer
@@ -82,6 +83,9 @@ public:
      * @details The timer keeps firing every @p interval (it is periodic, not one-shot) until StopTimer()
      *          or DestroyTimer() is called; a callback that wants to fire only once calls StopTimer() on
      *          its own id. Non-positive intervals are ignored, matching the existing IRecurringTimer wrappers.
+     * @note Fixed-delay, not fixed-rate: the next deadline is set @p interval after each callback returns,
+     *       so periods drift under callback/scheduler latency. Fine for retries/timeouts/watchdogs; do not
+     *       use where an accurate cadence is required.
      * @param[in] id The identifier of the timer to start.
      * @param[in] interval The period at which the timer should fire.
      */
