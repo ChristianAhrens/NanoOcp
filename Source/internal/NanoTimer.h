@@ -26,19 +26,23 @@ namespace NanoOcp1
 {
 
 /**
- * Minimal periodic timer that mirrors the juce::Timer interface (startTimer /
- * stopTimer / timerCallback), backed by a shared NanoTimerScheduler.
+ * @class NanoTimer
+ * @brief Minimal periodic timer that mirrors the juce::Timer interface (startTimer /
+ *        stopTimer / timerCallback), backed by a shared NanoTimerScheduler.
  *
- * The timer owns no thread of its own: its callback fires on the injected
- * scheduler's single background thread, shared with every other timer on that
- * scheduler. Calling startTimer() (re)schedules a periodic tick; calling it again
- * while running just resets the next deadline. stopTimer() and the destructor block
- * until any in-flight callback has returned, and calling stopTimer() from within
- * timerCallback() (or startTimer()/stopTimer() concurrently from other threads) is
- * safe — the scheduler serializes and self-detects the callback thread.
+ * @details The timer owns no thread of its own: its callback fires on the injected
+ *          scheduler's single background thread, shared with every other timer on that
+ *          scheduler. Calling startTimer() (re)schedules a periodic tick; calling it again
+ *          while running just resets the next deadline. stopTimer() and the destructor block
+ *          until any in-flight callback has returned, and calling stopTimer() from within
+ *          timerCallback() (or startTimer()/stopTimer() concurrently from other threads) is
+ *          safe — the scheduler serializes and self-detects the callback thread. 
+ * 
+ * @warning Do not call stopTimer() or destroy the timer while holding a lock 
+ *          timerCallback() takes — it will deadlock.
  *
- * The scheduler is supplied by the owning (higher) layer; NanoOcp provides no
- * default/singleton instance.
+ * @note The scheduler is supplied by the owning (higher) layer; NanoOcp provides 
+ *       no default/singleton instance.
  */
 class NanoTimer
 {

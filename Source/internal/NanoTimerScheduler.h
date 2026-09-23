@@ -43,6 +43,9 @@ namespace NanoOcp1
  *          has returned, mirroring the join-on-stop guarantee of NanoOcp1::NanoTimer. Calling them
  *          from within the callback itself does not block (that would self-deadlock).
  *
+ * @warning Because that cancel/destroy waits for the callback, never call StopTimer()/DestroyTimer()
+ *          (or destroy a timer/owner) while holding a lock the callback also takes — it deadlocks.
+ *
  * @warning Lifetime: the scheduler must outlive its own callbacks. The destructor joins the scheduler
  *          thread, so releasing the last shared owner from within a callback would run the destructor
  *          on that thread and self-join (fatal). Anchor ownership in something that outlives every
@@ -86,13 +89,15 @@ public:
     /**
      * @brief Cancels a timer.
      * @details Blocks until any in-flight callback for it has finished, unless called from within that callback.
+     * @warning Don't call while holding a lock the callback also takes — the wait deadlocks.
      * @param[in] id The identifier of the timer to stop.
      */
     void StopTimer(TimerId id);
 
     /**
      * @brief Cancels and forgets a timer.
-     * @details Same in-flight guarantee as StopTimer(); after this returns from outside the callback, the callback is guaranteed not to run again.
+     * @details Same in-flight guarantee (and lock-deadlock caveat) as StopTimer(); after this returns 
+     *          from outside the callback, the callback is guaranteed not to run again.
      * @param[in] id The identifier of the timer to destroy.
      */
     void DestroyTimer(TimerId id);
