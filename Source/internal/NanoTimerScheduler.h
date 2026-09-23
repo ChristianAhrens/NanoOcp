@@ -71,7 +71,8 @@ public:
 
     /**
      * @brief Registers a timer and its callback without scheduling it yet.
-     * @param[in] callback Invoked on the scheduler thread every interval once started.
+     * @param[in] callback Invoked on the scheduler thread every interval once started. Must not throw;
+     *                     an escaping exception is contained (and asserts in debug), never propagated.
      * @return A non-zero id used to start/stop/destroy this timer.
      */
     TimerId CreateTimer(std::function<void()> callback);

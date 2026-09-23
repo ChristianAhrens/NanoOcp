@@ -192,7 +192,16 @@ void NanoTimerScheduler::Run()
         if (callback)
         {
             lock.unlock();
-            callback();
+            try
+            {
+                callback();
+            }
+            catch (...)
+            {
+                // A throwing callback must not kill the shared scheduler thread (stopping every other
+                // timer) nor leave m_firingId set (stranding Stop/Destroy waiters). Contain it here.
+                assert(false && "NanoTimerScheduler: timer callback threw; callbacks must not throw.");
+            }
             lock.lock();
         }
         m_firingId = InvalidTimerId;
