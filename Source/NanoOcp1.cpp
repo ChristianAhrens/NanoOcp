@@ -18,6 +18,8 @@
 
 #include "NanoOcp1.h"
 
+#include <cassert>
+
 
 namespace NanoOcp1
 {
@@ -63,17 +65,20 @@ bool NanoOcp1Base::processReceivedData(const ByteVector& data)
 }
 
 //==============================================================================
-NanoOcp1Client::NanoOcp1Client(bool callbacksOnMessageThread,
+NanoOcp1Client::NanoOcp1Client(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
-    : NanoOcp1Client(std::string{}, 0, callbacksOnMessageThread, threadPriority)
+    : NanoOcp1Client(std::move(scheduler), std::string{}, 0, callbacksOnMessageThread, threadPriority)
 {
 }
 
-NanoOcp1Client::NanoOcp1Client(const std::string& address, int port,
+NanoOcp1Client::NanoOcp1Client(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               const std::string& address, int port,
                                bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
     : NanoOcp1Base(address, port),
-      Ocp1Connection(callbacksOnMessageThread, threadPriority)
+      Ocp1Connection(callbacksOnMessageThread, threadPriority),
+      NanoTimer(std::move(scheduler))
 {
 }
 
@@ -149,38 +154,32 @@ void NanoOcp1Client::messageReceived(const ByteVector& message)
 
 void NanoOcp1Client::timerCallback()
 {
-    // Do NOT call stopTimer() here on success. connectToSocket() already routes
-    // through initialise() -> connectionMadeInt() -> connectionMade(), and
-    // connectionMade() itself calls stopTimer(). When callbacksOnMessageThread
-    // is true (the default), that call happens asynchronously on the dispatcher
-    // thread — concurrently with this very callback still running on the timer
-    // thread. Two concurrent stopTimer() calls on the same NanoTimer deadlock:
-    // the foreign-thread call blocks in std::thread::join() waiting for this
-    // timer thread's callback to return, while this thread's own reentrant
-    // stopTimer() call (guarded to skip join() on self) still has to wait for
-    // the same m_lifecycleMutex the joining thread is holding — which it can
-    // never release until this thread returns. So leave stopping the timer
-    // solely to connectionMade(), and just avoid redialling an already-live
-    // connection while that callback is in flight.
-    if (!isConnected())
-        connectToSocket(getAddress(), getPort(), 50);
+    // If already connected, short-circuit so connectToSocket is not called. The live connection is safe.
+    // If not connected, tries to connect. On success stopTimer() runs. On failure the timer keeps retrying.
+    if (!isConnected() && connectToSocket(getAddress(), getPort(), 50))
+        stopTimer();
 }
 
 //==============================================================================
-NanoOcp1Server::NanoOcp1Server(bool callbacksOnMessageThread,
+NanoOcp1Server::NanoOcp1Server(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
-    : NanoOcp1Server(std::string{}, 0, callbacksOnMessageThread, threadPriority)
+    : NanoOcp1Server(std::move(scheduler), std::string{}, 0, callbacksOnMessageThread, threadPriority)
 {
 }
 
-NanoOcp1Server::NanoOcp1Server(const std::string& address, int port,
+NanoOcp1Server::NanoOcp1Server(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               const std::string& address, int port,
                                bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
     : NanoOcp1Base(address, port),
       Ocp1ConnectionServer(threadPriority),
+      m_scheduler(std::move(scheduler)),
       m_callbacksOnMessageThread(callbacksOnMessageThread),
       m_threadPriority(threadPriority)
 {
+    // Stored now, dereferenced only when a client later connects; assert here to fail at the injection point.
+    assert(m_scheduler && "NanoOcp1Server requires a non-null scheduler");
 }
 
 NanoOcp1Server::~NanoOcp1Server()
@@ -215,7 +214,7 @@ bool NanoOcp1Server::sendData(const ByteVector& data)
 Ocp1Connection* NanoOcp1Server::createConnectionObject()
 {
     m_activeConnection = std::make_unique<NanoOcp1Client>(
-        m_callbacksOnMessageThread, m_threadPriority);
+        m_scheduler, m_callbacksOnMessageThread, m_threadPriority);
     m_activeConnection->onDataReceived = this->onDataReceived;
 
     return m_activeConnection.get();

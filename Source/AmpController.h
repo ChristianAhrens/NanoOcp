@@ -49,7 +49,8 @@ namespace NanoOcp1
  *
  * ## Usage
  * ```cpp
- * AmpController ctrl;
+ * auto scheduler = std::make_shared<NanoTimerScheduler>(); // one shared instance can back many controllers
+ * AmpController ctrl(scheduler);
  * ctrl.setAmpType(AmpController::AmpType::Dy, 4);
  *
  * ctrl.onPower       = [](bool on) { ... };
@@ -77,8 +78,13 @@ public:
         FiveD  ///< d&b 5D amplifier (named FiveD because identifiers cannot start with a digit).
     };
 
-    /** @param callbacksOnMessageThread  See `Ocp1Controller`'s constructor. */
-    explicit AmpController(bool callbacksOnMessageThread = true);
+    /** 
+     * @brief Constructs an AmpController with the given scheduler and threading behavior.
+     * @param scheduler Shared scheduler that runs the reconnect timer; must not be null.
+     * @param callbacksOnMessageThread  See `Ocp1Controller`'s constructor. 
+     */
+    explicit AmpController(std::shared_ptr<NanoTimerScheduler> scheduler, bool callbacksOnMessageThread = true);
+
     ~AmpController() override;
 
     //==========================================================================

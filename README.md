@@ -56,7 +56,9 @@ NanoOcp/
 │   └── internal/                   # Platform helpers (no external deps)
 │       ├── NanoSocket.h / .cpp     # Cross-platform TCP socket (POSIX / Winsock2)
 │       ├── NanoThread.h            # std::thread wrapper (replaces juce::Thread)
-│       └── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer)
+│       ├── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer), backed by NanoTimerScheduler
+│       ├── NanoTimerScheduler.h / .cpp  # Shared one-thread scheduler servicing many periodic timers
+│       └── NanoAsyncDispatcher.h / .cpp # Single-worker task queue (replaces juce::MessageManager::callAsync)
 ├── NanoOcp1Demo/                   # JUCE-free CLI demo application
 │   ├── CMakeLists.txt
 │   ├── Terminal.h                  # Platform terminal setup / size query
@@ -67,7 +69,8 @@ NanoOcp/
 │   ├── Panels.h                    # Panel renderers, canvas management, redraw thread
 │   ├── Demo.h                      # Demo controller class (wraps AmpController / SoundscapeController)
 │   └── main.cpp                    # CLI help/argument parsing + entry point (three-mode terminal UI)
-├── CMakeLists.txt                  # Root CMake build (library + optional demo)
+├── Tests/                          # GoogleTest unit tests (NanoOcp1Tests target)
+├── CMakeLists.txt                  # Root CMake build (library + optional demo/tests)
 ├── submodules/
 │   └── doxygen-awesome-css/        # Doxygen HTML theme (docs only)
 ├── Doxyfile                        # Doxygen configuration
@@ -87,7 +90,7 @@ NanoOcp is structured in four layers.  The controller layer sits on top of the e
 │                  Your application                   │
 │  onStateChanged / onPower / onChannelGain / …       │
 └──────────────────────┬──────────────────────────────┘
-                       │  typed callbacks (socket thread)
+                       │  typed callbacks (dispatcher thread by default)
 ┌──────────────────────▼──────────────────────────────┐
 │              Ocp1Controller  (base)                  │  Layer 1 – Controllers
 │  Connection lifecycle, auto-reconnect, sub/query     │
@@ -98,7 +101,7 @@ NanoOcp is structured in four layers.  The controller layer sits on top of the e
 │        GUID handshake, RemoteObject vocabulary,      │
 │        setActiveRemoteObjects / onRemoteObjectReceived│
 └──────────────────────┬──────────────────────────────┘
-                       │  callbacks (socket thread)
+                       │  callbacks (dispatcher thread by default)
 ┌──────────────────────▼──────────────────────────────┐
 │          NanoOcp1Client  /  NanoOcp1Server           │  Layer 2 – Connection
 │  (NanoOcp1Base + Ocp1Connection + NanoTimer)         │
@@ -205,9 +208,16 @@ covers all DS100 parameter boxes (MatrixInput, MatrixOutput, Positioning, Coordi
 
 `NanoOcp1Client` runs all socket I/O on a dedicated `Ocp1Connection::ConnectionThread` (a thin `std::thread` wrapper).
 
-All low-level callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`) fire on the **socket thread**.  The `callbacksOnMessageThread` constructor parameter is retained for API compatibility but has no effect — dispatch to another thread is the caller's responsibility if needed.
+The thread on which callbacks fire is selected by the `callbacksOnMessageThread` constructor parameter, which **defaults to `true`** at every layer (`Ocp1Connection`, `NanoOcp1Client`, `NanoOcp1Server`, `Ocp1Controller`, `AmpController`, `SoundscapeController`):
 
-Controller callbacks (`onStateChanged`, `onPower`, `onChannelGain`, `onRemoteObjectReceived`, …) likewise fire on the **socket thread**.  If you need to update GUI elements or call framework APIs that require a specific thread (e.g. the JUCE message thread), marshal inside the callback — for example via `juce::MessageManager::callAsync` or by posting a message to a `juce::MessageListener`.
+- **`true` (default)** — the low-level callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`) are posted to a dedicated `NanoAsyncDispatcher` worker thread, decoupling callback execution from socket I/O so slow or blocking callback code cannot stall the read loop.
+- **`false`** — the low-level callbacks run synchronously on the **socket thread**.
+
+Controller callbacks (`onStateChanged`, `onPower`, `onChannelGain`, `onRemoteObjectReceived`, …) are invoked from within those low-level callbacks, so they fire on whichever thread the parameter selects — the `NanoAsyncDispatcher` worker thread by default, or the socket thread when `callbacksOnMessageThread = false`.  The one exception is `onStateChanged` triggered by the GetValues response-timeout, which fires on the shared `NanoTimerScheduler` thread (see **Timers** below).
+
+Whichever mode is used, callbacks never run on a GUI/framework thread automatically.  If you need to update GUI elements or call framework APIs that require a specific thread (e.g. the JUCE message thread), marshal inside the callback — for example via `juce::MessageManager::callAsync` or by posting a message to a `juce::MessageListener`.
+
+**Timers.** `NanoOcp1Client` (reconnect) and `Ocp1Controller` (GetValues response-timeout) own no timer thread of their own: they take a caller-supplied `std::shared_ptr<NanoTimerScheduler>` and register their timers on it.  A single `NanoTimerScheduler` runs one background thread that services every timer registered on it, so callbacks it triggers (e.g. `onStateChanged` from a response-timeout) fire on that **scheduler thread**, not the socket thread.  The scheduler is a **required constructor argument** — NanoOcp provides no default or singleton; the owning application creates and shares it (one instance can back many clients and controllers).
 
 ---
 
@@ -228,6 +238,16 @@ target_link_libraries(YourTarget PRIVATE NanoOcp1)
 cmake -B build -S . -DNANOOCP1_BUILD_DEMO=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
+
+### Building and running the unit tests
+
+```bash
+cmake -B build -S . -DNANOOCP1_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+`NANOOCP1_BUILD_TESTS` is `ON` by default; the tests build into the `NanoOcp1Tests` target and are registered with CTest via `gtest_discover_tests`.
 
 ### Adding source files directly
 
@@ -266,12 +286,13 @@ VERSIONINFO resource (visible under file Properties → Details).
 ```cpp
 #include "AmpController.h"
 
-auto amp = std::make_unique<NanoOcp1::AmpController>();
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
+auto amp = std::make_unique<NanoOcp1::AmpController>(scheduler);
 
 // Configure before connect
 amp->setAmpType(NanoOcp1::AmpController::AmpType::Dy, 4 /*channels*/);
 
-// Wire typed callbacks (fired on socket thread)
+// Wire typed callbacks (fired on the NanoAsyncDispatcher worker thread by default)
 amp->onStateChanged = [](NanoOcp1::Ocp1Controller::State s) {
     // Disconnected / Connecting / Subscribing / Subscribed / GetValues / Connected
 };
@@ -304,7 +325,8 @@ amp->disconnect();
 ```cpp
 #include "SoundscapeController.h"
 
-auto ds100 = std::make_unique<NanoOcp1::SoundscapeController>();
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
+auto ds100 = std::make_unique<NanoOcp1::SoundscapeController>(scheduler);
 
 using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
 using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
@@ -318,7 +340,7 @@ ds100->setActiveRemoteObjects({
     RO{ ROI::ReverbInput_Gain,             ROA{1, 5} },  // En-Space send gain SO 5
 });
 
-// Value-change callback (fired on socket thread)
+// Value-change callback (fired on the NanoAsyncDispatcher worker thread by default)
 ds100->onRemoteObjectReceived = [](const NanoOcp1::SoundscapeController::RemoteObject& ro) -> bool {
     bool ok = false;
     switch (ro.Id)

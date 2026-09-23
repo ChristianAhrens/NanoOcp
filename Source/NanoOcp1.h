@@ -162,23 +162,27 @@ public:
     /**
      * @brief Constructs a client without an initial address/port.
      *        Call `setAddress()` and `setPort()` before `start()`.
-     * @param callbacksOnMessageThread  See `Ocp1Connection`'s constructor: if true
+     * @param scheduler Shared scheduler that runs the reconnect timer; must not be null.
+     * @param callbacksOnMessageThread  See `Ocp1Connection`'s constructor: if true 
      *                                  (the default), callbacks are posted to a
      *                                  dedicated worker thread instead of firing
      *                                  directly on the socket thread.
      * @param threadPriority            OS thread priority for the socket I/O thread.
      */
-    NanoOcp1Client(bool callbacksOnMessageThread,
+    NanoOcp1Client(std::shared_ptr<NanoTimerScheduler> scheduler,
+                   bool callbacksOnMessageThread,
                    ThreadPriority threadPriority = ThreadPriority::normal);
 
     /**
      * @brief Constructs a client with address and port pre-configured.
+     * @param scheduler Shared scheduler that runs the reconnect timer; must not be null.
      * @param address               IP address or hostname of the OCA device.
      * @param port                  TCP port number (DS100 default: 50014).
      * @param callbacksOnMessageThread  See other constructor.
      * @param threadPriority            See other constructor.
      */
-    NanoOcp1Client(const std::string& address, int port,
+    NanoOcp1Client(std::shared_ptr<NanoTimerScheduler> scheduler,
+                   const std::string& address, int port,
                    bool callbacksOnMessageThread,
                    ThreadPriority threadPriority = ThreadPriority::normal);
     ~NanoOcp1Client() override;
@@ -240,21 +244,25 @@ public:
     //==============================================================================
     /**
      * @brief Constructs a server without an initial bind address/port.
+     * @param scheduler Shared scheduler that runs the reconnect timer; must not be null.
      * @param callbacksOnMessageThread  Propagated to the accepted peer `NanoOcp1Client`;
      *                                  see `Ocp1Connection`'s constructor.
      * @param threadPriority            OS thread priority for the accept thread.
      */
-    NanoOcp1Server(bool callbacksOnMessageThread,
+    NanoOcp1Server(std::shared_ptr<NanoTimerScheduler> scheduler,
+                   bool callbacksOnMessageThread,
                    ThreadPriority threadPriority = ThreadPriority::normal);
 
     /**
      * @brief Constructs a server with bind address and port pre-configured.
+     * @param scheduler Shared scheduler that runs the reconnect timer; must not be null.
      * @param address               Local address to bind to (empty = all interfaces).
      * @param port                  TCP port to listen on.
      * @param callbacksOnMessageThread  See other constructor.
      * @param threadPriority            See other constructor.
      */
-    NanoOcp1Server(const std::string& address, int port,
+    NanoOcp1Server(std::shared_ptr<NanoTimerScheduler> scheduler,
+                   const std::string& address, int port,
                    bool callbacksOnMessageThread,
                    ThreadPriority threadPriority = ThreadPriority::normal);
     ~NanoOcp1Server() override;
@@ -289,6 +297,7 @@ protected:
 
 private:
     //==============================================================================
+    std::shared_ptr<NanoTimerScheduler> m_scheduler;        ///< Shared scheduler propagated to the peer client.
     std::unique_ptr<NanoOcp1Client> m_activeConnection;     ///< The currently connected peer.
     bool           m_callbacksOnMessageThread{ true };      ///< Propagated to the peer client.
     ThreadPriority m_threadPriority;                        ///< Propagated to the peer client.

@@ -31,8 +31,8 @@ namespace NanoOcp1
 
 // ── Construction / destruction ────────────────────────────────────────────────
 
-SoundscapeController::SoundscapeController(bool callbacksOnMessageThread)
-    : Ocp1Controller(callbacksOnMessageThread)
+SoundscapeController::SoundscapeController(std::shared_ptr<NanoTimerScheduler> scheduler, bool callbacksOnMessageThread)
+    : Ocp1Controller(std::move(scheduler), callbacksOnMessageThread)
 {
     createKnownONosMap();
 }
