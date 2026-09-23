@@ -42,6 +42,12 @@ namespace NanoOcp1
  *          thread other than the scheduler thread block until any in-flight callback for that timer
  *          has returned, mirroring the join-on-stop guarantee of NanoOcp1::NanoTimer. Calling them
  *          from within the callback itself does not block (that would self-deadlock).
+ *
+ * @warning Lifetime: the scheduler must outlive its own callbacks. The destructor joins the scheduler
+ *          thread, so releasing the last shared owner from within a callback would run the destructor
+ *          on that thread and self-join (fatal). Anchor ownership in something that outlives every
+ *          timer/controller using it (e.g. the environment provider); if a callback must trigger
+ *          teardown, release the final owner on a non-scheduler thread. Debug builds assert this.
  */
 class NanoTimerScheduler final
 {
@@ -52,6 +58,8 @@ public:
     static constexpr TimerId InvalidTimerId = 0;
 
     NanoTimerScheduler();
+
+    /** @warning Must not run on the scheduler thread; see the class-level lifetime warning. */
     ~NanoTimerScheduler();
 
     /** Non-copyable and non-movable. */

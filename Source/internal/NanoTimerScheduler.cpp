@@ -18,6 +18,9 @@
 
 #include "NanoTimerScheduler.h"
 
+#include <cassert>
+
+
 namespace NanoOcp1
 {
 NanoTimerScheduler::NanoTimerScheduler()
@@ -28,6 +31,11 @@ NanoTimerScheduler::NanoTimerScheduler()
 
 NanoTimerScheduler::~NanoTimerScheduler()
 {
+    // Lifetime contract: the last shared owner must be released off the scheduler thread. Destroying the
+    // scheduler from within its own callback would run this destructor on m_thread, making join() a fatal self-join.
+    assert(std::this_thread::get_id() != m_threadId
+           && "NanoTimerScheduler destroyed from its own callback thread (self-join); keep it owned outside its callbacks.");
+
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_running = false;
