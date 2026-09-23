@@ -286,7 +286,8 @@ VERSIONINFO resource (visible under file Properties → Details).
 ```cpp
 #include "AmpController.h"
 
-auto amp = std::make_unique<NanoOcp1::AmpController>();
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
+auto amp = std::make_unique<NanoOcp1::AmpController>(scheduler);
 
 // Configure before connect
 amp->setAmpType(NanoOcp1::AmpController::AmpType::Dy, 4 /*channels*/);
@@ -324,7 +325,8 @@ amp->disconnect();
 ```cpp
 #include "SoundscapeController.h"
 
-auto ds100 = std::make_unique<NanoOcp1::SoundscapeController>();
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
+auto ds100 = std::make_unique<NanoOcp1::SoundscapeController>(scheduler);
 
 using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
 using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
