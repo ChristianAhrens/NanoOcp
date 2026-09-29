@@ -341,7 +341,7 @@ private:
 
     void connectAmp()
     {
-        m_amp = std::make_unique<NanoOcp1::AmpController>();
+        m_amp = std::make_unique<NanoOcp1::AmpController>(m_scheduler);
         m_amp->setAmpType(m_cfg.ampType, m_cfg.channelCount);
 
         m_amp->onStateChanged = [this](CtrlState s) {
@@ -449,7 +449,7 @@ private:
         using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
         using RO  = NanoOcp1::SoundscapeController::RemoteObject;
 
-        m_ds100 = std::make_unique<NanoOcp1::SoundscapeController>();
+        m_ds100 = std::make_unique<NanoOcp1::SoundscapeController>(m_scheduler);
 
         const auto so = static_cast<std::int16_t>(m_cfg.soundObject);
 
@@ -600,7 +600,7 @@ private:
     {
         using RO = NanoOcp1::SoundscapeController::RemoteObject;
 
-        m_ds100 = std::make_unique<NanoOcp1::SoundscapeController>();
+        m_ds100 = std::make_unique<NanoOcp1::SoundscapeController>(m_scheduler);
 
         const SORemObjAddr addr{static_cast<std::int16_t>(m_cfg.soundObject),
                                  static_cast<std::int16_t>(m_cfg.addr2)};
@@ -709,6 +709,8 @@ private:
     // ── Data members ──────────────────────────────────────────────────────────
 
     Config m_cfg;
+    // One scheduler shared by this demo's controllers (higher layer owns it; NanoOcp has no singleton).
+    std::shared_ptr<NanoOcp1::NanoTimerScheduler> m_scheduler{ std::make_shared<NanoOcp1::NanoTimerScheduler>() };
     std::unique_ptr<NanoOcp1::AmpController>   m_amp;
     std::unique_ptr<NanoOcp1::SoundscapeController> m_ds100;
 };

@@ -30,6 +30,8 @@ add_library(NanoOcp1 STATIC
     internal/NanoThread.h
     internal/NanoTimer.cpp
     internal/NanoTimer.h
+    internal/NanoTimerScheduler.cpp
+    internal/NanoTimerScheduler.h
     internal/NanoAsyncDispatcher.cpp
     internal/NanoAsyncDispatcher.h
     ${CMAKE_CURRENT_BINARY_DIR}/generated/NanoOcp1Version.h
