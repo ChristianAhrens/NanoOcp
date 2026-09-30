@@ -55,8 +55,8 @@ namespace NanoOcp1
  *
  * ## Threading
  * By default (`callbacksOnMessageThread = true`, the constructor parameter),
- * message-driven ValueCallbacks and onStateChanged are posted to a dedicated
- * `NanoAsyncDispatcher` worker thread rather than firing directly on the
+ * message-driven ValueCallbacks and onStateChanged are posted to the shared
+ * `NanoTimerScheduler` thread rather than firing directly on the
  * NanoOcp1 socket thread — see `Ocp1Connection`'s constructor documentation.
  * Pass `false` to receive callbacks synchronously on the socket thread instead.
  * The exception is onStateChanged from the GetValues response-timeout, which
@@ -103,7 +103,7 @@ public:
      *
      * The supplied callback is invoked whenever the device reports a new value for this object, via
      * Notification or GetValue response. It fires on the thread selected by `callbacksOnMessageThread`:
-     * the `NanoAsyncDispatcher` worker thread by default, or the socket thread when the controller was
+     * the shared `NanoTimerScheduler` thread by default, or the socket thread when the controller was
      * constructed with `false` (see the class **Threading** section). Marshal onto any GUI/framework
      * thread from inside the callback if you need one.
      * May only be called while Disconnected; adding objects while connected is
@@ -143,7 +143,7 @@ public:
     //==========================================================================
     /**
      * Fired whenever the connection state changes, on the thread selected by `callbacksOnMessageThread`
-     * (the `NanoAsyncDispatcher` worker thread by default, or the socket thread when constructed with
+     * (the shared `NanoTimerScheduler` thread by default, or the socket thread when constructed with
      * `false`) — except the transition driven by the GetValues response-timeout, which fires on the
      * shared `NanoTimerScheduler` thread. See the class **Threading** section.
      */
@@ -153,7 +153,7 @@ protected:
     //==========================================================================
     /**
      * Called immediately after the TCP connection is established, on the same thread as the other
-     * message-driven callbacks (the `NanoAsyncDispatcher` worker thread by default, or the socket
+     * message-driven callbacks (the shared `NanoTimerScheduler` thread by default, or the socket
      * thread when constructed with `false`; see the class **Threading** section).
      *
      * The default implementation calls createObjectSubscriptions() followed by

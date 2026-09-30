@@ -25,7 +25,6 @@
 #include <string>
 
 #include "Ocp1DataTypes.h"
-#include "internal/NanoAsyncDispatcher.h"
 #include "internal/NanoSocket.h"
 #include "internal/NanoThread.h"
 
@@ -35,6 +34,7 @@ namespace NanoOcp1
 
 
 class Ocp1ConnectionServer;
+class NanoTimerScheduler;
 
 
 /**
@@ -60,8 +60,8 @@ class Ocp1ConnectionServer;
  * The read thread owns the socket exclusively.  Writes go through `sendMessage()`
  * which acquires `socketLock` (a `shared_mutex`).  When `callbacksOnMessageThread
  * = false`, callbacks are delivered synchronously on the read thread.  When it is
- * `true` (the default), callbacks are instead posted to a dedicated
- * `NanoAsyncDispatcher` worker thread, decoupling their execution from socket I/O —
+ * `true` (the default), callbacks are instead posted to the shared
+ * `NanoTimerScheduler` thread, decoupling their execution from socket I/O —
  * see the constructor documentation.
  */
 class Ocp1Connection
@@ -77,9 +77,11 @@ public:
 public:
     /**
      * @brief Constructs the connection object.
+     * @param scheduler                 Shared scheduler whose thread runs posted callbacks when
+     *                                  @p callbacksOnMessageThread is true. Must not be null.
      * @param callbacksOnMessageThread  If true, `connectionMade()`, `connectionLost()`,
-     *                                  and `messageReceived()` are posted to a dedicated
-     *                                  `NanoAsyncDispatcher` worker thread instead of being
+     *                                  and `messageReceived()` are posted to the shared
+     *                                  `NanoTimerScheduler` thread instead of being
      *                                  invoked directly on the socket read thread. This keeps
      *                                  slow or blocking callback code from stalling socket I/O.
      *                                  If false, callbacks run synchronously on the read thread.
@@ -89,7 +91,8 @@ public:
      *                                  from inside their callback implementation.
      * @param threadPriority            OS priority of the socket read thread.
      */
-    Ocp1Connection(bool callbacksOnMessageThread = true,
+    Ocp1Connection(std::shared_ptr<NanoTimerScheduler> scheduler,
+                   bool callbacksOnMessageThread = true,
                    ThreadPriority threadPriority = ThreadPriority::normal);
     virtual ~Ocp1Connection();
 
@@ -165,10 +168,10 @@ private:
     class SafeAction;
     std::shared_ptr<SafeAction>       safeAction;
 
-    // Non-null only when useMessageThread is true. Owns the worker thread that
-    // connectionMadeInt()/connectionLostInt()/deliverDataInt() post to instead of
+    // Shared scheduler whose thread runs posted callbacks when useMessageThread is true;
+    // connectionMadeInt()/connectionLostInt()/deliverDataInt() PostTask() to it instead of
     // calling directly.
-    std::unique_ptr<NanoAsyncDispatcher> dispatcher;
+    std::shared_ptr<NanoTimerScheduler> m_scheduler;
     void dispatchOrCall(std::function<void(Ocp1Connection&)> fn);
 
     void runThread();

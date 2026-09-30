@@ -19,6 +19,8 @@
 #include "Ocp1Connection.h"
 #include "Ocp1Message.h"
 
+#include "internal/NanoTimerScheduler.h"
+
 #include <algorithm>
 #include <cassert>
 #include <mutex>
@@ -88,16 +90,16 @@ class Ocp1Connection::SafeAction : public SafeActionImpl
 
 // ── Construction / destruction ────────────────────────────────────────────────
 
-Ocp1Connection::Ocp1Connection(bool callbacksOnMessageThread,
+Ocp1Connection::Ocp1Connection(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
     : useMessageThread(callbacksOnMessageThread),
       safeAction(std::make_shared<SafeAction>(*this)),
+      m_scheduler(std::move(scheduler)),
       m_threadPriority(threadPriority)
 {
+    assert(m_scheduler && "Ocp1Connection requires a non-null scheduler");
     thread.reset(new ConnectionThread(*this));
-
-    if (useMessageThread)
-        dispatcher = std::make_unique<NanoAsyncDispatcher>();
 }
 
 Ocp1Connection::~Ocp1Connection()
@@ -226,19 +228,19 @@ void Ocp1Connection::initialiseWithSocket(std::unique_ptr<NanoSocket> newSocket)
 
 // ── Callback dispatch ─────────────────────────────────────────────────────────
 // When useMessageThread is false, callbacks fire synchronously on the socket
-// thread. When true, they are posted to `dispatcher` and run on its dedicated
-// worker thread instead — see the constructor documentation in the header.
+// thread. When true, they are posted to the shared scheduler and run on its
+// thread instead — see the constructor documentation in the header.
 
 void Ocp1Connection::dispatchOrCall(std::function<void(Ocp1Connection&)> fn)
 {
-    if (useMessageThread && dispatcher)
+    if (useMessageThread && m_scheduler)
     {
         // Capture safeAction by value so the guard (and the connection object it
         // refers to) stays valid for the lifetime of the queued task, even if
         // this Ocp1Connection is torn down before the task runs — ifSafe() will
         // simply no-op once setSafe(false) has been called.
         auto action = safeAction;
-        dispatcher->post([action, fn]() { action->ifSafe(fn); });
+        m_scheduler->PostTask([action, fn]() { action->ifSafe(fn); });
     }
     else
     {
