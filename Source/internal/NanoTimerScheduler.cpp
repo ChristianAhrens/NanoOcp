@@ -81,6 +81,22 @@ void NanoTimerScheduler::StartTimer(TimerId id, std::chrono::milliseconds interv
     m_scheduleChanged.notify_all(); // Notify the scheduler thread that the schedule has changed.
 }
 
+void NanoTimerScheduler::PostTask(std::function<void()> task)
+{
+    if (!task)
+        return;
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_running)
+            return; // Reject once shutting down.
+
+        m_immediateTasks.push_back(std::move(task));
+    }
+
+    m_scheduleChanged.notify_all(); // Wake the scheduler thread to run the task.
+}
+
 void NanoTimerScheduler::StopTimer(TimerId id)
 {
     std::unique_lock<std::mutex> lock(m_mutex);
@@ -149,6 +165,22 @@ void NanoTimerScheduler::WaitForCallbackToFinish(std::unique_lock<std::mutex>& l
     m_callbackDone.wait(lock, [this, id]() { return m_firingId != id; });
 }
 
+void NanoTimerScheduler::InvokeUnlocked(std::unique_lock<std::mutex>& lock, const std::function<void()>& task)
+{
+    lock.unlock();
+    try
+    {
+        task();
+    }
+    catch (...)
+    {
+        // A throwing callback/task must not kill the shared scheduler thread (stopping every other
+        // timer) nor leave scheduler state inconsistent. Contain it here.
+        assert(false && "NanoTimerScheduler: callback/task threw; must not throw.");
+    }
+    lock.lock();
+}
+
 void NanoTimerScheduler::Run()
 {
     // Held only during short bookkeeping: the wait/wait_until calls below release m_mutex while idle
@@ -157,21 +189,38 @@ void NanoTimerScheduler::Run()
 
     while (m_running)
     {
-        if (m_schedule.empty())
+        // An already-due timer takes precedence over posted tasks; otherwise a continuously non-empty
+        // task queue (e.g. sustained socket traffic) would starve the reconnect/GetValues-timeout timers,
+        // which could never be reached. Among work that is not yet due, posted one-shot tasks still run
+        // first, ASAP and FIFO. Re-checking due-ness between tasks bounds a timer's delay to a single
+        // task, while popping from the front preserves FIFO order among tasks.
+        const bool timerDue = !m_schedule.empty() && std::chrono::steady_clock::now() >= m_schedule.begin()->first;
+
+        if (!timerDue && !m_immediateTasks.empty())
         {
-            // Wait (and unlock m_mutex) until there is a timer scheduled or the scheduler is shutting down.
-            m_scheduleChanged.wait(lock, [this]() { return !m_running || !m_schedule.empty(); });
+            auto task = std::move(m_immediateTasks.front());
+            m_immediateTasks.pop_front();
+            if (task)
+                InvokeUnlocked(lock, task);
             continue;
         }
 
-        const auto earliest = m_schedule.begin()->first;
-        if (std::chrono::steady_clock::now() < earliest)
+        if (!timerDue)
         {
-            // Not yet reached the earliest deadline; wait (and unlock m_mutex) until it arrives or the schedule changes.
-            // Wake early if we are shutting down or a sooner deadline appears.
-            m_scheduleChanged.wait_until(lock, earliest, [this, earliest]() {
-                return !m_running || m_schedule.empty() || m_schedule.begin()->first < earliest;
-            });
+            if (m_schedule.empty())
+            {
+                // Wait (and unlock m_mutex) until there is a timer scheduled, a task is posted, or the scheduler is shutting down.
+                m_scheduleChanged.wait(lock, [this]() { return !m_running || !m_schedule.empty() || !m_immediateTasks.empty(); });
+            }
+            else
+            {
+                const auto earliest = m_schedule.begin()->first;
+                // Not yet reached the earliest deadline; wait (and unlock m_mutex) until it arrives or the schedule changes.
+                // Wake early if we are shutting down, a sooner deadline appears, or a task is posted.
+                m_scheduleChanged.wait_until(lock, earliest, [this, earliest]() {
+                    return !m_running || m_schedule.empty() || m_schedule.begin()->first < earliest || !m_immediateTasks.empty();
+                });
+            }
             continue;
         }
 
@@ -190,20 +239,7 @@ void NanoTimerScheduler::Run()
         // so an empty callback needs no unlock/relock.
         m_firingId = id;
         if (callback)
-        {
-            lock.unlock();
-            try
-            {
-                callback();
-            }
-            catch (...)
-            {
-                // A throwing callback must not kill the shared scheduler thread (stopping every other
-                // timer) nor leave m_firingId set (stranding Stop/Destroy waiters). Contain it here.
-                assert(false && "NanoTimerScheduler: timer callback threw; callbacks must not throw.");
-            }
-            lock.lock();
-        }
+            InvokeUnlocked(lock, callback);
         m_firingId = InvalidTimerId;
         m_callbackDone.notify_all();
 
@@ -216,6 +252,16 @@ void NanoTimerScheduler::Run()
             it->second.scheduled = true;
             m_schedule.emplace(next, id);
         }
+    }
+
+    // Shutdown: drain tasks queued before stop so none is silently dropped (parity with the old
+    // dispatcher). Timers are intentionally not run on shutdown; PostTask() rejects new tasks now.
+    while (!m_immediateTasks.empty())
+    {
+        auto task = std::move(m_immediateTasks.front());
+        m_immediateTasks.pop_front();
+        if (task)
+            InvokeUnlocked(lock, task);
     }
 }
 } // namespace NanoOcp1

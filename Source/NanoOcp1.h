@@ -53,8 +53,8 @@
  * `NanoOcp1Client` runs its socket I/O on a dedicated `Ocp1Connection::ConnectionThread`.
  * All three callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`)
  * fire on the socket thread when `callbacksOnMessageThread = false`. When it is `true`
- * (the default), they are instead posted to a dedicated `NanoAsyncDispatcher` worker
- * thread — see `Ocp1Connection`'s constructor documentation.
+ * (the default), they are instead posted to the shared `NanoTimerScheduler` thread
+ * — see `Ocp1Connection`'s constructor documentation.
  *
  * ## File map
  * | Header | Contents |

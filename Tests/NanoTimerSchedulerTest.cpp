@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -214,4 +215,142 @@ TEST(NanoTimerScheduler, DestructorStopsCleanly)
         // scheduler destroyed here with timers still running.
     }
     SUCCEED() << "Scheduler destroyed cleanly even with active timers.";
+}
+
+// A posted task runs, and on the scheduler thread (not the caller's thread).
+TEST(NanoTimerScheduler, PostTaskRunsOffCallerThread)
+{
+    NanoTimerScheduler scheduler;
+
+    std::atomic<bool> ran{false};
+    std::atomic<std::thread::id> taskThread{};
+    const auto callerThread = std::this_thread::get_id();
+
+    scheduler.PostTask([&]() {
+        taskThread.store(std::this_thread::get_id());
+        ran.store(true);
+    });
+
+    EXPECT_TRUE(WaitUntil([&ran]() { return ran.load(); }, 1000ms)) << "Posted task did not run.";
+    EXPECT_NE(taskThread.load(), callerThread) << "Posted task should run on the scheduler thread, not the caller's.";
+}
+
+// Posted tasks run in FIFO order.
+TEST(NanoTimerScheduler, PostTaskRunsFifo)
+{
+    NanoTimerScheduler scheduler;
+
+    std::vector<int> order; // only the scheduler thread writes this, until all tasks finish
+    std::atomic<int> doneCount{0};
+    constexpr int taskCount = 50;
+
+    for (int i = 0; i < taskCount; ++i)
+    {
+        scheduler.PostTask([i, &order, &doneCount]() {
+            order.push_back(i);
+            doneCount.fetch_add(1, std::memory_order_release); // increment doneCount and signal completion of this task
+        });
+    }
+
+    ASSERT_TRUE(WaitUntil([&doneCount, taskCount]() { return doneCount.load(std::memory_order_acquire) == taskCount; }, 2000ms))
+        << "Not all posted tasks ran.";
+
+    // The acquire above synchronizes-with the last task's release, so every push_back (all on the one
+    // scheduler thread) is visible here and nothing writes `order` concurrently — no mutex needed.
+    ASSERT_EQ(order.size(), static_cast<std::size_t>(taskCount));
+
+    // Check that the tasks ran in the order they were posted.
+    for (int i = 0; i < taskCount; ++i)
+        EXPECT_EQ(order[i], i) << "Posted tasks did not run in FIFO order at index " << i;
+}
+
+// A task can post another task; both run.
+TEST(NanoTimerScheduler, PostTaskFromWithinTask)
+{
+    NanoTimerScheduler scheduler;
+
+    std::atomic<int> count{0};
+    scheduler.PostTask([&scheduler, &count]() {
+        ++count;
+        scheduler.PostTask([&count]() { ++count; });
+    });
+
+    EXPECT_TRUE(WaitUntil([&count]() { return count.load() == 2; }, 1000ms)) << "Nested posted task did not run.";
+}
+
+// A timer callback can post a task (timers and tasks share the scheduler thread).
+TEST(NanoTimerScheduler, PostTaskFromTimerCallback)
+{
+    NanoTimerScheduler scheduler;
+
+    std::atomic<bool> taskRan{false};
+    const auto id = scheduler.CreateTimer([&scheduler, &taskRan]() {
+        scheduler.PostTask([&taskRan]() { taskRan.store(true); });
+    });
+    scheduler.StartTimer(id, 10ms);
+
+    EXPECT_TRUE(WaitUntil([&taskRan]() { return taskRan.load(); }, 1000ms)) << "Task posted from a timer callback did not run.";
+    scheduler.StopTimer(id);
+}
+
+// A null task is ignored and does not break the scheduler.
+TEST(NanoTimerScheduler, PostTaskIgnoresNull)
+{
+    NanoTimerScheduler scheduler;
+    std::atomic<bool> ran{false};
+
+    scheduler.PostTask(nullptr); // no-op
+
+    scheduler.PostTask([&ran]() { ran.store(true); });
+    EXPECT_TRUE(WaitUntil([&ran]() { return ran.load(); }, 1000ms)) << "Scheduler should keep working after a null PostTask.";
+}
+
+// Tasks queued before the scheduler is destroyed are still run (drained on shutdown, not dropped).
+TEST(NanoTimerScheduler, PostTaskDrainedOnShutdown)
+{
+    std::atomic<int> count{0};
+    constexpr int taskCount = 100;
+
+    {
+        NanoTimerScheduler scheduler;
+        for (int i = 0; i < taskCount; ++i)
+            scheduler.PostTask([&count]() { ++count; });
+        // scheduler destroyed here; queued tasks must still run before the thread joins.
+    }
+
+    EXPECT_EQ(count.load(), taskCount) << "Tasks queued before shutdown should be drained, not dropped.";
+}
+
+// A continuously non-empty task queue must not starve timers: an already-due timer still fires
+// even while tasks are posted back-to-back without pause (regression test for queue starvation).
+TEST(NanoTimerScheduler, BusyTaskQueueDoesNotStarveTimer)
+{
+    // Declared before the scheduler so they outlive its shutdown drain (destroyed in reverse order).
+    std::atomic<bool> keepPosting{true};
+    std::atomic<int> taskRuns{0};
+    std::atomic<int> timerFires{0};
+    std::function<void()> busy;
+
+    NanoTimerScheduler scheduler;
+
+    // Self-reposting task keeps the immediate-task queue continuously non-empty, simulating the
+    // sustained socket traffic that previously starved reconnect/timeout timers.
+    busy = [&keepPosting, &taskRuns, &busy, &scheduler]() {
+        taskRuns.fetch_add(1, std::memory_order_relaxed);
+        if (keepPosting.load(std::memory_order_acquire))
+            scheduler.PostTask(busy);
+    };
+    scheduler.PostTask(busy);
+
+    const auto id = scheduler.CreateTimer([&timerFires]() { timerFires.fetch_add(1, std::memory_order_relaxed); });
+    scheduler.StartTimer(id, 20ms);
+
+    // Even though tasks never stop flowing, the timer must still fire repeatedly.
+    const bool firedEnough = WaitUntil([&timerFires]() { return timerFires.load(std::memory_order_relaxed) >= 3; }, 2000ms);
+
+    keepPosting.store(false, std::memory_order_release); // let the busy chain end for clean teardown
+    scheduler.StopTimer(id);
+
+    EXPECT_TRUE(firedEnough) << "A continuously non-empty task queue starved the timer.";
+    EXPECT_GT(taskRuns.load(std::memory_order_relaxed), 0) << "Sanity: tasks should also have been running.";
 }

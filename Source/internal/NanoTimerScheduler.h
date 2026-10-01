@@ -21,6 +21,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -31,13 +32,15 @@ namespace NanoOcp1
 {
 /**
  * @class NanoTimerScheduler
- * @brief One background thread that services many periodic timers.
+ * @brief One background thread that services many periodic timers and immediate posted tasks.
  *
  * @details Each registered timer costs only a map entry, so thousands of timers (e.g. one per
  *          DeviceProperty in a large matrix) share a single OS thread instead of spawning one
  *          thread each. Callbacks fire on the scheduler thread and therefore run serially: they
  *          must be short and non-blocking, otherwise one callback delays every other timer. Scheduling
  *          is fixed-delay (next deadline set one interval after each callback returns), not fixed-rate.
+ *          The same thread also runs one-shot tasks submitted via PostTask() (FIFO; ahead of timers that
+ *          are not yet due, but an already-due timer runs first so a stream of tasks cannot starve it).
  *
  *          Cancellation is safe against use-after-free: StopTimer()/DestroyTimer() called from a
  *          thread other than the scheduler thread block until any in-flight callback for that timer
@@ -107,6 +110,16 @@ public:
      */
     void DestroyTimer(TimerId id);
 
+    /**
+     * @brief Queues a task to run once, as soon as possible, on the scheduler thread.
+     * @details Fire-and-forget (no id, not cancellable), FIFO, and serviced ahead of timers that are not yet
+     *          due (an already-due timer runs first, so a steady stream of tasks cannot starve timers). Runs
+     *          on the same shared thread as timer callbacks, so it must be short and non-throwing (an escaping
+     *          exception is contained, and asserts in debug). Ignored once the scheduler is shutting down.
+     * @param[in] task The task to run once on the scheduler thread.
+     */
+    void PostTask(std::function<void()> task);
+
 private:
     /**
      * @brief Represents an entry for a single timer in the scheduler.
@@ -147,12 +160,20 @@ private:
      */
     void WaitForCallbackToFinish(std::unique_lock<std::mutex>& lock, TimerId id);
 
+    /**
+     * @brief Runs @p task with @p lock released, containing any exception, then re-acquires @p lock.
+     * @param[in] lock The unique lock holding m_mutex (held on entry and on return).
+     * @param[in] task The task/callback to invoke.
+     */
+    void InvokeUnlocked(std::unique_lock<std::mutex>& lock, const std::function<void()>& task);
+
     mutable std::mutex m_mutex;                 //< Protects access to the timer data structures.
     std::condition_variable m_scheduleChanged;  //< Wakes the scheduler thread on schedule change / shutdown.
     std::condition_variable m_callbackDone;     //< Wakes Stop/Destroy waiting on an in-flight callback.
 
     std::unordered_map<TimerId, Entry> m_timers; //< Index of timers by their identifier.
     std::multimap<std::chrono::steady_clock::time_point, TimerId> m_schedule; //< Timers indexed by their next scheduled deadline.
+    std::deque<std::function<void()>> m_immediateTasks; //< One-shot tasks posted via PostTask(), run FIFO ahead of not-yet-due timers.
 
     TimerId m_nextId{InvalidTimerId};   //< Next available timer identifier.
     TimerId m_firingId{InvalidTimerId}; //< Timer whose callback is currently running (InvalidTimerId = none).
