@@ -77,7 +77,7 @@ NanoOcp1Client::NanoOcp1Client(std::shared_ptr<NanoTimerScheduler> scheduler,
                                bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
     : NanoOcp1Base(address, port),
-      Ocp1Connection(callbacksOnMessageThread, threadPriority),
+      Ocp1Connection(scheduler, callbacksOnMessageThread, threadPriority),
       NanoTimer(std::move(scheduler))
 {
 }
