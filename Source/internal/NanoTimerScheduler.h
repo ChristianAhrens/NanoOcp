@@ -39,7 +39,8 @@ namespace NanoOcp1
  *          thread each. Callbacks fire on the scheduler thread and therefore run serially: they
  *          must be short and non-blocking, otherwise one callback delays every other timer. Scheduling
  *          is fixed-delay (next deadline set one interval after each callback returns), not fixed-rate.
- *          The same thread also runs one-shot tasks submitted via PostTask() (FIFO, ahead of timers).
+ *          The same thread also runs one-shot tasks submitted via PostTask() (FIFO; ahead of timers that
+ *          are not yet due, but an already-due timer runs first so a stream of tasks cannot starve it).
  *
  *          Cancellation is safe against use-after-free: StopTimer()/DestroyTimer() called from a
  *          thread other than the scheduler thread block until any in-flight callback for that timer
@@ -111,8 +112,9 @@ public:
 
     /**
      * @brief Queues a task to run once, as soon as possible, on the scheduler thread.
-     * @details Fire-and-forget (no id, not cancellable), FIFO, and serviced ahead of timers. Runs on the
-     *          same shared thread as timer callbacks, so it must be short and non-throwing (an escaping
+     * @details Fire-and-forget (no id, not cancellable), FIFO, and serviced ahead of timers that are not yet
+     *          due (an already-due timer runs first, so a steady stream of tasks cannot starve timers). Runs
+     *          on the same shared thread as timer callbacks, so it must be short and non-throwing (an escaping
      *          exception is contained, and asserts in debug). Ignored once the scheduler is shutting down.
      * @param[in] task The task to run once on the scheduler thread.
      */
@@ -171,7 +173,7 @@ private:
 
     std::unordered_map<TimerId, Entry> m_timers; //< Index of timers by their identifier.
     std::multimap<std::chrono::steady_clock::time_point, TimerId> m_schedule; //< Timers indexed by their next scheduled deadline.
-    std::deque<std::function<void()>> m_immediateTasks; //< One-shot tasks posted via PostTask(), run FIFO ahead of timers.
+    std::deque<std::function<void()>> m_immediateTasks; //< One-shot tasks posted via PostTask(), run FIFO ahead of not-yet-due timers.
 
     TimerId m_nextId{InvalidTimerId};   //< Next available timer identifier.
     TimerId m_firingId{InvalidTimerId}; //< Timer whose callback is currently running (InvalidTimerId = none).

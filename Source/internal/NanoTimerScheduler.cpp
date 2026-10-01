@@ -189,8 +189,14 @@ void NanoTimerScheduler::Run()
 
     while (m_running)
     {
-        // Posted one-shot tasks run first, ASAP and FIFO, ahead of timers.
-        if (!m_immediateTasks.empty())
+        // An already-due timer takes precedence over posted tasks; otherwise a continuously non-empty
+        // task queue (e.g. sustained socket traffic) would starve the reconnect/GetValues-timeout timers,
+        // which could never be reached. Among work that is not yet due, posted one-shot tasks still run
+        // first, ASAP and FIFO. Re-checking due-ness between tasks bounds a timer's delay to a single
+        // task, while popping from the front preserves FIFO order among tasks.
+        const bool timerDue = !m_schedule.empty() && std::chrono::steady_clock::now() >= m_schedule.begin()->first;
+
+        if (!timerDue && !m_immediateTasks.empty())
         {
             auto task = std::move(m_immediateTasks.front());
             m_immediateTasks.pop_front();
@@ -199,21 +205,22 @@ void NanoTimerScheduler::Run()
             continue;
         }
 
-        if (m_schedule.empty())
+        if (!timerDue)
         {
-            // Wait (and unlock m_mutex) until there is a timer scheduled or the scheduler is shutting down.
-            m_scheduleChanged.wait(lock, [this]() { return !m_running || !m_schedule.empty() || !m_immediateTasks.empty(); });
-            continue;
-        }
-
-        const auto earliest = m_schedule.begin()->first;
-        if (std::chrono::steady_clock::now() < earliest)
-        {
-            // Not yet reached the earliest deadline; wait (and unlock m_mutex) until it arrives or the schedule changes.
-            // Wake early if we are shutting down or a sooner deadline appears.
-            m_scheduleChanged.wait_until(lock, earliest, [this, earliest]() {
-                return !m_running || m_schedule.empty() || m_schedule.begin()->first < earliest || !m_immediateTasks.empty();
-            });
+            if (m_schedule.empty())
+            {
+                // Wait (and unlock m_mutex) until there is a timer scheduled, a task is posted, or the scheduler is shutting down.
+                m_scheduleChanged.wait(lock, [this]() { return !m_running || !m_schedule.empty() || !m_immediateTasks.empty(); });
+            }
+            else
+            {
+                const auto earliest = m_schedule.begin()->first;
+                // Not yet reached the earliest deadline; wait (and unlock m_mutex) until it arrives or the schedule changes.
+                // Wake early if we are shutting down, a sooner deadline appears, or a task is posted.
+                m_scheduleChanged.wait_until(lock, earliest, [this, earliest]() {
+                    return !m_running || m_schedule.empty() || m_schedule.begin()->first < earliest || !m_immediateTasks.empty();
+                });
+            }
             continue;
         }
 
