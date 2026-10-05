@@ -197,6 +197,13 @@ private:
          */
         void InvokeUnlocked(std::unique_lock<std::mutex>& lock, const std::function<void()>& task);
 
+        /**
+         * @brief Pops and runs the front posted task (unlocked, exception-contained).
+         * @details Requires m_mutex held via @p lock and m_immediateTasks non-empty.
+         * @param[in] lock The unique lock holding m_mutex (held on entry and on return).
+         */
+        void RunNextImmediateTask(std::unique_lock<std::mutex>& lock);
+
         mutable std::mutex m_mutex;                 //< Protects access to the timer data structures.
         std::condition_variable m_scheduleChanged;  //< Wakes the scheduler thread on schedule change / shutdown.
         std::condition_variable m_callbackDone;     //< Wakes Stop/Destroy waiting on an in-flight callback.

@@ -122,7 +122,9 @@ void NanoTimerScheduler::State::PostTask(std::function<void()> task)
         m_immediateTasks.push_back(std::move(task));
     }
 
-    m_scheduleChanged.notify_all(); // Wake the scheduler thread to run the task.
+    // Wake the scheduler thread to run the task.
+    // One waiter (the scheduler thread), so notify_one suffices on this hot path.
+    m_scheduleChanged.notify_one(); 
 }
 
 void NanoTimerScheduler::State::StopTimer(TimerId id)
@@ -209,6 +211,15 @@ void NanoTimerScheduler::State::InvokeUnlocked(std::unique_lock<std::mutex>& loc
     lock.lock();
 }
 
+void NanoTimerScheduler::State::RunNextImmediateTask(std::unique_lock<std::mutex>& lock)
+{
+    // Caller holds m_mutex and has checked m_immediateTasks is non-empty.
+    auto task = std::move(m_immediateTasks.front());
+    m_immediateTasks.pop_front();
+    if (task)
+        InvokeUnlocked(lock, task);
+}
+
 void NanoTimerScheduler::State::Run()
 {
     // Held only during short bookkeeping: the wait/wait_until calls below release m_mutex while idle
@@ -232,27 +243,29 @@ void NanoTimerScheduler::State::Run()
 
         if (serviceTask)
         {
-            auto task = std::move(m_immediateTasks.front());
-            m_immediateTasks.pop_front();
-            if (task)
-                InvokeUnlocked(lock, task);
+            RunNextImmediateTask(lock);
             continue;
         }
 
         if (!timerDue)
         {
+            // Wake conditions independent of the timer schedule (shutdown or a pending posted task).
+            const auto stopOrTaskPending = [this]() { return !m_running || !m_immediateTasks.empty(); };
+
             if (m_schedule.empty())
             {
                 // Wait (and unlock m_mutex) until there is a timer scheduled, a task is posted, or the scheduler is shutting down.
-                m_scheduleChanged.wait(lock, [this]() { return !m_running || !m_schedule.empty() || !m_immediateTasks.empty(); });
+                m_scheduleChanged.wait(lock, [this, &stopOrTaskPending]() {
+                    return stopOrTaskPending() || !m_schedule.empty();
+                });
             }
             else
             {
                 const auto earliest = m_schedule.begin()->first;
                 // Not yet reached the earliest deadline; wait (and unlock m_mutex) until it arrives or the schedule changes.
                 // Wake early if we are shutting down, a sooner deadline appears, or a task is posted.
-                m_scheduleChanged.wait_until(lock, earliest, [this, earliest]() {
-                    return !m_running || m_schedule.empty() || m_schedule.begin()->first < earliest || !m_immediateTasks.empty();
+                m_scheduleChanged.wait_until(lock, earliest, [this, earliest, &stopOrTaskPending]() {
+                    return stopOrTaskPending() || m_schedule.empty() || m_schedule.begin()->first < earliest;
                 });
             }
             continue;
@@ -291,11 +304,6 @@ void NanoTimerScheduler::State::Run()
     // Shutdown: drain tasks queued before stop so none is silently dropped (parity with the old
     // dispatcher). Timers are intentionally not run on shutdown; PostTask() rejects new tasks now.
     while (!m_immediateTasks.empty())
-    {
-        auto task = std::move(m_immediateTasks.front());
-        m_immediateTasks.pop_front();
-        if (task)
-            InvokeUnlocked(lock, task);
-    }
+        RunNextImmediateTask(lock);
 }
 } // namespace NanoOcp1
