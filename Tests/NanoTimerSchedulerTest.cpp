@@ -4,8 +4,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <memory>
-#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -319,4 +319,77 @@ TEST(NanoTimerScheduler, PostTaskDrainedOnShutdown)
     }
 
     EXPECT_EQ(count.load(), taskCount) << "Tasks queued before shutdown should be drained, not dropped.";
+}
+
+// A continuously non-empty task queue must not starve timers: an already-due timer still fires
+// even while tasks are posted back-to-back without pause (regression test for queue starvation).
+TEST(NanoTimerScheduler, BusyTaskQueueDoesNotStarveTimer)
+{
+    // Declared before the scheduler so they outlive its shutdown drain (destroyed in reverse order).
+    std::atomic<bool> keepPosting{true};
+    std::atomic<int> taskRuns{0};
+    std::atomic<int> timerFires{0};
+    std::function<void()> busy;
+
+    NanoTimerScheduler scheduler;
+
+    // Self-reposting task keeps the immediate-task queue continuously non-empty, simulating the
+    // sustained socket traffic that previously starved reconnect/timeout timers.
+    busy = [&keepPosting, &taskRuns, &busy, &scheduler]() {
+        taskRuns.fetch_add(1, std::memory_order_relaxed);
+        if (keepPosting.load(std::memory_order_acquire))
+            scheduler.PostTask(busy);
+    };
+    scheduler.PostTask(busy);
+
+    const auto id = scheduler.CreateTimer([&timerFires]() { timerFires.fetch_add(1, std::memory_order_relaxed); });
+    scheduler.StartTimer(id, 20ms);
+
+    // Even though tasks never stop flowing, the timer must still fire repeatedly.
+    const bool firedEnough = WaitUntil([&timerFires]() { return timerFires.load(std::memory_order_relaxed) >= 3; }, 2000ms);
+
+    keepPosting.store(false, std::memory_order_release); // let the busy chain end for clean teardown
+    scheduler.StopTimer(id);
+
+    EXPECT_TRUE(firedEnough) << "A continuously non-empty task queue starved the timer.";
+    EXPECT_GT(taskRuns.load(std::memory_order_relaxed), 0) << "Sanity: tasks should also have been running.";
+}
+
+// A backlog of perpetually-due timers must not starve posted tasks: a task posted while many short
+// timers keep firing back-to-back must still run (regression for OnDeviceLost dispatched via PostTask
+// being starved by reconnect timers when many devices drop at once).
+TEST(NanoTimerScheduler, BusyDueTimersDoNotStarveTask)
+{
+    NanoTimerScheduler scheduler;
+
+    // Several 1ms timers, each doing a little work, keep the due-timer set continuously non-empty
+    // (a full round of callbacks takes longer than the re-arm interval, so a timer is always due).
+    constexpr int timerCount = 8;
+    std::atomic<int> timerFires{0};
+    std::vector<NanoTimerScheduler::TimerId> ids;
+    ids.reserve(timerCount);
+    for (int i = 0; i < timerCount; ++i)
+    {
+        const auto id = scheduler.CreateTimer([&timerFires]() {
+            timerFires.fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::sleep_for(1ms); // simulate work so the timer set stays perpetually due
+        });
+        scheduler.StartTimer(id, 1ms);
+        ids.push_back(id);
+    }
+
+    // Wait until the timers are clearly saturating the scheduler thread.
+    ASSERT_TRUE(WaitUntil([&timerFires, timerCount]() { return timerFires.load(std::memory_order_relaxed) >= timerCount; }, 2000ms))
+        << "Timers did not start firing.";
+
+    // Post a task into the busy scheduler; it must still get a turn despite the timer backlog.
+    std::atomic<bool> taskRan{false};
+    scheduler.PostTask([&taskRan]() { taskRan.store(true, std::memory_order_release); });
+
+    const bool ran = WaitUntil([&taskRan]() { return taskRan.load(std::memory_order_acquire); }, 2000ms);
+
+    for (auto id : ids)
+        scheduler.StopTimer(id);
+
+    EXPECT_TRUE(ran) << "A posted task was starved by continuously-due timers.";
 }
