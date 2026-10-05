@@ -51,12 +51,14 @@ namespace NanoOcp1
  * @warning Because that cancel/destroy waits for the callback, never call StopTimer()/DestroyTimer()
  *          (or destroy a timer/owner) while holding a lock the callback also takes — it deadlocks.
  *
- * @note Lifetime: it is safe to release the last shared owner from within a callback (e.g. a disconnect
- *       teardown that drops the controller holding the final reference). The worker thread keeps its own
- *       reference to the shared loop state, so when the scheduler is destroyed on its own thread the
- *       destructor detaches rather than self-joining: it returns at once while the loop unwinds, and any
- *       already-queued tasks still drain on the (now detached) thread. Destroyed from any other thread it
- *       joins as before. Either way, no callback outlives the state it accesses.
+ * @note Lifetime: it is safe to release the last std::shared_ptr<NanoTimerScheduler> from within one of its
+ *       own callbacks. The worker thread keeps its own reference to the shared loop state, so when the
+ *       scheduler is destroyed on its own thread the destructor detaches rather than self-joining: it returns
+ *       at once while the loop unwinds, and any already-queued tasks still drain on the (now detached) thread.
+ *       Destroyed from any other thread it joins as before. Either way, no callback outlives the state it accesses.
+ * @warning This covers the scheduler object itself only. It does NOT make it safe to destroy a client/controller
+ *          or other timer owner from inside its own callback — teardown re-enters guards that lock their own mutex
+ *          (e.g. Ocp1Connection::disconnect() -> setSafe()) on the same thread and self-deadlocks; defer it instead.
  */
 class NanoTimerScheduler final
 {
@@ -191,11 +193,14 @@ private:
         void WaitForCallbackToFinish(std::unique_lock<std::mutex>& lock, TimerId id);
 
         /**
-         * @brief Runs @p task with @p lock released, containing any exception, then re-acquires @p lock.
+         * @brief Runs @p task with @p lock released, then destroys it (releasing its captures) while still
+         *        unlocked, containing any exception, before re-acquiring @p lock.
+         * @details Passing @p task by value and clearing it before re-locking means a captured owner whose
+         *          destructor re-enters the scheduler (DestroyTimer / ~NanoTimerScheduler) cannot deadlock on m_mutex.
          * @param[in] lock The unique lock holding m_mutex (held on entry and on return).
-         * @param[in] task The task/callback to invoke.
+         * @param[in] task The task/callback to invoke; consumed (released while unlocked).
          */
-        void InvokeUnlocked(std::unique_lock<std::mutex>& lock, const std::function<void()>& task);
+        void InvokeUnlocked(std::unique_lock<std::mutex>& lock, std::function<void()> task);
 
         /**
          * @brief Pops and runs the front posted task (unlocked, exception-contained).

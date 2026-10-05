@@ -220,11 +220,12 @@ TEST(NanoTimerScheduler, DestructorStopsCleanly)
 // A posted task runs, and on the scheduler thread (not the caller's thread).
 TEST(NanoTimerScheduler, PostTaskRunsOffCallerThread)
 {
-    NanoTimerScheduler scheduler;
-
+    // Declared before the scheduler so they outlive its shutdown drain (destroyed in reverse order).
     std::atomic<bool> ran{false};
     std::atomic<std::thread::id> taskThread{};
     const auto callerThread = std::this_thread::get_id();
+
+    NanoTimerScheduler scheduler;
 
     scheduler.PostTask([&]() {
         taskThread.store(std::this_thread::get_id());
@@ -238,11 +239,12 @@ TEST(NanoTimerScheduler, PostTaskRunsOffCallerThread)
 // Posted tasks run in FIFO order.
 TEST(NanoTimerScheduler, PostTaskRunsFifo)
 {
-    NanoTimerScheduler scheduler;
-
+    // Declared before the scheduler so they outlive its shutdown drain (destroyed in reverse order).
     std::vector<int> order; // only the scheduler thread writes this, until all tasks finish
     std::atomic<int> doneCount{0};
     constexpr int taskCount = 50;
+
+    NanoTimerScheduler scheduler;
 
     for (int i = 0; i < taskCount; ++i)
     {
@@ -267,9 +269,11 @@ TEST(NanoTimerScheduler, PostTaskRunsFifo)
 // A task can post another task; both run.
 TEST(NanoTimerScheduler, PostTaskFromWithinTask)
 {
+    // Declared before the scheduler so it outlives the shutdown drain (destroyed in reverse order).
+    std::atomic<int> count{0};
+
     NanoTimerScheduler scheduler;
 
-    std::atomic<int> count{0};
     scheduler.PostTask([&scheduler, &count]() {
         ++count;
         scheduler.PostTask([&count]() { ++count; });
@@ -281,9 +285,11 @@ TEST(NanoTimerScheduler, PostTaskFromWithinTask)
 // A timer callback can post a task (timers and tasks share the scheduler thread).
 TEST(NanoTimerScheduler, PostTaskFromTimerCallback)
 {
+    // Declared before the scheduler so it outlives shutdown and any late tasks (StopTimer does not drain posted tasks).
+    std::atomic<bool> taskRan{false};
+
     NanoTimerScheduler scheduler;
 
-    std::atomic<bool> taskRan{false};
     const auto id = scheduler.CreateTimer([&scheduler, &taskRan]() {
         scheduler.PostTask([&taskRan]() { taskRan.store(true); });
     });
@@ -296,8 +302,10 @@ TEST(NanoTimerScheduler, PostTaskFromTimerCallback)
 // A null task is ignored and does not break the scheduler.
 TEST(NanoTimerScheduler, PostTaskIgnoresNull)
 {
-    NanoTimerScheduler scheduler;
+    // Declared before the scheduler so it outlives the shutdown drain (destroyed in reverse order).
     std::atomic<bool> ran{false};
+
+    NanoTimerScheduler scheduler;
 
     scheduler.PostTask(nullptr); // no-op
 
@@ -360,12 +368,15 @@ TEST(NanoTimerScheduler, BusyTaskQueueDoesNotStarveTimer)
 // being starved by reconnect timers when many devices drop at once).
 TEST(NanoTimerScheduler, BusyDueTimersDoNotStarveTask)
 {
+    // Declared before the scheduler so they outlive its shutdown drain (destroyed in reverse order).
+    constexpr int timerCount = 8;
+    std::atomic<int> timerFires{0};
+    std::atomic<bool> taskRan{false};
+
     NanoTimerScheduler scheduler;
 
     // Several 1ms timers, each doing a little work, keep the due-timer set continuously non-empty
     // (a full round of callbacks takes longer than the re-arm interval, so a timer is always due).
-    constexpr int timerCount = 8;
-    std::atomic<int> timerFires{0};
     std::vector<NanoTimerScheduler::TimerId> ids;
     ids.reserve(timerCount);
     for (int i = 0; i < timerCount; ++i)
@@ -383,7 +394,6 @@ TEST(NanoTimerScheduler, BusyDueTimersDoNotStarveTask)
         << "Timers did not start firing.";
 
     // Post a task into the busy scheduler; it must still get a turn despite the timer backlog.
-    std::atomic<bool> taskRan{false};
     scheduler.PostTask([&taskRan]() { taskRan.store(true, std::memory_order_release); });
 
     const bool ran = WaitUntil([&taskRan]() { return taskRan.load(std::memory_order_acquire); }, 2000ms);
@@ -417,4 +427,48 @@ TEST(NanoTimerScheduler, DestroyedFromOwnCallbackDetachesInsteadOfTerminating)
 
     EXPECT_TRUE(WaitUntil([&survivedDestruction]() { return survivedDestruction.load(std::memory_order_acquire); }, 2000ms))
         << "Scheduler destroyed from within its own callback did not complete cleanly (self-join/terminate?).";
+}
+
+// A captured owner whose LAST reference is released by the callable's own destruction (rather than reset
+// inside the body) must be destroyed while the scheduler mutex is unlocked. Here the owner's destructor
+// re-enters the scheduler via DestroyTimer(); if InvokeUnlocked re-locked m_mutex before destroying the
+// callable, that re-entry would deadlock. (DestroyedFromOwnCallback... resets the owner inside the body,
+// exercising the unlocked path, so it misses this one.)
+TEST(NanoTimerScheduler, CapturedOwnerReleasedByCallableDestructionDoesNotDeadlock)
+{
+    struct ReentrantOwner
+    {
+        ReentrantOwner(NanoTimerScheduler& s, NanoTimerScheduler::TimerId i, std::atomic<bool>& f)
+            : sched(s), id(i), finished(f) {}
+        ~ReentrantOwner()
+        {
+            sched.DestroyTimer(id);     // re-enters the scheduler; deadlocks if run while m_mutex is held
+            finished.store(true, std::memory_order_release);
+        }
+        NanoTimerScheduler& sched;
+        NanoTimerScheduler::TimerId id;
+        std::atomic<bool>& finished;
+    };
+
+    std::atomic<bool> gate{false};
+    std::atomic<bool> destructorFinished{false};
+
+    auto scheduler = std::make_unique<NanoTimerScheduler>();
+    const auto id = scheduler->CreateTimer([]() {});
+    auto owner = std::make_shared<ReentrantOwner>(*scheduler, id, destructorFinished);
+
+    // The lambda holds the owner but never resets it; its last reference drops when the callable is
+    // destroyed after the callback returns. Gate the return until the caller has dropped its own reference.
+    scheduler->PostTask([owner, &gate]() {
+        WaitUntil([&gate]() { return gate.load(std::memory_order_acquire); }, 2000ms);
+    });
+
+    owner.reset();                               // caller drops its reference
+    gate.store(true, std::memory_order_release); // let the task return so its callable is destroyed
+
+    const bool finished = WaitUntil([&destructorFinished]() { return destructorFinished.load(std::memory_order_acquire); }, 2000ms);
+    EXPECT_TRUE(finished) << "Captured owner's destructor did not finish — it likely deadlocked reacquiring the scheduler mutex.";
+
+    if (!finished)
+        (void)scheduler.release(); // Worker is deadlocked holding m_mutex; leak rather than hang on ~NanoTimerScheduler.
 }

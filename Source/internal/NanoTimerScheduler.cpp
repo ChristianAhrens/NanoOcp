@@ -195,7 +195,7 @@ void NanoTimerScheduler::State::WaitForCallbackToFinish(std::unique_lock<std::mu
     m_callbackDone.wait(lock, [this, id]() { return m_firingId != id; });
 }
 
-void NanoTimerScheduler::State::InvokeUnlocked(std::unique_lock<std::mutex>& lock, const std::function<void()>& task)
+void NanoTimerScheduler::State::InvokeUnlocked(std::unique_lock<std::mutex>& lock, std::function<void()> task)
 {
     lock.unlock();
     try
@@ -208,6 +208,11 @@ void NanoTimerScheduler::State::InvokeUnlocked(std::unique_lock<std::mutex>& loc
         // timer) nor leave scheduler state inconsistent. Contain it here.
         assert(false && "NanoTimerScheduler: callback/task threw; must not throw.");
     }
+
+    // Release the callable's captures while still unlocked: a captured owner whose destructor
+    // re-enters the scheduler (DestroyTimer / ~NanoTimerScheduler) would deadlock on m_mutex here.
+    task = nullptr; 
+                    
     lock.lock();
 }
 
@@ -217,7 +222,7 @@ void NanoTimerScheduler::State::RunNextImmediateTask(std::unique_lock<std::mutex
     auto task = std::move(m_immediateTasks.front());
     m_immediateTasks.pop_front();
     if (task)
-        InvokeUnlocked(lock, task);
+        InvokeUnlocked(lock, std::move(task));
 }
 
 void NanoTimerScheduler::State::Run()
@@ -286,7 +291,7 @@ void NanoTimerScheduler::State::Run()
         // so an empty callback needs no unlock/relock.
         m_firingId = id;
         if (callback)
-            InvokeUnlocked(lock, callback);
+            InvokeUnlocked(lock, std::move(callback));
         m_firingId = InvalidTimerId;
         m_callbackDone.notify_all();
 
