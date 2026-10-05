@@ -90,6 +90,7 @@ public:
      *                                  their own UI/message thread must still marshal onward
      *                                  from inside their callback implementation.
      * @param threadPriority            OS priority of the socket read thread.
+     * @throws std::invalid_argument if @p scheduler is null.
      */
     Ocp1Connection(std::shared_ptr<NanoTimerScheduler> scheduler,
                    bool callbacksOnMessageThread = true,

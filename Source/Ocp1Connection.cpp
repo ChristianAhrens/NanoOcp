@@ -25,6 +25,7 @@
 #include <cassert>
 #include <mutex>
 #include <shared_mutex>
+#include <stdexcept>
 
 
 namespace NanoOcp1
@@ -98,7 +99,10 @@ Ocp1Connection::Ocp1Connection(std::shared_ptr<NanoTimerScheduler> scheduler,
       m_scheduler(std::move(scheduler)),
       m_threadPriority(threadPriority)
 {
-    assert(m_scheduler && "Ocp1Connection requires a non-null scheduler");
+    // Enforce that the scheduler is non-null at construction time.
+    if (!m_scheduler)
+        throw std::invalid_argument("Ocp1Connection requires a non-null scheduler");
+
     thread.reset(new ConnectionThread(*this));
 }
 
@@ -233,7 +237,7 @@ void Ocp1Connection::initialiseWithSocket(std::unique_ptr<NanoSocket> newSocket)
 
 void Ocp1Connection::dispatchOrCall(std::function<void(Ocp1Connection&)> fn)
 {
-    if (useMessageThread && m_scheduler)
+    if (useMessageThread)
     {
         // Capture safeAction by value so the guard (and the connection object it
         // refers to) stays valid for the lifetime of the queued task, even if

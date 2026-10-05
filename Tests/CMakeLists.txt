@@ -17,6 +17,7 @@ add_executable(NanoOcp1Tests
     ObjectDefinitionsTest.cpp
     NanoTimerSchedulerTest.cpp
     NanoTimerTest.cpp
+    Ocp1ConnectionTest.cpp
 )
 
 target_link_libraries(NanoOcp1Tests PRIVATE
