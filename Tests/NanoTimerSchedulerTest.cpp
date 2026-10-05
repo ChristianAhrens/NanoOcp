@@ -393,3 +393,28 @@ TEST(NanoTimerScheduler, BusyDueTimersDoNotStarveTask)
 
     EXPECT_TRUE(ran) << "A posted task was starved by continuously-due timers.";
 }
+
+// Releasing the last owner from within a callback destroys the scheduler on its own thread. The scheduler
+// must detach there instead of self-joining (which throws -> std::terminate under a noexcept destructor).
+// Regression for the disconnect-teardown pattern where a callback drops the last reference to its scheduler.
+TEST(NanoTimerScheduler, DestroyedFromOwnCallbackDetachesInsteadOfTerminating)
+{
+    std::atomic<bool> callerDroppedRef{false};
+    std::atomic<bool> survivedDestruction{false};
+
+    auto scheduler = std::make_shared<NanoTimerScheduler>();
+
+    // Gate the self-destruction until the caller has dropped its reference, so owner.reset() below is
+    // guaranteed to release the LAST reference and run ~NanoTimerScheduler on the scheduler thread.
+    scheduler->PostTask([owner = scheduler, &callerDroppedRef, &survivedDestruction]() mutable {
+        WaitUntil([&callerDroppedRef]() { return callerDroppedRef.load(std::memory_order_acquire); }, 2000ms);
+        owner.reset();
+        survivedDestruction.store(true, std::memory_order_release);
+    });
+
+    scheduler.reset();                                       // caller no longer owns the scheduler
+    callerDroppedRef.store(true, std::memory_order_release); // let the task drop the final reference
+
+    EXPECT_TRUE(WaitUntil([&survivedDestruction]() { return survivedDestruction.load(std::memory_order_acquire); }, 2000ms))
+        << "Scheduler destroyed from within its own callback did not complete cleanly (self-join/terminate?).";
+}

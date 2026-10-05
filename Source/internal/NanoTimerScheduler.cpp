@@ -24,29 +24,57 @@
 namespace NanoOcp1
 {
 NanoTimerScheduler::NanoTimerScheduler()
+    : m_state(std::make_shared<State>())
 {
-    m_thread = std::thread([this]() { Run(); }); // Start the scheduler thread
-    m_threadId = m_thread.get_id();
+    // The worker captures its OWN strong reference to the shared state, so the loop can unwind safely even
+    // if the last public owner is released on this thread (the destructor then detaches instead of joining).
+    m_thread = std::thread([state = m_state]() { state->Run(); });
+    m_state->m_threadId = m_thread.get_id();
 }
 
 NanoTimerScheduler::~NanoTimerScheduler()
 {
-    // Lifetime contract: the last shared owner must be released off the scheduler thread. Destroying the
-    // scheduler from within its own callback would run this destructor on m_thread, making join() a fatal self-join.
-    assert(std::this_thread::get_id() != m_threadId
-           && "NanoTimerScheduler destroyed from its own callback thread (self-join); keep it owned outside its callbacks.");
-
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_running = false;
+        std::lock_guard<std::mutex> lock(m_state->m_mutex);
+        m_state->m_running = false;
     }
-    m_scheduleChanged.notify_all(); // Notify the scheduler thread to wake up and exit.
+    m_state->m_scheduleChanged.notify_all(); // Wake the scheduler thread so it observes shutdown and exits.
 
-    if (m_thread.joinable())
+    // If the last owner was released on the scheduler thread (a callback dropping the final reference) this
+    // runs on m_thread; joining ourselves would throw std::system_error -> std::terminate. Detach instead:
+    // the worker still references m_state, so Run() unwinds and frees the state on the worker thread.
+    if (std::this_thread::get_id() == m_thread.get_id())
+        m_thread.detach();
+    else if (m_thread.joinable())
         m_thread.join();
 }
 
 NanoTimerScheduler::TimerId NanoTimerScheduler::CreateTimer(std::function<void()> callback)
+{
+    return m_state->CreateTimer(std::move(callback));
+}
+
+void NanoTimerScheduler::StartTimer(TimerId id, std::chrono::milliseconds interval)
+{
+    m_state->StartTimer(id, interval);
+}
+
+void NanoTimerScheduler::StopTimer(TimerId id)
+{
+    m_state->StopTimer(id);
+}
+
+void NanoTimerScheduler::DestroyTimer(TimerId id)
+{
+    m_state->DestroyTimer(id);
+}
+
+void NanoTimerScheduler::PostTask(std::function<void()> task)
+{
+    m_state->PostTask(std::move(task));
+}
+
+NanoTimerScheduler::TimerId NanoTimerScheduler::State::CreateTimer(std::function<void()> callback)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -55,7 +83,7 @@ NanoTimerScheduler::TimerId NanoTimerScheduler::CreateTimer(std::function<void()
     return id;
 }
 
-void NanoTimerScheduler::StartTimer(TimerId id, std::chrono::milliseconds interval)
+void NanoTimerScheduler::State::StartTimer(TimerId id, std::chrono::milliseconds interval)
 {
     // Mirror the existing IRecurringTimer wrappers, which ignore non-positive intervals.
     if (interval.count() <= 0)
@@ -81,7 +109,7 @@ void NanoTimerScheduler::StartTimer(TimerId id, std::chrono::milliseconds interv
     m_scheduleChanged.notify_all(); // Notify the scheduler thread that the schedule has changed.
 }
 
-void NanoTimerScheduler::PostTask(std::function<void()> task)
+void NanoTimerScheduler::State::PostTask(std::function<void()> task)
 {
     if (!task)
         return;
@@ -97,7 +125,7 @@ void NanoTimerScheduler::PostTask(std::function<void()> task)
     m_scheduleChanged.notify_all(); // Wake the scheduler thread to run the task.
 }
 
-void NanoTimerScheduler::StopTimer(TimerId id)
+void NanoTimerScheduler::State::StopTimer(TimerId id)
 {
     std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -112,7 +140,7 @@ void NanoTimerScheduler::StopTimer(TimerId id)
     m_scheduleChanged.notify_all(); // Notify the scheduler thread that the schedule has changed.
 }
 
-void NanoTimerScheduler::DestroyTimer(TimerId id)
+void NanoTimerScheduler::State::DestroyTimer(TimerId id)
 {
     std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -129,7 +157,7 @@ void NanoTimerScheduler::DestroyTimer(TimerId id)
     m_scheduleChanged.notify_all(); // Notify the scheduler thread that the schedule has changed.
 }
 
-void NanoTimerScheduler::Unschedule(TimerId id)
+void NanoTimerScheduler::State::Unschedule(TimerId id)
 {
     // If the timer does not exist or is not currently scheduled, there is nothing to do.
     auto it = m_timers.find(id);
@@ -153,7 +181,7 @@ void NanoTimerScheduler::Unschedule(TimerId id)
     it->second.scheduled = false;
 }
 
-void NanoTimerScheduler::WaitForCallbackToFinish(std::unique_lock<std::mutex>& lock, TimerId id)
+void NanoTimerScheduler::State::WaitForCallbackToFinish(std::unique_lock<std::mutex>& lock, TimerId id)
 {
     // A callback that cancels its own timer runs on the scheduler thread; it can never wait for itself.
     if (std::this_thread::get_id() == m_threadId)
@@ -165,7 +193,7 @@ void NanoTimerScheduler::WaitForCallbackToFinish(std::unique_lock<std::mutex>& l
     m_callbackDone.wait(lock, [this, id]() { return m_firingId != id; });
 }
 
-void NanoTimerScheduler::InvokeUnlocked(std::unique_lock<std::mutex>& lock, const std::function<void()>& task)
+void NanoTimerScheduler::State::InvokeUnlocked(std::unique_lock<std::mutex>& lock, const std::function<void()>& task)
 {
     lock.unlock();
     try
@@ -181,7 +209,7 @@ void NanoTimerScheduler::InvokeUnlocked(std::unique_lock<std::mutex>& lock, cons
     lock.lock();
 }
 
-void NanoTimerScheduler::Run()
+void NanoTimerScheduler::State::Run()
 {
     // Held only during short bookkeeping: the wait/wait_until calls below release m_mutex while idle
     // or sleeping, and we unlock explicitly around each callback, so other methods can take the lock.

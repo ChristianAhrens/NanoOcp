@@ -24,6 +24,7 @@
 #include <deque>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -50,11 +51,12 @@ namespace NanoOcp1
  * @warning Because that cancel/destroy waits for the callback, never call StopTimer()/DestroyTimer()
  *          (or destroy a timer/owner) while holding a lock the callback also takes — it deadlocks.
  *
- * @warning Lifetime: the scheduler must outlive its own callbacks. The destructor joins the scheduler
- *          thread, so releasing the last shared owner from within a callback would run the destructor
- *          on that thread and self-join (fatal). Anchor ownership in something that outlives every
- *          timer/controller using it (e.g. the environment provider); if a callback must trigger
- *          teardown, release the final owner on a non-scheduler thread. Debug builds assert this.
+ * @note Lifetime: it is safe to release the last shared owner from within a callback (e.g. a disconnect
+ *       teardown that drops the controller holding the final reference). The worker thread keeps its own
+ *       reference to the shared loop state, so when the scheduler is destroyed on its own thread the
+ *       destructor detaches rather than self-joining: it returns at once while the loop unwinds, and any
+ *       already-queued tasks still drain on the (now detached) thread. Destroyed from any other thread it
+ *       joins as before. Either way, no callback outlives the state it accesses.
  */
 class NanoTimerScheduler final
 {
@@ -66,7 +68,12 @@ public:
 
     NanoTimerScheduler();
 
-    /** @warning Must not run on the scheduler thread; see the class-level lifetime warning. */
+    /**
+     * @brief Stops the scheduler thread.
+     * @details Joins the thread when destroyed from another thread; when destroyed from within one of its
+     *          own callbacks it detaches instead, letting the loop unwind and drain queued tasks on the
+     *          detached thread. See the class-level lifetime note.
+     */
     ~NanoTimerScheduler();
 
     /** Non-copyable and non-movable. */
@@ -141,47 +148,71 @@ private:
     };
 
     /**
-     * @brief Main loop of the scheduler thread.
-     * @details Continuously checks for timers that have reached their deadline and executes their callbacks.
+     * @brief Worker-thread state shared (via std::shared_ptr) by the public scheduler and its own thread.
+     * @details The loop state lives here rather than directly in NanoTimerScheduler so the worker thread can
+     *          hold a strong reference to it for the whole duration of Run(). If the last public owner is
+     *          released on the scheduler thread (destroying NanoTimerScheduler from within one of its own
+     *          callbacks), the destructor detaches the thread instead of self-joining and this State stays
+     *          alive - kept by the worker's reference - until Run() unwinds, so the loop never touches freed memory.
      */
-    void Run();
+    struct State
+    {
+        /// @copydoc NanoTimerScheduler::CreateTimer
+        TimerId CreateTimer(std::function<void()> callback);
+        /// @copydoc NanoTimerScheduler::StartTimer
+        void StartTimer(TimerId id, std::chrono::milliseconds interval);
+        /// @copydoc NanoTimerScheduler::StopTimer
+        void StopTimer(TimerId id);
+        /// @copydoc NanoTimerScheduler::DestroyTimer
+        void DestroyTimer(TimerId id);
+        /// @copydoc NanoTimerScheduler::PostTask
+        void PostTask(std::function<void()> task);
 
-    /** 
-     * @brief Removes a timer from the deadline index.
-     * @details Requires m_mutex held.
-     * @param[in] id The identifier of the timer to unschedule.
-     */
-    void Unschedule(TimerId id);
+        /**
+         * @brief Main loop of the scheduler thread.
+         * @details Services due timers and posted tasks until m_running is cleared, then drains any
+         *          remaining posted tasks so none is silently dropped.
+         */
+        void Run();
 
-    /** 
-     * @brief Waits until no callback for the specified timer is running.
-     * @details Returns immediately when called on the scheduler thread. Requires m_mutex held via @p lock.
-     * @param[in] lock The unique lock holding m_mutex.
-     * @param[in] id The identifier of the timer to wait for.
-     */
-    void WaitForCallbackToFinish(std::unique_lock<std::mutex>& lock, TimerId id);
+        /**
+         * @brief Removes a timer from the deadline index.
+         * @details Requires m_mutex held.
+         * @param[in] id The identifier of the timer to unschedule.
+         */
+        void Unschedule(TimerId id);
 
-    /**
-     * @brief Runs @p task with @p lock released, containing any exception, then re-acquires @p lock.
-     * @param[in] lock The unique lock holding m_mutex (held on entry and on return).
-     * @param[in] task The task/callback to invoke.
-     */
-    void InvokeUnlocked(std::unique_lock<std::mutex>& lock, const std::function<void()>& task);
+        /**
+         * @brief Waits until no callback for the specified timer is running.
+         * @details Returns immediately when called on the scheduler thread. Requires m_mutex held via @p lock.
+         * @param[in] lock The unique lock holding m_mutex.
+         * @param[in] id The identifier of the timer to wait for.
+         */
+        void WaitForCallbackToFinish(std::unique_lock<std::mutex>& lock, TimerId id);
 
-    mutable std::mutex m_mutex;                 //< Protects access to the timer data structures.
-    std::condition_variable m_scheduleChanged;  //< Wakes the scheduler thread on schedule change / shutdown.
-    std::condition_variable m_callbackDone;     //< Wakes Stop/Destroy waiting on an in-flight callback.
+        /**
+         * @brief Runs @p task with @p lock released, containing any exception, then re-acquires @p lock.
+         * @param[in] lock The unique lock holding m_mutex (held on entry and on return).
+         * @param[in] task The task/callback to invoke.
+         */
+        void InvokeUnlocked(std::unique_lock<std::mutex>& lock, const std::function<void()>& task);
 
-    std::unordered_map<TimerId, Entry> m_timers; //< Index of timers by their identifier.
-    std::multimap<std::chrono::steady_clock::time_point, TimerId> m_schedule; //< Timers indexed by their next scheduled deadline.
-    std::deque<std::function<void()>> m_immediateTasks; //< One-shot tasks posted via PostTask(); FIFO, ahead of not-yet-due timers and interleaved with due ones.
+        mutable std::mutex m_mutex;                 //< Protects access to the timer data structures.
+        std::condition_variable m_scheduleChanged;  //< Wakes the scheduler thread on schedule change / shutdown.
+        std::condition_variable m_callbackDone;     //< Wakes Stop/Destroy waiting on an in-flight callback.
 
-    TimerId m_nextId{InvalidTimerId};   //< Next available timer identifier.
-    TimerId m_firingId{InvalidTimerId}; //< Timer whose callback is currently running (InvalidTimerId = none).
-    bool m_serviceTaskNext{false};      //< Fairness toggle: when a posted task and a due timer contend, whose turn is next.
-    bool m_running{true};               //< Indicates whether the scheduler thread should keep running.
+        std::unordered_map<TimerId, Entry> m_timers; //< Index of timers by their identifier.
+        std::multimap<std::chrono::steady_clock::time_point, TimerId> m_schedule; //< Timers indexed by their next scheduled deadline.
+        std::deque<std::function<void()>> m_immediateTasks; //< One-shot tasks posted via PostTask(); FIFO, ahead of not-yet-due timers and interleaved with due ones.
 
-    std::thread m_thread;               //< The scheduler thread.
-    std::thread::id m_threadId;         //< Identifier of the scheduler thread.
+        TimerId m_nextId{InvalidTimerId};   //< Next available timer identifier.
+        TimerId m_firingId{InvalidTimerId}; //< Timer whose callback is currently running (InvalidTimerId = none).
+        bool m_serviceTaskNext{false};      //< Fairness toggle: when a posted task and a due timer contend, whose turn is next.
+        bool m_running{true};               //< Whether the scheduler thread should keep running.
+        std::thread::id m_threadId;         //< Identifier of the scheduler thread (set once at construction).
+    };
+
+    std::shared_ptr<State> m_state; //< Shared loop state; the worker thread holds its own reference (see State).
+    std::thread m_thread;           //< The scheduler thread.
 };
 } // namespace NanoOcp1
