@@ -57,8 +57,7 @@ NanoOcp/
 │       ├── NanoSocket.h / .cpp     # Cross-platform TCP socket (POSIX / Winsock2)
 │       ├── NanoThread.h            # std::thread wrapper (replaces juce::Thread)
 │       ├── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer), backed by NanoTimerScheduler
-│       ├── NanoTimerScheduler.h / .cpp  # Shared one-thread scheduler servicing many periodic timers
-│       └── NanoAsyncDispatcher.h / .cpp # Single-worker task queue (replaces juce::MessageManager::callAsync)
+│       └── NanoTimerScheduler.h / .cpp  # Shared one-thread scheduler: periodic timers + one-shot posted tasks (PostTask)
 ├── NanoOcp1Demo/                   # JUCE-free CLI demo application
 │   ├── CMakeLists.txt
 │   ├── Terminal.h                  # Platform terminal setup / size query
@@ -90,7 +89,7 @@ NanoOcp is structured in four layers.  The controller layer sits on top of the e
 │                  Your application                   │
 │  onStateChanged / onPower / onChannelGain / …       │
 └──────────────────────┬──────────────────────────────┘
-                       │  typed callbacks (dispatcher thread by default)
+                       │  typed callbacks (scheduler thread by default)
 ┌──────────────────────▼──────────────────────────────┐
 │              Ocp1Controller  (base)                  │  Layer 1 – Controllers
 │  Connection lifecycle, auto-reconnect, sub/query     │
@@ -101,7 +100,7 @@ NanoOcp is structured in four layers.  The controller layer sits on top of the e
 │        GUID handshake, RemoteObject vocabulary,      │
 │        setActiveRemoteObjects / onRemoteObjectReceived│
 └──────────────────────┬──────────────────────────────┘
-                       │  callbacks (dispatcher thread by default)
+                       │  callbacks (scheduler thread by default)
 ┌──────────────────────▼──────────────────────────────┐
 │          NanoOcp1Client  /  NanoOcp1Server           │  Layer 2 – Connection
 │  (NanoOcp1Base + Ocp1Connection + NanoTimer)         │
@@ -210,14 +209,18 @@ covers all DS100 parameter boxes (MatrixInput, MatrixOutput, Positioning, Coordi
 
 The thread on which callbacks fire is selected by the `callbacksOnMessageThread` constructor parameter, which **defaults to `true`** at every layer (`Ocp1Connection`, `NanoOcp1Client`, `NanoOcp1Server`, `Ocp1Controller`, `AmpController`, `SoundscapeController`):
 
-- **`true` (default)** — the low-level callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`) are posted to a dedicated `NanoAsyncDispatcher` worker thread, decoupling callback execution from socket I/O so slow or blocking callback code cannot stall the read loop.
+- **`true` (default)** — the low-level callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`) are posted to the shared `NanoTimerScheduler` thread, decoupling callback execution from socket I/O so slow or blocking callback code cannot stall the read loop.
 - **`false`** — the low-level callbacks run synchronously on the **socket thread**.
 
-Controller callbacks (`onStateChanged`, `onPower`, `onChannelGain`, `onRemoteObjectReceived`, …) are invoked from within those low-level callbacks, so they fire on whichever thread the parameter selects — the `NanoAsyncDispatcher` worker thread by default, or the socket thread when `callbacksOnMessageThread = false`.  The one exception is `onStateChanged` triggered by the GetValues response-timeout, which fires on the shared `NanoTimerScheduler` thread (see **Timers** below).
+Controller callbacks (`onStateChanged`, `onPower`, `onChannelGain`, `onRemoteObjectReceived`, …) are invoked from within those low-level callbacks, so they fire on whichever thread the parameter selects — the shared `NanoTimerScheduler` thread by default, or the socket thread when `callbacksOnMessageThread = false`.  `onStateChanged` triggered by the GetValues response-timeout always fires on the `NanoTimerScheduler` thread (see **Timers** below) — the same thread the other callbacks use under the default.
 
 Whichever mode is used, callbacks never run on a GUI/framework thread automatically.  If you need to update GUI elements or call framework APIs that require a specific thread (e.g. the JUCE message thread), marshal inside the callback — for example via `juce::MessageManager::callAsync` or by posting a message to a `juce::MessageListener`.
 
-**Timers.** `NanoOcp1Client` (reconnect) and `Ocp1Controller` (GetValues response-timeout) own no timer thread of their own: they take a caller-supplied `std::shared_ptr<NanoTimerScheduler>` and register their timers on it.  A single `NanoTimerScheduler` runs one background thread that services every timer registered on it, so callbacks it triggers (e.g. `onStateChanged` from a response-timeout) fire on that **scheduler thread**, not the socket thread.  The scheduler is a **required constructor argument** — NanoOcp provides no default or singleton; the owning application creates and shares it (one instance can back many clients and controllers).
+**Timers.** `NanoOcp1Client` (reconnect) and `Ocp1Controller` (GetValues response-timeout) own no timer thread of their own.  Instead, they take a caller-supplied `std::shared_ptr<NanoTimerScheduler>` and register their timers on it.  The scheduler is a **required constructor argument** — NanoOcp provides no default or singleton; the owning application creates it and shares one instance across many clients and controllers.
+
+A single `NanoTimerScheduler` runs one background thread that services every timer registered on it.  Callbacks it triggers (e.g. `onStateChanged` from a response-timeout) therefore fire on that **scheduler thread**, not the socket thread.  That same thread also runs the low-level callbacks posted under the default `callbacksOnMessageThread = true`, so one scheduler thread handles both the timers and the dispatched callbacks.
+
+**Lifetime.** It is safe to release the last `shared_ptr<NanoTimerScheduler>` from within one of its own callbacks: the worker thread holds its own reference to the scheduler's internal state, so the scheduler detaches its thread and unwinds cleanly instead of self-joining.  This applies to the scheduler object only.  Do **not** destroy a client or controller (or other timer owner) from inside its own callback — teardown re-enters the connection's `SafeAction` guard (`disconnect()` → `setSafe()`) on the same thread and self-deadlocks.  Defer that teardown to outside the callback.
 
 ---
 
@@ -292,7 +295,7 @@ auto amp = std::make_unique<NanoOcp1::AmpController>(scheduler);
 // Configure before connect
 amp->setAmpType(NanoOcp1::AmpController::AmpType::Dy, 4 /*channels*/);
 
-// Wire typed callbacks (fired on the NanoAsyncDispatcher worker thread by default)
+// Wire typed callbacks (fired on the shared NanoTimerScheduler thread by default)
 amp->onStateChanged = [](NanoOcp1::Ocp1Controller::State s) {
     // Disconnected / Connecting / Subscribing / Subscribed / GetValues / Connected
 };
@@ -340,7 +343,7 @@ ds100->setActiveRemoteObjects({
     RO{ ROI::ReverbInput_Gain,             ROA{1, 5} },  // En-Space send gain SO 5
 });
 
-// Value-change callback (fired on the NanoAsyncDispatcher worker thread by default)
+// Value-change callback (fired on the shared NanoTimerScheduler thread by default)
 ds100->onRemoteObjectReceived = [](const NanoOcp1::SoundscapeController::RemoteObject& ro) -> bool {
     bool ok = false;
     switch (ro.Id)
@@ -393,9 +396,10 @@ ds100->disconnect();
 #include "Ocp1Message.h"
 #include "Ocp1DS100ObjectDefinitions.h"
 
-// 1. Create client (callbacks fire on the socket thread)
+// 1. Create the shared scheduler and the client (callbacks fire on the socket thread with false)
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
 auto client = std::make_unique<NanoOcp1::NanoOcp1Client>(
-    "192.168.1.100", 50014, /*callbacksOnMessageThread=*/false);
+    scheduler, "192.168.1.100", 50014, /*callbacksOnMessageThread=*/false);
 
 // 2. Wire callbacks before start()
 client->onConnectionEstablished = [&]() {
@@ -455,8 +459,9 @@ client->sendData(setCmd.GetSerializedData());
 
 ```cpp
 // The server binds port 50014 and waits for a controller to connect.
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
 auto server = std::make_unique<NanoOcp1::NanoOcp1Server>(
-    "", 50014, /*callbacksOnMessageThread=*/false);
+    scheduler, "", 50014, /*callbacksOnMessageThread=*/false);
 
 server->onConnectionEstablished = [&]() { /* controller connected */ };
 server->onConnectionLost        = [&]() { /* controller disconnected */ };

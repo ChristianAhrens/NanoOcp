@@ -53,8 +53,8 @@
  * `NanoOcp1Client` runs its socket I/O on a dedicated `Ocp1Connection::ConnectionThread`.
  * All three callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`)
  * fire on the socket thread when `callbacksOnMessageThread = false`. When it is `true`
- * (the default), they are instead posted to a dedicated `NanoAsyncDispatcher` worker
- * thread — see `Ocp1Connection`'s constructor documentation.
+ * (the default), they are instead posted to the shared `NanoTimerScheduler` thread
+ * — see `Ocp1Connection`'s constructor documentation.
  *
  * ## File map
  * | Header | Contents |
@@ -163,10 +163,10 @@ public:
      * @brief Constructs a client without an initial address/port.
      *        Call `setAddress()` and `setPort()` before `start()`.
      * @param scheduler Shared scheduler that runs the reconnect timer; must not be null.
-     * @param callbacksOnMessageThread  See `Ocp1Connection`'s constructor: if true 
-     *                                  (the default), callbacks are posted to a
-     *                                  dedicated worker thread instead of firing
-     *                                  directly on the socket thread.
+     * @param callbacksOnMessageThread  See `Ocp1Connection`'s constructor: if true
+     *                                  (the default), callbacks are posted to the
+     *                                  shared `NanoTimerScheduler` thread instead of
+     *                                  firing directly on the socket thread.
      * @param threadPriority            OS thread priority for the socket I/O thread.
      */
     NanoOcp1Client(std::shared_ptr<NanoTimerScheduler> scheduler,
