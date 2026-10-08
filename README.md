@@ -62,10 +62,10 @@ NanoOcp/
 │   ├── CMakeLists.txt
 │   ├── Terminal.h                  # Platform terminal setup / size query
 │   ├── Ansi.h                      # ANSI escape-sequence constants
-│   ├── AppState.h                  # Shared UI state + logging helpers
+│   ├── AppState.h                  # Shared UI state + logging helpers + per-mode panel-size/terminal-fit checks
 │   ├── Format.h                    # Small text-formatting helpers (bars, state/type strings)
 │   ├── FocusParams.h               # Soundscape-focus parameter table, lookup, Variant format/parse
-│   ├── Panels.h                    # Panel renderers, canvas management, redraw thread
+│   ├── Panels.h                    # Panel renderers (incl. ranged/column layouts), canvas mgmt, redraw thread
 │   ├── Demo.h                      # Demo controller class (wraps AmpController / SoundscapeController)
 │   └── main.cpp                    # CLI help/argument parsing + entry point (three-mode terminal UI)
 ├── Tests/                          # GoogleTest unit tests (NanoOcp1Tests target)
@@ -144,7 +144,7 @@ On connection loss the underlying client retries automatically and the controlle
 
 Write commands: `setPower(bool)`, `setChannelGain(ch, dB)`, `setChannelMute(ch, bool)`.
 
-**`SoundscapeController`** — targets d&b DS100 signal engines (DS100, DS110, DS100M, vCore).  Performs a GUID read on first connect to determine the OCA revision before subscribing.  The full `RemoteObject` vocabulary (74 parameter identifiers) is expressed as `RemoteObject::RemObjIdent` enumerators.  Set the parameters to monitor via `setActiveRemoteObjects()` and receive value updates through `onRemoteObjectReceived`.  Write values via `setObjectValue()`.
+**`SoundscapeController`** — targets d&b DS100 signal engines (DS100, DS110, DS100M, vCore).  Performs a GUID read on first connect to determine the OCA revision before subscribing.  The full `RemoteObject` vocabulary (75 parameter identifiers) is expressed as `RemoteObject::RemObjIdent` enumerators.  Set the parameters to monitor via `setActiveRemoteObjects()` and receive value updates through `onRemoteObjectReceived`.  Write values via `setObjectValue()`.
 
 ### Layer 2 — Connection (`NanoOcp1.h`)
 
@@ -337,7 +337,7 @@ using RO  = NanoOcp1::SoundscapeController::RemoteObject;
 
 // Declare which parameters to subscribe and query on every connect
 ds100->setActiveRemoteObjects({
-    RO{ ROI::MatrixInput_LevelMeterPreMute, ROA{5, 0} },  // level meter SO 5
+    RO{ ROI::MatrixInput_LevelMeterIn,     ROA{5, 0} },  // level meter SO 5
     RO{ ROI::Positioning_SourcePosition,   ROA{5, 0} },  // XYZ position SO 5
     RO{ ROI::Positioning_SourceSpread,     ROA{5, 0} },  // spread SO 5
     RO{ ROI::ReverbInput_Gain,             ROA{1, 5} },  // En-Space send gain SO 5
@@ -357,7 +357,7 @@ ds100->onRemoteObjectReceived = [](const NanoOcp1::SoundscapeController::RemoteO
         }
         break;
     }
-    case ROI::MatrixInput_LevelMeterPreMute:
+    case ROI::MatrixInput_LevelMeterIn:
     {
         float dBFS = ro.Var.ToFloat(&ok);
         break;
@@ -493,7 +493,7 @@ Client                                     Device
 
 ## Demo application — NanoOcp1Demo
 
-`NanoOcp1Demo/` is a JUCE-free **CLI application** (entry point `main.cpp`, split into a handful of single-header modules — see [Repository layout](#repository-layout)) with a live terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in three modes selected at startup:
+`NanoOcp1Demo/` is a JUCE-free **CLI application** (entry point `main.cpp`, split into a handful of single-header modules — see [Repository layout](#repository-layout)) with a live terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in three modes selected at startup — Amp, Soundscape overview, and Soundscape focus — plus a Soundobject-Routing sub-mode reached at runtime from Soundscape overview.  Every mode checks the current terminal size against what it needs and shows a short warning instead of a garbled panel if it doesn't fit (see [Terminal-too-small warning](#terminal-too-small-warning)).
 
 ### Amp mode (`--amp`, default)
 
@@ -508,20 +508,38 @@ m <ch> <1|0>   mute / unmute channel
 q              quit
 ```
 
-### Soundscape overview mode (`--soundscape <N>`)
+### Soundscape overview mode (`--soundscape <N>` or `--soundscape <lo>-<hi>`)
 
-Connects to a d&b Soundscape signal engine (DS100, DS110, DS100M, or vCore) via `SoundscapeController`.  Monitors and controls sound object N: level meter, gain, mute, XYZ position, spread, delay mode, En-Space send gain — all at once, in a fixed 19-row panel.  The exact device model is identified automatically via the GUID handshake.
+Connects to a d&b Soundscape signal engine (DS100, DS110, DS100M, or vCore) via `SoundscapeController`.  Monitors and controls every sound object in the given range — a single number is a range of one, e.g. `--soundscape 8-32` for 25 objects at once: level meter, gain, mute, XYZ position, spread, delay mode, En-Space send gain.  The exact device model is identified automatically via the GUID handshake.
+
+Each sound object is laid out as its own **channel-strip column** (not a row), wrapping onto additional stacked bands when the range is wider than the terminal — so a 128-object range on a narrow terminal just grows taller, not off-screen to the right.  The level meter is a full-width bar over the device's actual **-120..0 dB** metering range, with the exact dB value printed beneath it, fed from `MatrixInput_LevelMeterIn`.
+
+Per-parameter commands take an optional leading sound-object number to target just that one object within the active range; with no target they **broadcast** to every object in it — handy for batch-configuring a block of objects identically, then fine-tuning one:
 
 ```
-a <ip>         set host address          p <n>       set port
-c              connect (or reconnect)    d           disconnect
-x/y/z <m>      set position XYZ (meters)
-sp <0-1>       set spread
-dm <0|1|2>     set delay mode  (0=off  1=compensate  2=reflect)
-ig <dB>        set matrix input gain  (-120.0 to +24.0)
-mm <1|0>       mute / unmute matrix input
-es <dB>        set En-Space send gain  (-120.0 to +24.0)
-q              quit
+a <ip>              set host address          p <n>       set port
+c                   connect (or reconnect)    d           disconnect
+x/y/z [so] <m>      set position XYZ (meters)              -- [so]: target one object; omit to broadcast
+sp [so] <0-1>       set spread
+dm [so] <0|1|2>     set delay mode  (0=off  1=compensate  2=reflect)
+ig [so] <dB>        set matrix input gain  (-120.0 to +24.0)
+mm [so] <1|0>       mute / unmute matrix input
+es [so] <dB>        set En-Space send gain  (-120.0 to +24.0)
+r <so> | r <lo>-<hi>  enter the Soundobject-Routing sub-mode (see below)
+q                   quit
+```
+
+### Soundobject-Routing sub-mode (`r <so>` or `r <lo>-<hi>`, from Soundscape overview)
+
+Switches to controlling `SoundObjectRouting_Gain` / `SoundObjectRouting_Mute` for one sound object, or any sub-range of the active overview range, against all 32 Function Groups — laid out the same way as the overview (one column per selected sound object, wrapping onto further bands), with one row per Function Group.  Subscribes to `FunctionGroup_Mode` (is the group in use?) and `FunctionGroup_Name` (display label) for all 32 groups up front, so groups the device reports as unused are shown dimmed rather than with meaningless values.  `rg`/`rm` broadcast to every selected sound object by default, or can target one within the routing range — the same convention as the overview commands above.
+
+```
+a <ip>              set host address          p <n>       set port
+c                   connect (or reconnect)    d           disconnect
+rg <fg> [so] <dB>   set routing gain to Function Group <fg>  (-120.0 to +24.0)
+rm <fg> [so] <1|0>  mute / unmute routing to Function Group <fg>
+b / back            return to Soundscape overview mode
+q                   quit
 ```
 
 ### Soundscape focus mode (`--soundscape <N> --param <name> [--addr2 <n>]`)
@@ -546,6 +564,18 @@ Enumerate every focusable parameter name (with its addressing hint and descripti
 NanoOcp1Demo --soundscape --list-params
 ```
 
+### Terminal-too-small warning
+
+Every mode computes the minimum terminal size its current panel needs — a fixed ~80x20 for Amp and Soundscape focus's mostly-fixed-width rows; for Soundscape overview/routing, however many rows their column/band layout works out to for the active range at the current terminal width, plus room for at least one column.  If the terminal is smaller than that (at startup, or because it was resized smaller mid-session), the panel is replaced with a short centred warning instead of an overflowing or garbled layout:
+
+```
+          Terminal too small for Soundscape Overview mode
+             Needs at least 28 rows x 16 cols — have 10 x 220
+                Enlarge the terminal, or 'q' to quit
+```
+
+Input keeps working while the warning is shown — `q`/`quit` always exits, and `b`/`back` still leaves the Soundobject-Routing sub-mode — so enlarging the terminal (or going back) immediately brings the normal panel back.
+
 ### Running the demo
 
 ```bash
@@ -559,6 +589,9 @@ cmake --build build --config Release
 # Soundscape overview mode — monitor and control sound object 5 (DS100/DS110/DS100M/vCore)
 ./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 50014 --soundscape 5
 
+# Soundscape overview mode, ranged — monitor/control sound objects 8-32 (25 objects) at once
+./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 50014 --soundscape 8-32
+
 # Soundscape focus mode — monitor/set just MatrixInput_Gain on sound object 5
 ./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 --soundscape 5 --param MatrixInput_Gain
 
@@ -570,6 +603,8 @@ cmake --build build --config Release
 ```
 
 `build/NanoOcp1Demo/Release/` (or `Debug/`) is where the executable lands on every platform — CMake places it there consistently whether the generator is single-config (Makefiles/Ninja on macOS/Linux) or multi-config (Visual Studio/Xcode).
+
+Once connected in overview mode, type `r 8-12` at the prompt to enter the Soundobject-Routing sub-mode for that sub-range (or `r 8` for a single object), `rg 3 -6.0` to set Function Group 3's routing gain to -6.0 dB on every object in `8-12`, `rm 3 8 1` to mute just object 8's routing to Function Group 3, and `b` to return to the overview.
 
 ---
 

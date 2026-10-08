@@ -24,10 +24,13 @@
 // command. All cmd*()/connect*() methods update g_state and push to the log;
 // they never touch the terminal directly (see Panels.h for that).
 
+#include <algorithm>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "AmpController.h"
 #include "AppState.h"
@@ -46,12 +49,19 @@ public:
         // Amp-specific
         NanoOcp1::AmpController::AmpType ampType{NanoOcp1::AmpController::AmpType::Dy};
         std::uint16_t channelCount{4};
-        // DS100-specific
-        int soundObject{1};
-        // Soundscape-focus-specific (only used when mode == SoundscapeFocus)
+        // DS100-specific: sound-object range for Soundscape-overview mode
+        // (soundObjectHi == soundObjectLo means a single object).
+        int soundObjectLo{1};
+        int soundObjectHi{1};
+        // Soundscape-focus-specific (only used when mode == SoundscapeFocus);
+        // addresses exactly soundObjectLo.
         SORemObjIdent focusParamId{SORemObjIdent::Invalid};
         std::string   focusParamName;
         int           addr2{0};
+        // Soundscape-only: show the optional loudspeaker level-meter block
+        // (MatrixOutput_LevelMeterPostMute, for outputs with an assigned
+        // Positioning_SpeakerPosition) below the overview/routing panel.
+        bool speakerLvls{false};
     };
 
     explicit Demo(Config cfg) : m_cfg(std::move(cfg))
@@ -62,10 +72,31 @@ public:
         g_state.mode          = m_cfg.mode;
         g_state.amp.type          = m_cfg.ampType;
         g_state.amp.channelCount  = static_cast<int>(m_cfg.channelCount);
-        g_state.ds100.soundObject = m_cfg.soundObject;
+        g_state.ds100.soundObjectLo = m_cfg.soundObjectLo;
+        g_state.ds100.soundObjectHi = m_cfg.soundObjectHi;
+        g_state.ds100.view          = SoundscapeView::Overview;
+        g_state.ds100.objects.clear();
+        for (int so = m_cfg.soundObjectLo; so <= m_cfg.soundObjectHi; ++so)
+        {
+            AppState::SoObjState o;
+            o.soundObject = so;
+            g_state.ds100.objects.push_back(o);
+        }
+        g_state.ds100.speakerLvlsEnabled = m_cfg.speakerLvls;
+        g_state.ds100.speakerObjects.clear();
+        if (m_cfg.speakerLvls)
+        {
+            const int maxOut = static_cast<int>(NanoOcp1::SoundscapeController::sc_MAX_OUTPUT_CHANNELS);
+            for (int ch = 1; ch <= maxOut; ++ch)
+            {
+                AppState::SpeakerObjState s;
+                s.outputChannel = ch;
+                g_state.ds100.speakerObjects.push_back(s);
+            }
+        }
         g_state.focus.paramName   = m_cfg.focusParamName;
         g_state.focus.paramId     = m_cfg.focusParamId;
-        g_state.focus.addr        = SORemObjAddr{static_cast<std::int16_t>(m_cfg.soundObject),
+        g_state.focus.addr        = SORemObjAddr{static_cast<std::int16_t>(m_cfg.soundObjectLo),
                                                   static_cast<std::int16_t>(m_cfg.addr2)};
     }
 
@@ -79,9 +110,16 @@ public:
 
         switch (m_cfg.mode)
         {
-        case DemoMode::Amp:             connectAmp();   break;
-        case DemoMode::Soundscape:      connectDS100(); break;
-        case DemoMode::SoundscapeFocus: connectFocus(); break;
+        case DemoMode::Amp:
+            connectAmp();
+            break;
+        case DemoMode::Soundscape:
+            if (m_routingActive) connectRouting();
+            else                 connectDS100();
+            break;
+        case DemoMode::SoundscapeFocus:
+            connectFocus();
+            break;
         }
     }
 
@@ -93,9 +131,17 @@ public:
             g_state.ctrlState = CtrlState::Disconnected;
             switch (m_cfg.mode)
             {
-            case DemoMode::Amp:             resetAmpDisplay();   break;
-            case DemoMode::Soundscape:      resetSoDisplay();    break;
-            case DemoMode::SoundscapeFocus: resetFocusDisplay(); break;
+            case DemoMode::Amp:
+                resetAmpDisplay();
+                break;
+            case DemoMode::Soundscape:
+                if (m_routingActive) resetRoutingDisplay();
+                else                 resetSoDisplay();
+                resetSpeakerDisplay();
+                break;
+            case DemoMode::SoundscapeFocus:
+                resetFocusDisplay();
+                break;
             }
         }
         g_needsRedraw = true;
@@ -176,131 +222,166 @@ public:
     }
 
     // ── DS100 commands ────────────────────────────────────────────────────────
+    // Every command below applies to `target` (a single sound-object number) if
+    // given and non-zero, or broadcasts to every object in the active overview
+    // range [m_cfg.soundObjectLo, m_cfg.soundObjectHi] when target == 0.
 
-    void cmdPositionX(float x)
+    void cmdPositionX(float x, int target = 0)
     {
-        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
-        float cx, cy, cz;
-        {
-            std::lock_guard<std::mutex> lk(g_stateMutex);
-            cx = x;
-            cy = g_state.ds100.posY;
-            cz = g_state.ds100.posZ;
-        }
-        sendPosition(cx, cy, cz);
+        applyToTargets("X=" + fixedStr(x, 3), target,
+                        [this, x](int so) { return sendPositionAxis(so, 0, x); });
     }
 
-    void cmdPositionY(float y)
+    void cmdPositionY(float y, int target = 0)
     {
-        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
-        float cx, cy, cz;
-        {
-            std::lock_guard<std::mutex> lk(g_stateMutex);
-            cx = g_state.ds100.posX;
-            cy = y;
-            cz = g_state.ds100.posZ;
-        }
-        sendPosition(cx, cy, cz);
+        applyToTargets("Y=" + fixedStr(y, 3), target,
+                        [this, y](int so) { return sendPositionAxis(so, 1, y); });
     }
 
-    void cmdPositionZ(float z)
+    void cmdPositionZ(float z, int target = 0)
     {
-        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
-        float cx, cy, cz;
-        {
-            std::lock_guard<std::mutex> lk(g_stateMutex);
-            cx = g_state.ds100.posX;
-            cy = g_state.ds100.posY;
-            cz = z;
-        }
-        sendPosition(cx, cy, cz);
+        applyToTargets("Z=" + fixedStr(z, 3), target,
+                        [this, z](int so) { return sendPositionAxis(so, 2, z); });
     }
 
-    void cmdSpread(float s)
+    void cmdSpread(float s, int target = 0)
     {
-        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
         if (s < 0.0f || s > 1.0f) { pushLog("Spread out of range (0.0-1.0)"); return; }
         using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
         using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
         using RO  = NanoOcp1::SoundscapeController::RemoteObject;
-        const auto so = static_cast<std::int16_t>(m_cfg.soundObject);
-        if (!m_ds100->setObjectValue(RO{ROI::Positioning_SourceSpread, ROA{so, 0},
-                                        NanoOcp1::Variant{static_cast<std::float_t>(s)}}))
-            pushLog("setObjectValue(spread) failed (not connected?)");
-        else
-        {
-            std::ostringstream oss;
-            oss << "Sent spread " << std::fixed << std::setprecision(3) << s;
-            pushLog(oss.str());
-        }
+        applyToTargets("spread " + fixedStr(s, 3), target, [this, s](int so) {
+            return m_ds100->setObjectValue(RO{ROI::Positioning_SourceSpread, ROA{static_cast<std::int16_t>(so), 0},
+                                              NanoOcp1::Variant{static_cast<std::float_t>(s)}});
+        });
     }
 
-    void cmdDelayMode(int dm)
+    void cmdDelayMode(int dm, int target = 0)
     {
-        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
         if (dm < 0 || dm > 2) { pushLog("Delay mode out of range (0, 1, or 2)"); return; }
         using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
         using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
         using RO  = NanoOcp1::SoundscapeController::RemoteObject;
-        const auto so = static_cast<std::int16_t>(m_cfg.soundObject);
-        if (!m_ds100->setObjectValue(RO{ROI::Positioning_SourceDelayMode, ROA{so, 0},
-                                        NanoOcp1::Variant{static_cast<std::uint8_t>(dm)}}))
-            pushLog("setObjectValue(delayMode) failed (not connected?)");
-        else
-            pushLog("Sent delay mode " + std::to_string(dm));
+        applyToTargets("delay mode " + std::to_string(dm), target, [this, dm](int so) {
+            return m_ds100->setObjectValue(RO{ROI::Positioning_SourceDelayMode, ROA{static_cast<std::int16_t>(so), 0},
+                                              NanoOcp1::Variant{static_cast<std::uint8_t>(dm)}});
+        });
     }
 
-    void cmdMatrixInputGain(float dB)
+    void cmdMatrixInputGain(float dB, int target = 0)
     {
-        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
         if (dB < -120.0f || dB > 24.0f) { pushLog("Gain out of range (-120.0 to +24.0 dB)"); return; }
         using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
         using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
         using RO  = NanoOcp1::SoundscapeController::RemoteObject;
-        const auto so = static_cast<std::int16_t>(m_cfg.soundObject);
-        if (!m_ds100->setObjectValue(RO{ROI::MatrixInput_Gain, ROA{so, 0},
-                                        NanoOcp1::Variant{static_cast<std::float_t>(dB)}}))
-            pushLog("setObjectValue(input gain) failed (not connected?)");
-        else
-        {
-            std::ostringstream oss;
-            oss << "Sent input gain " << std::fixed << std::setprecision(1) << dB << " dB";
-            pushLog(oss.str());
-        }
+        applyToTargets("input gain " + fixedStr(dB, 1) + " dB", target, [this, dB](int so) {
+            return m_ds100->setObjectValue(RO{ROI::MatrixInput_Gain, ROA{static_cast<std::int16_t>(so), 0},
+                                              NanoOcp1::Variant{static_cast<std::float_t>(dB)}});
+        });
     }
 
-    void cmdMatrixInputMute(bool mute)
+    void cmdMatrixInputMute(bool mute, int target = 0)
     {
-        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
         using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
         using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
         using RO  = NanoOcp1::SoundscapeController::RemoteObject;
-        const auto so = static_cast<std::int16_t>(m_cfg.soundObject);
         // d&b convention: 1 = muted, 2 = unmuted (not the boolean 0/1)
-        if (!m_ds100->setObjectValue(RO{ROI::MatrixInput_Mute, ROA{so, 0},
-                                        NanoOcp1::Variant{static_cast<std::uint8_t>(mute ? 1 : 2)}}))
-            pushLog("setObjectValue(input mute) failed (not connected?)");
-        else
-            pushLog(std::string("Sent input ") + (mute ? "MUTE" : "UNMUTE"));
+        applyToTargets(std::string("input ") + (mute ? "MUTE" : "UNMUTE"), target, [this, mute](int so) {
+            return m_ds100->setObjectValue(RO{ROI::MatrixInput_Mute, ROA{static_cast<std::int16_t>(so), 0},
+                                              NanoOcp1::Variant{static_cast<std::uint8_t>(mute ? 1 : 2)}});
+        });
     }
 
-    void cmdEnSpace(float dB)
+    void cmdEnSpace(float dB, int target = 0)
     {
-        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
         if (dB < -120.0f || dB > 24.0f) { pushLog("Gain out of range (-120.0 to +24.0 dB)"); return; }
         using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
         using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
         using RO  = NanoOcp1::SoundscapeController::RemoteObject;
-        const auto so = static_cast<std::int16_t>(m_cfg.soundObject);
-        if (!m_ds100->setObjectValue(RO{ROI::MatrixInput_ReverbSendGain, ROA{so, 0},
-                                        NanoOcp1::Variant{static_cast<std::float_t>(dB)}}))
-            pushLog("setObjectValue(enspace) failed (not connected?)");
-        else
+        applyToTargets("EnSpace " + fixedStr(dB, 1) + " dB", target, [this, dB](int so) {
+            return m_ds100->setObjectValue(RO{ROI::MatrixInput_ReverbSendGain, ROA{static_cast<std::int16_t>(so), 0},
+                                              NanoOcp1::Variant{static_cast<std::float_t>(dB)}});
+        });
+    }
+
+    // ── Soundobject-Routing sub-mode ──────────────────────────────────────────
+    // Entered (for any sound-object range addressable via --soundscape, single
+    // or a sub-range of it) to control SoundObjectRouting_Gain/Mute for every
+    // selected sound object across all 32 Function Groups. Switching into or
+    // out of this sub-mode disconnects and re-subscribes, since
+    // SoundscapeController's active remote-object list can only be changed
+    // while disconnected.
+
+    void enterRouting(int lo, int hi)
+    {
+        if (m_cfg.mode != DemoMode::Soundscape)
         {
-            std::ostringstream oss;
-            oss << "Sent EnSpace " << std::fixed << std::setprecision(1) << dB << " dB";
-            pushLog(oss.str());
+            pushLog("Routing sub-mode is only available in Soundscape mode.");
+            return;
         }
+        if (lo > hi) std::swap(lo, hi);
+        if (lo < m_cfg.soundObjectLo || hi > m_cfg.soundObjectHi)
+        {
+            pushLog("Sound object range out of bounds of the active range ("
+                    + std::to_string(m_cfg.soundObjectLo) + "-" + std::to_string(m_cfg.soundObjectHi) + ")");
+            return;
+        }
+        teardown();
+        m_routingActive = true;
+        m_routingLo     = lo;
+        m_routingHi     = hi;
+        connectRouting();
+    }
+
+    void exitRouting()
+    {
+        if (!m_routingActive) { pushLog("Not in routing sub-mode."); return; }
+        teardown();
+        m_routingActive = false;
+        connectDS100();
+    }
+
+    // `target`, like the overview commands above, is a single sound-object
+    // number to target within the active routing range, or 0 to broadcast to
+    // every sound object in that range.
+    void cmdRoutingGain(int fg, float dB, int target = 0)
+    {
+        if (!m_ds100 || !m_routingActive) { pushLog("Not in routing sub-mode or not connected."); return; }
+        if (fg < 1 || fg > static_cast<int>(NanoOcp1::SoundscapeController::sc_MAX_FUNCTION_GROUPS))
+        {
+            pushLog("Function group out of range (1-32)");
+            return;
+        }
+        if (dB < -120.0f || dB > 24.0f) { pushLog("Gain out of range (-120.0 to +24.0 dB)"); return; }
+        using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
+        using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
+        using RO  = NanoOcp1::SoundscapeController::RemoteObject;
+        const auto fgNo = static_cast<std::int16_t>(fg);
+        applyToTargets("FG" + std::to_string(fg) + " routing gain " + fixedStr(dB, 1) + " dB",
+                        target, m_routingLo, m_routingHi, [this, dB, fgNo](int so) {
+            return m_ds100->setObjectValue(RO{ROI::SoundObjectRouting_Gain, ROA{static_cast<std::int16_t>(so), fgNo},
+                                              NanoOcp1::Variant{static_cast<std::float_t>(dB)}});
+        });
+    }
+
+    void cmdRoutingMute(int fg, bool mute, int target = 0)
+    {
+        if (!m_ds100 || !m_routingActive) { pushLog("Not in routing sub-mode or not connected."); return; }
+        if (fg < 1 || fg > static_cast<int>(NanoOcp1::SoundscapeController::sc_MAX_FUNCTION_GROUPS))
+        {
+            pushLog("Function group out of range (1-32)");
+            return;
+        }
+        using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
+        using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
+        using RO  = NanoOcp1::SoundscapeController::RemoteObject;
+        const auto fgNo = static_cast<std::int16_t>(fg);
+        // d&b convention: 1 = muted, 2 = unmuted (not the boolean 0/1)
+        applyToTargets(std::string("FG") + std::to_string(fg) + " routing " + (mute ? "MUTE" : "UNMUTE"),
+                        target, m_routingLo, m_routingHi, [this, mute, fgNo](int so) {
+            return m_ds100->setObjectValue(RO{ROI::SoundObjectRouting_Mute, ROA{static_cast<std::int16_t>(so), fgNo},
+                                              NanoOcp1::Variant{static_cast<std::uint8_t>(mute ? 1 : 2)}});
+        });
     }
 
     // ── Soundscape-focus command ──────────────────────────────────────────────
@@ -441,7 +522,7 @@ private:
         m_amp->connect(m_cfg.host, m_cfg.port);
     }
 
-    // ── DS100 connection ──────────────────────────────────────────────────────
+    // ── DS100 connection (Soundscape-overview, ranged) ────────────────────────
 
     void connectDS100()
     {
@@ -451,17 +532,26 @@ private:
 
         m_ds100 = std::make_unique<NanoOcp1::SoundscapeController>(m_scheduler);
 
-        const auto so = static_cast<std::int16_t>(m_cfg.soundObject);
+        std::vector<RO> active;
+        for (int so = m_cfg.soundObjectLo; so <= m_cfg.soundObjectHi; ++so)
+        {
+            const auto a = static_cast<std::int16_t>(so);
+            active.push_back(RO{ ROI::MatrixInput_LevelMeterIn,      ROA{a, 0} });
+            active.push_back(RO{ ROI::MatrixInput_Gain,              ROA{a, 0} });
+            active.push_back(RO{ ROI::MatrixInput_Mute,              ROA{a, 0} });
+            active.push_back(RO{ ROI::Positioning_SourcePosition,    ROA{a, 0} });
+            active.push_back(RO{ ROI::Positioning_SourceSpread,      ROA{a, 0} });
+            active.push_back(RO{ ROI::Positioning_SourceDelayMode,   ROA{a, 0} });
+            active.push_back(RO{ ROI::MatrixInput_ReverbSendGain,    ROA{a, 0} });
+        }
+        addSpeakerLvlsSubscriptions(active);
+        m_ds100->setActiveRemoteObjects(active);
 
-        m_ds100->setActiveRemoteObjects({
-            RO{ ROI::MatrixInput_LevelMeterPreMute, ROA{so, 0}  },
-            RO{ ROI::MatrixInput_Gain,              ROA{so, 0}  },
-            RO{ ROI::MatrixInput_Mute,              ROA{so, 0}  },
-            RO{ ROI::Positioning_SourcePosition,    ROA{so, 0}  },
-            RO{ ROI::Positioning_SourceSpread,      ROA{so, 0}  },
-            RO{ ROI::Positioning_SourceDelayMode,   ROA{so, 0}  },
-            RO{ ROI::MatrixInput_ReverbSendGain,     ROA{so, 0}  },
-        });
+        {
+            std::lock_guard<std::mutex> lk(g_stateMutex);
+            g_state.ds100.view = SoundscapeView::Overview;
+        }
+        g_needsRedraw = true;
 
         m_ds100->onStateChanged = [this](CtrlState s) {
             std::string devModel;
@@ -477,7 +567,10 @@ private:
                 g_state.ctrlState         = s;
                 g_state.ds100.deviceModel = devModel;
                 if (s == CtrlState::Disconnected)
+                {
                     resetSoDisplay();
+                    resetSpeakerDisplay();
+                }
             }
             g_needsRedraw = true;
             pushLog("State: " + stateToStr(s));
@@ -486,109 +579,242 @@ private:
         m_ds100->onRemoteObjectReceived = [this](const NanoOcp1::SoundscapeController::RemoteObject& ro) -> bool {
             using Id = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
             bool ok = false;
+            bool logPosition = false;
+            std::ostringstream logMsg;
+            {
+                std::lock_guard<std::mutex> lk(g_stateMutex);
+                auto& ds = g_state.ds100;
 
-            switch (ro.Id)
-            {
-            case Id::MatrixInput_LevelMeterPreMute:
-            {
-                const float dB = ro.Var.ToFloat(&ok);
-                if (ok)
+                // Speaker-level-meter objects are addressed by output channel,
+                // not sound object, so they're handled up front — before the
+                // sound-object range bounds check below, which would otherwise
+                // incorrectly reject any output channel outside that range.
+                if (m_cfg.speakerLvls
+                    && (ro.Id == Id::Positioning_SpeakerPosition || ro.Id == Id::MatrixOutput_LevelMeterPostMute))
                 {
-                    std::lock_guard<std::mutex> lk(g_stateMutex);
-                    g_state.ds100.levelKnown = true;
-                    g_state.ds100.levelDb    = dB;
-                    g_needsRedraw = true;
+                    ok = updateSpeakerObject(ro);
+                    if (ok) g_needsRedraw = true;
+                    return ok;
                 }
-                break;
-            }
-            case Id::MatrixInput_Gain:
-            {
-                const float dB = ro.Var.ToFloat(&ok);
-                if (ok)
+
+                const int idx = ro.Addr.pri - ds.soundObjectLo;
+                if (idx < 0 || idx >= static_cast<int>(ds.objects.size()))
+                    return false;
+                auto& o = ds.objects[idx];
+
+                switch (ro.Id)
                 {
-                    std::lock_guard<std::mutex> lk(g_stateMutex);
-                    g_state.ds100.gainKnown = true;
-                    g_state.ds100.gainDb    = dB;
-                    g_needsRedraw = true;
+                case Id::MatrixInput_LevelMeterIn:
+                {
+                    const float dB = ro.Var.ToFloat(&ok);
+                    if (ok) { o.levelKnown = true; o.levelDb = dB; }
+                    break;
                 }
-                break;
-            }
-            case Id::MatrixInput_Mute:
-            {
-                const std::uint8_t v = ro.Var.ToUInt8(&ok);
-                if (ok)
+                case Id::MatrixInput_Gain:
                 {
-                    std::lock_guard<std::mutex> lk(g_stateMutex);
-                    g_state.ds100.muteKnown = true;
-                    g_state.ds100.muted     = (v == 1);
-                    g_needsRedraw = true;
+                    const float dB = ro.Var.ToFloat(&ok);
+                    if (ok) { o.gainKnown = true; o.gainDb = dB; }
+                    break;
                 }
-                break;
-            }
-            case Id::Positioning_SourcePosition:
-            {
-                const auto xyz = ro.Var.ToPosition(&ok);
-                if (ok)
+                case Id::MatrixInput_Mute:
                 {
+                    const std::uint8_t v = ro.Var.ToUInt8(&ok);
+                    if (ok) { o.muteKnown = true; o.muted = (v == 1); }
+                    break;
+                }
+                case Id::Positioning_SourcePosition:
+                {
+                    const auto xyz = ro.Var.ToPosition(&ok);
+                    if (ok)
                     {
-                        std::lock_guard<std::mutex> lk(g_stateMutex);
-                        g_state.ds100.posKnown = true;
-                        g_state.ds100.posX     = xyz[0];
-                        g_state.ds100.posY     = xyz[1];
-                        g_state.ds100.posZ     = xyz[2];
-                        g_needsRedraw = true;
+                        o.posKnown = true; o.posX = xyz[0]; o.posY = xyz[1]; o.posZ = xyz[2];
+                        logPosition = true;
+                        logMsg << "SO" << ro.Addr.pri << " Pos X=" << std::fixed << std::setprecision(3)
+                               << xyz[0] << " Y=" << xyz[1] << " Z=" << xyz[2];
                     }
-                    std::ostringstream oss;
-                    oss << "Pos X=" << std::fixed << std::setprecision(3) << xyz[0]
-                        << " Y=" << xyz[1] << " Z=" << xyz[2];
-                    pushLog(oss.str());
+                    break;
                 }
-                break;
-            }
-            case Id::Positioning_SourceSpread:
-            {
-                const float s = ro.Var.ToFloat(&ok);
-                if (ok)
+                case Id::Positioning_SourceSpread:
                 {
-                    std::lock_guard<std::mutex> lk(g_stateMutex);
-                    g_state.ds100.spreadKnown = true;
-                    g_state.ds100.spread      = s;
-                    g_needsRedraw = true;
+                    const float s = ro.Var.ToFloat(&ok);
+                    if (ok) { o.spreadKnown = true; o.spread = s; }
+                    break;
                 }
-                break;
-            }
-            case Id::Positioning_SourceDelayMode:
-            {
-                const std::uint8_t dm = ro.Var.ToUInt8(&ok);
-                if (ok)
+                case Id::Positioning_SourceDelayMode:
                 {
-                    std::lock_guard<std::mutex> lk(g_stateMutex);
-                    g_state.ds100.dmKnown    = true;
-                    g_state.ds100.delayMode  = static_cast<int>(dm);
-                    g_needsRedraw = true;
+                    const std::uint8_t dm = ro.Var.ToUInt8(&ok);
+                    if (ok) { o.dmKnown = true; o.delayMode = static_cast<int>(dm); }
+                    break;
                 }
-                break;
-            }
-            case Id::MatrixInput_ReverbSendGain:
-            {
-                const float dB = ro.Var.ToFloat(&ok);
-                if (ok)
+                case Id::MatrixInput_ReverbSendGain:
                 {
-                    std::lock_guard<std::mutex> lk(g_stateMutex);
-                    g_state.ds100.esKnown    = true;
-                    g_state.ds100.enspaceDb  = dB;
-                    g_needsRedraw = true;
+                    const float dB = ro.Var.ToFloat(&ok);
+                    if (ok) { o.esKnown = true; o.enspaceDb = dB; }
+                    break;
                 }
-                break;
+                default:
+                    return false;
+                }
             }
-            default:
-                return false;
-            }
+            if (ok) g_needsRedraw = true;
+            if (logPosition) pushLog(logMsg.str());
             return ok;
         };
 
         pushLog("Connecting to " + m_cfg.host + ":" + std::to_string(m_cfg.port)
-                + " (Soundscape, SO#" + std::to_string(m_cfg.soundObject) + ")...");
+                + " (Soundscape, SO#" + std::to_string(m_cfg.soundObjectLo)
+                + (m_cfg.soundObjectHi != m_cfg.soundObjectLo
+                       ? "-" + std::to_string(m_cfg.soundObjectHi) : std::string())
+                + ")...");
+        m_ds100->connect(m_cfg.host, m_cfg.port);
+    }
+
+    // ── DS100 connection (Soundscape-routing sub-mode) ────────────────────────
+
+    // Subscribes to all 32 Function Groups' Mode (is it in use?) and Name
+    // (display label) — independent of which sound objects are selected —
+    // plus SoundObjectRouting_Gain/Mute for every sound object in
+    // [m_routingLo, m_routingHi] against all 32 groups.
+    void connectRouting()
+    {
+        using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
+        using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
+        using RO  = NanoOcp1::SoundscapeController::RemoteObject;
+
+        m_ds100 = std::make_unique<NanoOcp1::SoundscapeController>(m_scheduler);
+
+        const auto numGroups = static_cast<std::int16_t>(NanoOcp1::SoundscapeController::sc_MAX_FUNCTION_GROUPS);
+
+        std::vector<RO> active;
+        for (std::int16_t fg = 1; fg <= numGroups; ++fg)
+        {
+            active.push_back(RO{ ROI::FunctionGroup_Mode, ROA{fg, 0} });
+            active.push_back(RO{ ROI::FunctionGroup_Name, ROA{fg, 0} });
+        }
+        for (int so = m_routingLo; so <= m_routingHi; ++so)
+        {
+            const auto soAddr = static_cast<std::int16_t>(so);
+            for (std::int16_t fg = 1; fg <= numGroups; ++fg)
+            {
+                active.push_back(RO{ ROI::SoundObjectRouting_Gain, ROA{soAddr, fg} });
+                active.push_back(RO{ ROI::SoundObjectRouting_Mute, ROA{soAddr, fg} });
+            }
+        }
+        addSpeakerLvlsSubscriptions(active);
+        m_ds100->setActiveRemoteObjects(active);
+
+        {
+            std::lock_guard<std::mutex> lk(g_stateMutex);
+            auto& ds = g_state.ds100;
+            ds.view                 = SoundscapeView::Routing;
+            ds.routingSoundObjectLo = m_routingLo;
+            ds.routingSoundObjectHi = m_routingHi;
+            ds.routingObjects.clear();
+            for (int so = m_routingLo; so <= m_routingHi; ++so)
+            {
+                AppState::RoutingObjState o;
+                o.soundObject = so;
+                ds.routingObjects.push_back(o);
+            }
+            resetRoutingDisplay();
+        }
+        g_needsRedraw = true;
+
+        m_ds100->onStateChanged = [this](CtrlState s) {
+            std::string devModel;
+            if (s == CtrlState::Connected)
+            {
+                devModel = modelStr(m_ds100->getConnectedDeviceModel());
+                const int stack = m_ds100->getOcaStackIdent();
+                if (stack >= 0)
+                    devModel += " stack " + std::to_string(stack);
+            }
+            {
+                std::lock_guard<std::mutex> lk(g_stateMutex);
+                g_state.ctrlState         = s;
+                g_state.ds100.deviceModel = devModel;
+                if (s == CtrlState::Disconnected)
+                {
+                    resetRoutingDisplay();
+                    resetSpeakerDisplay();
+                }
+            }
+            g_needsRedraw = true;
+            pushLog("State: " + stateToStr(s));
+        };
+
+        m_ds100->onRemoteObjectReceived = [this](const NanoOcp1::SoundscapeController::RemoteObject& ro) -> bool {
+            using Id = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
+            const int maxFg = static_cast<int>(NanoOcp1::SoundscapeController::sc_MAX_FUNCTION_GROUPS);
+            bool ok = false;
+            {
+                std::lock_guard<std::mutex> lk(g_stateMutex);
+                auto& ds = g_state.ds100;
+                switch (ro.Id)
+                {
+                case Id::Positioning_SpeakerPosition:
+                case Id::MatrixOutput_LevelMeterPostMute:
+                    if (!m_cfg.speakerLvls) return false;
+                    ok = updateSpeakerObject(ro);
+                    break;
+                case Id::FunctionGroup_Mode:
+                {
+                    if (ro.Addr.pri < 1 || ro.Addr.pri > maxFg)
+                        return false;
+                    const std::uint16_t mode = ro.Var.ToUInt16(&ok);
+                    if (ok)
+                    {
+                        ds.fg[ro.Addr.pri].modeKnown = true;
+                        ds.fg[ro.Addr.pri].mode      = static_cast<int>(mode);
+                    }
+                    break;
+                }
+                case Id::FunctionGroup_Name:
+                {
+                    if (ro.Addr.pri < 1 || ro.Addr.pri > maxFg)
+                        return false;
+                    const std::string name = ro.Var.ToString(&ok);
+                    if (ok)
+                    {
+                        ds.fg[ro.Addr.pri].nameKnown = true;
+                        ds.fg[ro.Addr.pri].name      = name;
+                    }
+                    break;
+                }
+                case Id::SoundObjectRouting_Gain:
+                case Id::SoundObjectRouting_Mute:
+                {
+                    if (ro.Addr.sec < 1 || ro.Addr.sec > maxFg)
+                        return false;
+                    const int idx = ro.Addr.pri - ds.routingSoundObjectLo;
+                    if (idx < 0 || idx >= static_cast<int>(ds.routingObjects.size()))
+                        return false;
+                    auto& cell = ds.routingObjects[idx].fg[ro.Addr.sec];
+                    if (ro.Id == Id::SoundObjectRouting_Gain)
+                    {
+                        const float dB = ro.Var.ToFloat(&ok);
+                        if (ok) { cell.gainKnown = true; cell.gainDb = dB; }
+                    }
+                    else
+                    {
+                        const std::uint8_t v = ro.Var.ToUInt8(&ok);
+                        if (ok) { cell.muteKnown = true; cell.muted = (v == 1); }
+                    }
+                    break;
+                }
+                default:
+                    return false;
+                }
+            }
+            if (ok) g_needsRedraw = true;
+            return ok;
+        };
+
+        std::string soRangeStr = std::to_string(m_routingLo);
+        if (m_routingHi != m_routingLo)
+            soRangeStr += "-" + std::to_string(m_routingHi);
+        pushLog("Connecting to " + m_cfg.host + ":" + std::to_string(m_cfg.port)
+                + " (Soundscape routing, SO#" + soRangeStr + ")...");
         m_ds100->connect(m_cfg.host, m_cfg.port);
     }
 
@@ -602,7 +828,7 @@ private:
 
         m_ds100 = std::make_unique<NanoOcp1::SoundscapeController>(m_scheduler);
 
-        const SORemObjAddr addr{static_cast<std::int16_t>(m_cfg.soundObject),
+        const SORemObjAddr addr{static_cast<std::int16_t>(m_cfg.soundObjectLo),
                                  static_cast<std::int16_t>(m_cfg.addr2)};
 
         m_ds100->setActiveRemoteObjects({ RO{ m_cfg.focusParamId, addr } });
@@ -671,13 +897,85 @@ private:
         // called with g_stateMutex held
         auto& ds = g_state.ds100;
         ds.deviceModel = "";
-        ds.levelKnown  = false;
-        ds.gainKnown   = false;
-        ds.muteKnown   = false;
-        ds.posKnown    = false;
-        ds.spreadKnown = false;
-        ds.dmKnown     = false;
-        ds.esKnown     = false;
+        for (auto& o : ds.objects)
+        {
+            const int so = o.soundObject;
+            o = AppState::SoObjState{};
+            o.soundObject = so;
+        }
+    }
+
+    static void resetRoutingDisplay()
+    {
+        // called with g_stateMutex held
+        for (auto& fg : g_state.ds100.fg)
+            fg = AppState::FunctionGroupInfo{};
+        for (auto& o : g_state.ds100.routingObjects)
+        {
+            const int so = o.soundObject;
+            o = AppState::RoutingObjState{};
+            o.soundObject = so;
+        }
+    }
+
+    static void resetSpeakerDisplay()
+    {
+        // called with g_stateMutex held
+        for (auto& s : g_state.ds100.speakerObjects)
+        {
+            const int ch = s.outputChannel;
+            s = AppState::SpeakerObjState{};
+            s.outputChannel = ch;
+        }
+    }
+
+    // Appends the --speakerlvls subscriptions (every possible output
+    // channel's Positioning_SpeakerPosition + MatrixOutput_LevelMeterPostMute)
+    // to `active` — shared by connectDS100() and connectRouting() since the
+    // optional loudspeaker block can be shown under either view. No-op unless
+    // m_cfg.speakerLvls is set.
+    void addSpeakerLvlsSubscriptions(std::vector<NanoOcp1::SoundscapeController::RemoteObject>& active) const
+    {
+        if (!m_cfg.speakerLvls) return;
+        using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
+        using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
+        using RO  = NanoOcp1::SoundscapeController::RemoteObject;
+        const auto maxOut = static_cast<std::int16_t>(NanoOcp1::SoundscapeController::sc_MAX_OUTPUT_CHANNELS);
+        for (std::int16_t out = 1; out <= maxOut; ++out)
+        {
+            active.push_back(RO{ ROI::Positioning_SpeakerPosition,     ROA{out, 0} });
+            active.push_back(RO{ ROI::MatrixOutput_LevelMeterPostMute, ROA{out, 0} });
+        }
+    }
+
+    // Updates g_state.ds100.speakerObjects for a Positioning_SpeakerPosition
+    // or MatrixOutput_LevelMeterPostMute notification. Called with
+    // g_stateMutex held by connectDS100()/connectRouting()'s
+    // onRemoteObjectReceived. Returns whether the value was decoded.
+    static bool updateSpeakerObject(const NanoOcp1::SoundscapeController::RemoteObject& ro)
+    {
+        using Id = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
+        auto& spk = g_state.ds100.speakerObjects;
+        const int idx = ro.Addr.pri - 1; // output channels are 1-based, speakerObjects is 0-based 1..N
+        if (idx < 0 || idx >= static_cast<int>(spk.size()))
+            return false;
+        bool ok = false;
+        if (ro.Id == Id::Positioning_SpeakerPosition)
+        {
+            const auto sixDof = ro.Var.ToAimingAndPosition(&ok); // [hor, vert, rot, x, y, z]
+            if (ok)
+            {
+                spk[idx].posKnown   = true;
+                spk[idx].hasSpeaker = std::any_of(sixDof.begin(), sixDof.end(),
+                                                   [](float v) { return v != 0.0f; });
+            }
+        }
+        else if (ro.Id == Id::MatrixOutput_LevelMeterPostMute)
+        {
+            const float dB = ro.Var.ToFloat(&ok);
+            if (ok) { spk[idx].levelKnown = true; spk[idx].levelDb = dB; }
+        }
+        return ok;
     }
 
     static void resetFocusDisplay()
@@ -686,24 +984,101 @@ private:
         g_state.focus.valueKnown = false;
     }
 
-    void sendPosition(float x, float y, float z)
+    // Returns the sound-object numbers a command should apply to: just
+    // `target` if non-zero (provided it lies within [lo, hi]), or every
+    // object in [lo, hi] when `target == 0` (broadcast).
+    static std::vector<int> resolveTargets(int target, int lo, int hi)
     {
+        std::vector<int> result;
+        if (target != 0)
+        {
+            if (target >= lo && target <= hi)
+                result.push_back(target);
+        }
+        else
+        {
+            for (int so = lo; so <= hi; ++so)
+                result.push_back(so);
+        }
+        return result;
+    }
+
+    // Overview commands resolve against the active --soundscape range.
+    std::vector<int> resolveTargets(int target) const
+    {
+        return resolveTargets(target, m_cfg.soundObjectLo, m_cfg.soundObjectHi);
+    }
+
+    // Resolves `target` (within [lo, hi]) via resolveTargets(), calls
+    // `sendOne(so)` for each resulting sound object, and logs one summary line
+    // ("Sent <label> to <sent>/<total> object(s)") rather than one line per
+    // object.
+    void applyToTargets(const std::string& label, int target, int lo, int hi,
+                         const std::function<bool(int)>& sendOne)
+    {
+        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
+        const auto targets = resolveTargets(target, lo, hi);
+        if (targets.empty())
+        {
+            pushLog("Sound object out of range (" + std::to_string(lo) + "-" + std::to_string(hi) + ")");
+            return;
+        }
+        int sent = 0;
+        for (int so : targets)
+            if (sendOne(so)) ++sent;
+        std::ostringstream oss;
+        oss << "Sent " << label << " to " << sent << "/" << targets.size() << " object(s)";
+        pushLog(oss.str());
+    }
+
+    // Overview commands resolve against the active --soundscape range.
+    void applyToTargets(const std::string& label, int target, const std::function<bool(int)>& sendOne)
+    {
+        if (!m_ds100) { pushLog("Not in Soundscape mode or not connected."); return; }
+        const auto targets = resolveTargets(target);
+        if (targets.empty())
+        {
+            pushLog("Sound object out of range (" + std::to_string(m_cfg.soundObjectLo)
+                    + "-" + std::to_string(m_cfg.soundObjectHi) + ")");
+            return;
+        }
+        int sent = 0;
+        for (int so : targets)
+            if (sendOne(so)) ++sent;
+        std::ostringstream oss;
+        oss << "Sent " << label << " to " << sent << "/" << targets.size() << " object(s)";
+        pushLog(oss.str());
+    }
+
+    static std::string fixedStr(float v, int prec)
+    {
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(prec) << v;
+        return oss.str();
+    }
+
+    // Sets one axis of sound-object `so`'s position, keeping its other two
+    // axes at their last-known value (Positioning_SourcePosition is a single
+    // XYZ blob, so a single-axis change still needs all three coordinates).
+    bool sendPositionAxis(int so, int axis, float v)
+    {
+        float cx, cy, cz;
+        {
+            std::lock_guard<std::mutex> lk(g_stateMutex);
+            const auto& o = g_state.ds100.objects[so - g_state.ds100.soundObjectLo];
+            cx = o.posX; cy = o.posY; cz = o.posZ;
+        }
+        if      (axis == 0) cx = v;
+        else if (axis == 1) cy = v;
+        else                cz = v;
+
         using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
         using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
         using RO  = NanoOcp1::SoundscapeController::RemoteObject;
-        const auto so = static_cast<std::int16_t>(m_cfg.soundObject);
-        if (!m_ds100->setObjectValue(RO{ROI::Positioning_SourcePosition, ROA{so, 0},
-                                        NanoOcp1::Variant{static_cast<std::float_t>(x),
-                                                          static_cast<std::float_t>(y),
-                                                          static_cast<std::float_t>(z)}}))
-            pushLog("setObjectValue(position) failed (not connected?)");
-        else
-        {
-            std::ostringstream oss;
-            oss << "Sent pos X=" << std::fixed << std::setprecision(3)
-                << x << " Y=" << y << " Z=" << z;
-            pushLog(oss.str());
-        }
+        return m_ds100->setObjectValue(RO{ROI::Positioning_SourcePosition, ROA{static_cast<std::int16_t>(so), 0},
+                                           NanoOcp1::Variant{static_cast<std::float_t>(cx),
+                                                             static_cast<std::float_t>(cy),
+                                                             static_cast<std::float_t>(cz)}});
     }
 
     // ── Data members ──────────────────────────────────────────────────────────
@@ -713,4 +1088,9 @@ private:
     std::shared_ptr<NanoOcp1::NanoTimerScheduler> m_scheduler{ std::make_shared<NanoOcp1::NanoTimerScheduler>() };
     std::unique_ptr<NanoOcp1::AmpController>   m_amp;
     std::unique_ptr<NanoOcp1::SoundscapeController> m_ds100;
+
+    // Soundobject-Routing sub-mode state (only meaningful while mode == Soundscape).
+    bool m_routingActive{false};
+    int  m_routingLo{0};
+    int  m_routingHi{0};
 };

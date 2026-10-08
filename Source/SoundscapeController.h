@@ -166,6 +166,7 @@ public:
             MatrixInput_EqEnable,
             MatrixInput_Polarity,
             MatrixInput_ChannelName,
+            MatrixInput_LevelMeterIn,
             MatrixInput_LevelMeterPreMute,
             MatrixInput_LevelMeterPostMute,
             MatrixInput_ReverbSendGain,

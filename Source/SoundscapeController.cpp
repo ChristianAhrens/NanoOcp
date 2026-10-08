@@ -363,6 +363,8 @@ SoundscapeController::getObjectDefinition(RemoteObject::RemObjIdent roi,
         return std::make_unique<dbOcaObjectDef_MatrixInput_Polarity>(first);
     case RemoteObject::MatrixInput_ChannelName:
         return std::make_unique<dbOcaObjectDef_MatrixInput_ChannelName>(first);
+    case RemoteObject::MatrixInput_LevelMeterIn:
+        return std::make_unique<dbOcaObjectDef_MatrixInput_LevelMeterIn>(first);
     case RemoteObject::MatrixInput_LevelMeterPreMute:
         return std::make_unique<dbOcaObjectDef_MatrixInput_LevelMeterPreMute>(first);
     case RemoteObject::MatrixInput_LevelMeterPostMute:
@@ -473,6 +475,7 @@ Ocp1DataType SoundscapeController::dataTypeForRoi(RemoteObject::RemObjIdent roi)
     case RemoteObject::Positioning_SourceSpread:
     case RemoteObject::MatrixInput_ReverbSendGain:
     case RemoteObject::MatrixInput_Gain:
+    case RemoteObject::MatrixInput_LevelMeterIn:
     case RemoteObject::MatrixInput_LevelMeterPreMute:
     case RemoteObject::MatrixInput_LevelMeterPostMute:
     case RemoteObject::MatrixOutput_Gain:
@@ -563,6 +566,7 @@ void SoundscapeController::createKnownONosMap()
         m_ROIsToDefsMap[RemoteObject::MatrixInput_EqEnable][roa]       = dbOcaObjectDef_MatrixInput_EqEnable(ch);
         m_ROIsToDefsMap[RemoteObject::MatrixInput_Polarity][roa]       = dbOcaObjectDef_MatrixInput_Polarity(ch);
         m_ROIsToDefsMap[RemoteObject::MatrixInput_ChannelName][roa]    = dbOcaObjectDef_MatrixInput_ChannelName(ch);
+        m_ROIsToDefsMap[RemoteObject::MatrixInput_LevelMeterIn][roa]       = dbOcaObjectDef_MatrixInput_LevelMeterIn(ch);
         m_ROIsToDefsMap[RemoteObject::MatrixInput_LevelMeterPreMute][roa]  = dbOcaObjectDef_MatrixInput_LevelMeterPreMute(ch);
         m_ROIsToDefsMap[RemoteObject::MatrixInput_LevelMeterPostMute][roa] = dbOcaObjectDef_MatrixInput_LevelMeterPostMute(ch);
         m_ROIsToDefsMap[RemoteObject::MatrixInput_ReverbSendGain][roa] = dbOcaObjectDef_MatrixInput_ReverbSendGain(ch);
@@ -687,6 +691,7 @@ std::string SoundscapeController::RemoteObject::GetObjectDescription(RemObjIdent
     case MatrixInput_EqEnable:                  return "Matrix Input EqEnable";
     case MatrixInput_Polarity:                  return "Matrix Input Polarity";
     case MatrixInput_ChannelName:               return "Matrix Input ChannelName";
+    case MatrixInput_LevelMeterIn:              return "Matrix Input LevelMeterIn";
     case MatrixInput_LevelMeterPreMute:         return "Matrix Input LevelMeterPreMute";
     case MatrixInput_LevelMeterPostMute:        return "Matrix Input LevelMeterPostMute";
     case MatrixInput_ReverbSendGain:            return "Matrix Input ReverbSendGain";
@@ -753,6 +758,7 @@ bool SoundscapeController::RemoteObject::IsFlickering(RemObjIdent roi)
 {
     switch (roi)
     {
+    case MatrixInput_LevelMeterIn:
     case MatrixInput_LevelMeterPreMute:
     case MatrixInput_LevelMeterPostMute:
     case MatrixOutput_LevelMeterPreMute:

@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
@@ -62,7 +63,76 @@ static void renderStatusRow(std::ostringstream& o, CtrlState cs)
     o << stateToStr(cs);
 }
 
-static void renderAmpPanel(const AppState& st, const std::vector<std::string>& log)
+// Renders the "Events" header + a fixed-capacity scrolling log — always the
+// very last section of a panel, immediately above the input prompt. Shared by
+// every mode's renderer (Amp, Soundscape overview/routing — after any
+// optional trailing block such as --speakerlvls's — and Soundscape-focus,
+// which passes its own dynamically-sized logCapacity instead of kLogLines).
+// Emits exactly 1 + capacity rows.
+static void renderEventsSection(const std::vector<std::string>& log, int capacity)
+{
+    auto row = [](const std::string& s) {
+        std::cout << s << Ansi::Eol << "\n";
+    };
+    row(std::string(Ansi::Dim) + " Events" + Ansi::Reset);
+    for (int i = 0; i < capacity; ++i)
+    {
+        if (i < static_cast<int>(log.size()))
+            row(std::string(" ") + Ansi::Cyan + log[i] + Ansi::Reset);
+        else
+            row("");
+    }
+}
+
+// Renders a short, centred warning in place of the normal panel when the
+// current terminal is too small for the requested cmdln interface (see
+// computePanelFit() in AppState.h). Emits exactly kWarningPanelLines rows.
+static void renderTooSmallWarning(DemoMode mode, SoundscapeView view,
+                                   int neededRows, int neededCols,
+                                   int haveRows, int haveCols)
+{
+    auto row = [](const std::string& s) {
+        std::cout << s << Ansi::Eol << "\n";
+    };
+
+    // Pads `plain` to the terminal's horizontal centre; callers wrap the
+    // already-centred (and thus already correctly counted) result in ANSI
+    // colour afterwards, so colour codes never throw off the padding math.
+    auto centered = [haveCols](const std::string& plain) -> std::string {
+        const int pad = std::max(0, (haveCols - static_cast<int>(plain.size())) / 2);
+        return std::string(pad, ' ') + plain;
+    };
+
+    std::string modeName;
+    bool canGoBack = false; // only Routing is a runtime sub-state 'b' can actually leave
+    switch (mode)
+    {
+    case DemoMode::Amp:             modeName = "Amplifier mode"; break;
+    case DemoMode::SoundscapeFocus: modeName = "Soundscape Focus mode"; break;
+    case DemoMode::Soundscape:
+        if (view == SoundscapeView::Routing) { modeName = "Soundscape Routing sub-mode"; canGoBack = true; }
+        else                                   modeName = "Soundscape Overview mode";
+        break;
+    }
+
+    row("");
+    row(std::string(Ansi::Bold) + Ansi::Red
+        + centered("Terminal too small for " + modeName) + Ansi::Reset);
+    {
+        std::ostringstream o;
+        o << "Needs at least " << neededRows << " rows x " << neededCols << " cols"
+          << " \xe2\x80\x94 have " << haveRows << " x " << haveCols; // U+2014 em dash
+        row(std::string(Ansi::Dim) + centered(o.str()) + Ansi::Reset);
+    }
+    {
+        std::string hint = canGoBack ? "Enlarge the terminal, 'b' to go back, or 'q' to quit"
+                                       : "Enlarge the terminal, or 'q' to quit";
+        row(std::string(Ansi::Dim) + centered(hint) + Ansi::Reset);
+    }
+    row("");
+}
+
+static void renderAmpPanel(const AppState& st)
 {
     const auto  sep = makeSep();
     const auto& a   = st.amp;
@@ -169,30 +239,37 @@ static void renderAmpPanel(const AppState& st, const std::vector<std::string>& l
         row(o.str());
     }
 
-    row(sep);  // row 10
+    // The command-reference rows and the Events/log section are rendered
+    // separately — see renderAmpCommands() / renderEventsSection() — always
+    // last, immediately above the input prompt.
+}
 
-    // rows 11-13: command reference
+// Amp mode's command-reference rows, kept separate from renderAmpPanel() so
+// renderPanel() can place it after the data regardless of what else (if
+// anything) comes between them — currently nothing for Amp mode, but kept
+// symmetric with the Soundscape renderers for the same reason they split.
+static void renderAmpCommands()
+{
+    auto row = [](const std::string& s) {
+        std::cout << s << Ansi::Eol << "\n";
+    };
+    row(makeSep());
     row(" a <ip>    set host     p <n>    set port    c  connect    d  disconnect");
     row(" 1 / 0     power on/off          g <ch> <dB>   set gain (ch: 1-4)");
     row(" m <ch> <1|0>   mute/unmute (ch: 1-4,  1=muted  0=unmuted)       q  quit");
-
-    // row 14: events header
-    row(std::string(Ansi::Dim) + " Events" + Ansi::Reset);
-
-    // rows 15-19: log
-    for (int i = 0; i < kLogLines; ++i)
-    {
-        if (i < static_cast<int>(log.size()))
-            row(std::string(" ") + Ansi::Cyan + log[i] + Ansi::Reset);
-        else
-            row("");
-    }
 }
 
-static void renderDS100Panel(const AppState& st, const std::vector<std::string>& log)
+// Renders Soundscape-overview mode's table: a handful of fixed header rows plus
+// one compact row per sound object in the active --soundscape <lo>-<hi> range.
+// Only the data — the command-reference rows and the trailing Events/log
+// section are rendered separately (renderSoOverviewCommands() /
+// renderEventsSection()) so renderPanel() can place --speakerlvls's optional
+// block between the data and them, without this function needing to know
+// whether that block is active.
+static void renderSoOverviewPanel(const AppState& st)
 {
-    const auto  sep   = makeSep();
-    const auto& ds    = st.ds100;
+    const auto  sep = makeSep();
+    const auto& ds  = st.ds100;
 
     auto row = [](const std::string& s) {
         std::cout << s << Ansi::Eol << "\n";
@@ -201,8 +278,12 @@ static void renderDS100Panel(const AppState& st, const std::vector<std::string>&
     // row 1: title
     {
         std::ostringstream o;
-        o << Ansi::Bold << " NanoOcp1 Demo — Soundscape Sound Object #"
-          << ds.soundObject << Ansi::Reset;
+        o << Ansi::Bold << " NanoOcp1 Demo — Soundscape Overview, SO "
+          << ds.soundObjectLo;
+        if (ds.soundObjectHi != ds.soundObjectLo)
+            o << "-" << ds.soundObjectHi;
+        o << " (" << ds.objects.size() << " object" << (ds.objects.size() == 1 ? "" : "s") << ")"
+          << Ansi::Reset;
         row(o.str());
     }
     row(sep);  // row 2
@@ -224,113 +305,256 @@ static void renderDS100Panel(const AppState& st, const std::vector<std::string>&
         row(o.str());
     }
 
-    // row 5: input gain + level meter
-    {
+    row(sep);  // row 5
+
+    // Channel-strip grid: one column per sound object (an SO-number header row
+    // plus one row per parameter), wrapped into bands of g_soColsPerBand
+    // columns so wide ranges spill onto additional stacked bands instead of
+    // off-screen. Every cell is formatted to a fixed kSoValueWidth-char
+    // plain-text width *before* any ANSI colour is wrapped around it, so
+    // colour codes never throw off std::setw()'s column counting.
+    const int colsPerBand = std::max(1, g_soColsPerBand.load());
+    const int total       = static_cast<int>(ds.objects.size());
+
+    auto numCell = [](bool known, double value, int prec) -> std::string {
         std::ostringstream o;
-        o << " Level      ";
-        if (!ds.levelKnown)
-            o << Ansi::Dim << "?" << Ansi::Reset;
-        else
-        {
-            o << meterBar(ds.levelDb, -60.0f, 0.0f, 14);
-            o << " " << std::fixed << std::setprecision(1) << std::setw(6) << ds.levelDb << " dBFS";
-        }
-        o << "   Gain ";
-        if (!ds.gainKnown)
-            o << Ansi::Dim << "?" << Ansi::Reset;
-        else
-            o << std::fixed << std::setprecision(1) << std::setw(6) << ds.gainDb << " dB";
-        o << "  ";
-        if (!ds.muteKnown)
-            o << Ansi::Dim << "mut:?" << Ansi::Reset;
-        else if (ds.muted)
-            o << Ansi::Red << "MUT" << Ansi::Reset;
-        else
-            o << Ansi::Dim << "mut" << Ansi::Reset;
-        row(o.str());
+        if (!known) { o << std::setw(kSoValueWidth) << "?"; return std::string(Ansi::Dim) + o.str() + Ansi::Reset; }
+        o << std::fixed << std::setprecision(prec) << std::setw(kSoValueWidth) << value;
+        return o.str();
+    };
+    // A full multi-cell meterBar(), not a single glyph, for legibility — full
+    // -120..0 dB range, matching the device's actual metering floor.
+    auto levelBarCell = [](bool known, float dbRaw) -> std::string {
+        if (!known) return std::string(Ansi::Dim) + "[???????]" + Ansi::Reset;
+        return meterBar(dbRaw, -120.0f, 0.0f, kSoLevelBarCells);
+    };
+    // The exact dB value shown underneath the bar.
+    auto levelDbCell = [&numCell](bool known, float dbRaw) { return numCell(known, dbRaw, 1); };
+    auto muteCell = [](bool known, bool muted) -> std::string {
+        std::ostringstream o;
+        o << std::setw(kSoValueWidth) << (!known ? "?" : (muted ? "M" : "-"));
+        const auto s = o.str();
+        if (!known) return std::string(Ansi::Dim) + s + Ansi::Reset;
+        return muted ? (std::string(Ansi::Red) + s + Ansi::Reset) : (std::string(Ansi::Dim) + s + Ansi::Reset);
+    };
+    auto dmCell = [](bool known, int dm) -> std::string {
+        std::ostringstream o;
+        if (!known) { o << std::setw(kSoValueWidth) << "?"; return std::string(Ansi::Dim) + o.str() + Ansi::Reset; }
+        o << std::setw(kSoValueWidth) << dm;
+        return o.str();
+    };
+    auto label = [](const char* text) -> std::string {
+        std::ostringstream o;
+        o << std::left << std::setw(5) << text << std::right << " ";
+        return o.str();
+    };
+    auto soHeaderCell = [](int so) -> std::string {
+        std::ostringstream o;
+        o << std::setw(kSoValueWidth) << so;
+        return std::string(Ansi::Bold) + o.str() + Ansi::Reset;
+    };
+
+    for (int start = 0; start < total; start += colsPerBand)
+    {
+        const int end = std::min(total, start + colsPerBand);
+
+        auto band = [&](const char* rowLabel, const std::function<std::string(const AppState::SoObjState&)>& cell) {
+            std::ostringstream r;
+            r << label(rowLabel);
+            for (int i = start; i < end; ++i)
+                r << cell(ds.objects[i]) << " ";
+            row(r.str());
+        };
+
+        band("SO",   [&](const AppState::SoObjState& o) { return soHeaderCell(o.soundObject); });
+        band("Lvl",  [&](const AppState::SoObjState& o) { return levelBarCell(o.levelKnown, o.levelDb); });
+        band("dB",   [&](const AppState::SoObjState& o) { return levelDbCell(o.levelKnown, o.levelDb); });
+        band("Gain", [&](const AppState::SoObjState& o) { return numCell(o.gainKnown, o.gainDb, 1); });
+        band("Mt",   [&](const AppState::SoObjState& o) { return muteCell(o.muteKnown, o.muted); });
+        band("X",    [&](const AppState::SoObjState& o) { return numCell(o.posKnown, o.posX, 2); });
+        band("Y",    [&](const AppState::SoObjState& o) { return numCell(o.posKnown, o.posY, 2); });
+        band("Z",    [&](const AppState::SoObjState& o) { return numCell(o.posKnown, o.posZ, 2); });
+        band("Spr",  [&](const AppState::SoObjState& o) { return numCell(o.spreadKnown, o.spread, 2); });
+        band("DM",   [&](const AppState::SoObjState& o) { return dmCell(o.dmKnown, o.delayMode); });
+        band("ES",   [&](const AppState::SoObjState& o) { return numCell(o.esKnown, o.enspaceDb, 1); });
+
+        if (end < total)
+            row(sep);
     }
 
-    // row 6: position
-    {
-        std::ostringstream o;
-        o << " Position   ";
-        if (!ds.posKnown)
-            o << Ansi::Dim << "?" << Ansi::Reset;
-        else
-        {
-            o << std::fixed << std::setprecision(3);
-            o << "X: " << Ansi::Bold << ds.posX << Ansi::Reset << " m"
-              << "  Y: " << Ansi::Bold << ds.posY << Ansi::Reset << " m"
-              << "  Z: " << Ansi::Bold << ds.posZ << Ansi::Reset << " m";
-        }
-        row(o.str());
-    }
+    // The command-reference rows and the Events/log section are rendered
+    // separately — see renderSoOverviewCommands() / renderEventsSection() —
+    // so --speakerlvls's block can be placed between the data and them.
+}
 
-    // row 7: spread
-    {
-        std::ostringstream o;
-        o << " Spread     ";
-        if (!ds.spreadKnown)
-            o << Ansi::Dim << "?" << Ansi::Reset;
-        else
-        {
-            o << fillBar(ds.spread, 0.0f, 1.0f, 16);
-            o << "  " << std::fixed << std::setprecision(3) << ds.spread;
-        }
-        row(o.str());
-    }
-
-    // row 8: delay mode
-    {
-        std::ostringstream o;
-        o << " Delay Mode ";
-        if (!ds.dmKnown)
-        {
-            o << Ansi::Dim << "?" << Ansi::Reset;
-        }
-        else
-        {
-            const char* label = (ds.delayMode == 0) ? "off"
-                              : (ds.delayMode == 1) ? "tight"
-                              : (ds.delayMode == 2) ? "full" : "?";
-            o << Ansi::Bold << ds.delayMode << Ansi::Reset
-              << " (" << label << ")";
-        }
-        row(o.str());
-    }
-
-    // row 9: En-Space send gain
-    {
-        std::ostringstream o;
-        o << " EnSpace    ";
-        if (!ds.esKnown)
-            o << Ansi::Dim << "?" << Ansi::Reset;
-        else
-        {
-            o << fillBar(ds.enspaceDb, -120.0f, 24.0f, 16);
-            o << "  " << std::fixed << std::setprecision(1) << std::setw(6) << ds.enspaceDb << " dB";
-        }
-        row(o.str());
-    }
-
-    row(sep);  // row 10
-
-    // rows 11-13: command reference
+// Soundscape-overview mode's command-reference rows, kept separate from
+// renderSoOverviewPanel() (see its own comment for why) so renderPanel() can
+// place it after the optional --speakerlvls block instead of right after the
+// data table.
+static void renderSoOverviewCommands()
+{
+    auto row = [](const std::string& s) {
+        std::cout << s << Ansi::Eol << "\n";
+    };
+    row(makeSep());
     row(" a <ip>    set host     p <n>    set port    c  connect    d  disconnect");
-    row(" x/y/z <m>   set position XYZ (meters)   sp <0-1>  spread   dm <0|1|2>  delay");
-    row(" ig <dB>  input gain   mm <1|0>  mute   es <dB>  En-Space gain   q  quit");
+    row(" x/y/z [so] <m>  position   sp [so] <0-1>  spread   dm [so] <0|1|2>  delay");
+    row(" ig [so] <dB>  input gain   mm [so] <1|0>  mute   es [so] <dB>  En-Space");
+    row(" r <so> | r <lo>-<hi>  enter Soundobject-Routing sub-mode for one or more objects");
+}
 
-    // row 14: events header
-    row(std::string(Ansi::Dim) + " Events" + Ansi::Reset);
+// Renders the Soundobject-Routing sub-mode table: one *column* per selected
+// sound object (the same column/band scheme as the overview, wrapped onto
+// additional stacked bands when needed) and one row per Function Group
+// (always all 32, dimmed and collapsed when FunctionGroup_Mode says the group
+// is unused). Only the data — the command-reference rows and the trailing
+// Events/log section are rendered separately (renderSoRoutingCommands() /
+// renderEventsSection()) so renderPanel() can place --speakerlvls's optional
+// block between the data and them, without this function needing to know
+// whether that block is active.
+static void renderSoRoutingPanel(const AppState& st)
+{
+    const auto  sep = makeSep();
+    const auto& ds  = st.ds100;
 
-    // rows 15-19: log
-    for (int i = 0; i < kLogLines; ++i)
+    auto row = [](const std::string& s) {
+        std::cout << s << Ansi::Eol << "\n";
+    };
+
+    // row 1: title
     {
-        if (i < static_cast<int>(log.size()))
-            row(std::string(" ") + Ansi::Cyan + log[i] + Ansi::Reset);
-        else
-            row("");
+        std::ostringstream o;
+        o << Ansi::Bold << " NanoOcp1 Demo — Soundscape Routing: SO " << ds.routingSoundObjectLo;
+        if (ds.routingSoundObjectHi != ds.routingSoundObjectLo)
+            o << "-" << ds.routingSoundObjectHi;
+        o << " -> Function Groups" << Ansi::Reset;
+        row(o.str());
     }
+    row(sep);  // row 2
+
+    // row 3: host / port / device model
+    {
+        std::ostringstream o;
+        o << " Host       " << Ansi::Bold << st.address << Ansi::Reset
+          << "   Port " << Ansi::Bold << st.port << Ansi::Reset;
+        if (!ds.deviceModel.empty())
+            o << "   " << Ansi::Dim << ds.deviceModel << Ansi::Reset;
+        row(o.str());
+    }
+
+    // row 4: status
+    {
+        std::ostringstream o;
+        renderStatusRow(o, st.ctrlState);
+        row(o.str());
+    }
+
+    row(sep);  // row 5
+
+    // Channel-strip grid: one column per selected sound object, one row per
+    // Function Group. As with the overview grid, every cell is formatted to a
+    // fixed plain-text width *before* any ANSI colour is wrapped around it.
+    const int colsPerBand = std::max(1, g_routingColsPerBand.load());
+    const int total       = static_cast<int>(ds.routingObjects.size());
+    const int maxFg        = static_cast<int>(NanoOcp1::SoundscapeController::sc_MAX_FUNCTION_GROUPS);
+
+    auto gutterLabel = [](const char* text) -> std::string {
+        std::ostringstream o;
+        o << std::left << std::setw(kRoutingLabelGutter) << text << std::right;
+        return o.str();
+    };
+    // "<fg#> <name, truncated>", padded to exactly kRoutingLabelGutter.
+    auto fgLabel = [](int fg, bool nameKnown, const std::string& name) -> std::string {
+        std::ostringstream o;
+        o << std::setw(2) << fg << " ";
+        std::string n = nameKnown ? name : std::string("?");
+        if (n.size() > 17) n = n.substr(0, 17);
+        o << std::left << std::setw(17) << n << std::right;
+        return o.str();
+    };
+    auto soHeaderCell = [](int so) -> std::string {
+        std::ostringstream o;
+        o << std::setw(kRoutingValueWidth) << so;
+        return std::string(Ansi::Bold) + o.str() + Ansi::Reset;
+    };
+    // "<gainDb:6.1f> <mute-glyph>", each sub-field coloured only after its own
+    // fixed-width formatting is already done.
+    auto routingCell = [](bool gainKnown, float gainDb, bool muteKnown, bool muted) -> std::string {
+        std::ostringstream g;
+        if (!gainKnown) g << std::setw(6) << "?";
+        else            g << std::fixed << std::setprecision(1) << std::setw(6) << gainDb;
+        const std::string gainStr = gainKnown ? g.str() : (std::string(Ansi::Dim) + g.str() + Ansi::Reset);
+
+        const std::string muteChar = !muteKnown ? "?" : (muted ? "M" : "-");
+        const std::string muteStr  = !muteKnown ? (std::string(Ansi::Dim) + muteChar + Ansi::Reset)
+                                    : muted       ? (std::string(Ansi::Red) + muteChar + Ansi::Reset)
+                                                   : (std::string(Ansi::Dim) + muteChar + Ansi::Reset);
+        return gainStr + " " + muteStr;
+    };
+
+    for (int start = 0; start < total; start += colsPerBand)
+    {
+        const int end = std::min(total, start + colsPerBand);
+
+        // SO-number header row
+        {
+            std::ostringstream r;
+            r << gutterLabel("SO");
+            for (int i = start; i < end; ++i)
+                r << " " << soHeaderCell(ds.routingObjects[i].soundObject);
+            row(r.str());
+        }
+
+        // one row per Function Group
+        for (int fg = 1; fg <= maxFg; ++fg)
+        {
+            const auto& info  = ds.fg[fg];
+            const bool  inUse = info.modeKnown && info.mode != 0;
+
+            std::ostringstream r;
+            if (!inUse)
+            {
+                r << Ansi::Dim << fgLabel(fg, info.nameKnown, info.name);
+                for (int i = start; i < end; ++i)
+                {
+                    std::ostringstream c;
+                    c << std::setw(kRoutingValueWidth) << "-";
+                    r << " " << c.str();
+                }
+                r << Ansi::Reset;
+            }
+            else
+            {
+                r << fgLabel(fg, info.nameKnown, info.name);
+                for (int i = start; i < end; ++i)
+                {
+                    const auto& cell = ds.routingObjects[i].fg[fg];
+                    r << " " << routingCell(cell.gainKnown, cell.gainDb, cell.muteKnown, cell.muted);
+                }
+            }
+            row(r.str());
+        }
+
+        if (end < total)
+            row(sep);
+    }
+
+    // The command-reference rows and the Events/log section are rendered
+    // separately — see renderSoRoutingCommands() / renderEventsSection() —
+    // so --speakerlvls's block can be placed between the data and them.
+}
+
+// Soundscape-routing sub-mode's command-reference rows — see
+// renderSoOverviewCommands()'s comment for why this is kept separate from
+// renderSoRoutingPanel().
+static void renderSoRoutingCommands()
+{
+    auto row = [](const std::string& s) {
+        std::cout << s << Ansi::Eol << "\n";
+    };
+    row(makeSep());
+    row(" a <ip>    set host     p <n>    set port    c  connect    d  disconnect");
+    row(" rg <fg> [so] <dB>  routing gain   rm <fg> [so] <1|0>  routing mute   b/back overview   q quit");
 }
 
 // Renders the Soundscape-focus monitor panel: a handful of fixed rows describing
@@ -422,6 +646,112 @@ static void renderFocusPanel(const AppState& st, const std::vector<std::string>&
     }
 }
 
+// Renders the optional --speakerlvls loudspeaker level-meter block, appended
+// below whichever Soundscape view (overview or routing) is currently shown.
+// Only outputs with a non-zero (assigned) Positioning_SpeakerPosition are
+// shown, laid out as one column per output wrapped into bands exactly like
+// the overview/routing grids — just with a short *vertical* bar (several
+// stacked single-character rows) instead of a horizontal one, since these
+// columns are narrower. Emits exactly
+// soSpeakerBlockLines(assignedCount, g_spkColsPerBand) rows.
+static void renderSpeakerLevelsBlock(const AppState::SoState& ds)
+{
+    const auto sep = makeSep();
+    auto row = [](const std::string& s) {
+        std::cout << s << Ansi::Eol << "\n";
+    };
+
+    row(sep);
+
+    std::vector<const AppState::SpeakerObjState*> assigned;
+    for (const auto& s : ds.speakerObjects)
+        if (s.hasSpeaker) assigned.push_back(&s);
+
+    {
+        std::ostringstream o;
+        o << Ansi::Bold << " Loudspeaker Levels" << Ansi::Reset;
+        if (!assigned.empty())
+            o << " (" << assigned.size() << " output" << (assigned.size() == 1 ? "" : "s") << ")";
+        else
+            o << Ansi::Dim << "  (no outputs with an assigned position yet)" << Ansi::Reset;
+        row(o.str());
+    }
+
+    const int colsPerBand = std::max(1, g_spkColsPerBand.load());
+    const int total       = static_cast<int>(assigned.size());
+
+    auto label = [](const char* text) -> std::string {
+        std::ostringstream o;
+        o << std::left << std::setw(kSpkLabelGutter - 1) << text << std::right << " ";
+        return o.str();
+    };
+    auto headerCell = [](int ch) -> std::string {
+        std::ostringstream o;
+        o << std::setw(kSpkValueWidth) << ch;
+        return std::string(Ansi::Bold) + o.str() + Ansi::Reset;
+    };
+    auto dbCell = [](bool known, float dB) -> std::string {
+        std::ostringstream o;
+        if (!known) { o << std::setw(kSpkValueWidth) << "?"; return std::string(Ansi::Dim) + o.str() + Ansi::Reset; }
+        o << std::fixed << std::setprecision(1) << std::setw(kSpkValueWidth) << dB;
+        return o.str();
+    };
+    // The bar glyph is always exactly 1 visible character; pad it to
+    // kSpkValueWidth with plain (uncoloured) leading spaces so the colour
+    // codes inside the glyph never factor into the width.
+    auto barCellPad = [](const std::string& glyph) -> std::string {
+        return std::string(kSpkValueWidth - 1, ' ') + glyph;
+    };
+
+    // Runs at least once even when `total == 0`, so the structural rows
+    // (header/bar/dB) still appear — with empty column tails — before any
+    // Positioning_SpeakerPosition values have arrived, matching
+    // soSpeakerBlockLines()'s own std::max(1, assignedCount).
+    for (int start = 0; start < std::max(1, total); start += colsPerBand)
+    {
+        const int end = std::min(total, start + colsPerBand);
+
+        {
+            std::ostringstream r;
+            r << label("Out");
+            for (int i = start; i < end; ++i)
+                r << headerCell(assigned[static_cast<std::size_t>(i)]->outputChannel) << " ";
+            row(r.str());
+        }
+
+        // The bar is clipped to a -30..0 dB window for sensitivity near the
+        // top of range; the dB row below it still shows the true value down
+        // to the device's full -120 dB floor (see dbCell()).
+        std::vector<std::vector<std::string>> bars;
+        for (int i = start; i < end; ++i)
+        {
+            const auto* s = assigned[static_cast<std::size_t>(i)];
+            bars.push_back(verticalBarGlyphs(s->levelKnown, s->levelDb, -30.0f, 0.0f, kSpkBarSegments));
+        }
+
+        for (int seg = 0; seg < kSpkBarSegments; ++seg)
+        {
+            std::ostringstream r;
+            r << label("");
+            for (int i = start; i < end; ++i)
+                r << barCellPad(bars[static_cast<std::size_t>(i - start)][static_cast<std::size_t>(seg)]) << " ";
+            row(r.str());
+        }
+
+        {
+            std::ostringstream r;
+            r << label("dB");
+            for (int i = start; i < end; ++i)
+                r << dbCell(assigned[static_cast<std::size_t>(i)]->levelKnown,
+                            assigned[static_cast<std::size_t>(i)]->levelDb) << " ";
+            row(r.str());
+        }
+
+        if (end < total)
+            row(sep);
+    }
+}
+
 static void renderPanel()
 {
     AppState state;
@@ -432,11 +762,43 @@ static void renderPanel()
         log.assign(g_log.begin(), g_log.end());
     }
 
+    if (!g_sizeFits.load())
+    {
+        renderTooSmallWarning(state.mode, state.ds100.view,
+                               g_neededRows.load(), g_neededCols.load(),
+                               g_termRows.load(), g_termCols.load());
+        return;
+    }
+
+    // Section order (Amp / Soundscape overview / Soundscape routing): data,
+    // then any optional trailing block (--speakerlvls), then the command
+    // legend, then Events/log — always the very last section, immediately
+    // above the input prompt. Each renderer below only ever emits its own
+    // data; composing that order is renderPanel()'s job alone, so none of
+    // them need to know or care whether --speakerlvls is active.
     switch (state.mode)
     {
-    case DemoMode::Amp:             renderAmpPanel(state, log);   break;
-    case DemoMode::Soundscape:      renderDS100Panel(state, log); break;
-    case DemoMode::SoundscapeFocus: renderFocusPanel(state, log, g_logCapacity.load()); break;
+    case DemoMode::Amp:
+        renderAmpPanel(state);
+        renderAmpCommands();
+        renderEventsSection(log, kLogLines);
+        break;
+    case DemoMode::Soundscape:
+        if (state.ds100.view == SoundscapeView::Routing)
+            renderSoRoutingPanel(state);
+        else
+            renderSoOverviewPanel(state);
+        if (state.ds100.speakerLvlsEnabled)
+            renderSpeakerLevelsBlock(state.ds100);
+        if (state.ds100.view == SoundscapeView::Routing)
+            renderSoRoutingCommands();
+        else
+            renderSoOverviewCommands();
+        renderEventsSection(log, kLogLines);
+        break;
+    case DemoMode::SoundscapeFocus:
+        renderFocusPanel(state, log, g_logCapacity.load());
+        break;
     }
 }
 
@@ -465,30 +827,78 @@ static void redrawLoop()
 {
     while (!g_quit)
     {
-        DemoMode mode;
+        DemoMode       mode;
+        SoundscapeView view;
+        int            overviewRangeCount, routingRangeCount;
+        bool           speakerLvlsEnabled;
+        int            assignedSpeakerCount;
         {
             std::lock_guard<std::mutex> lk(g_stateMutex);
-            mode = g_state.mode;
+            mode               = g_state.mode;
+            view               = g_state.ds100.view;
+            overviewRangeCount = g_state.ds100.soundObjectHi - g_state.ds100.soundObjectLo + 1;
+            routingRangeCount  = g_state.ds100.routingSoundObjectHi - g_state.ds100.routingSoundObjectLo + 1;
+            speakerLvlsEnabled = g_state.ds100.speakerLvlsEnabled;
+            assignedSpeakerCount = static_cast<int>(std::count_if(
+                g_state.ds100.speakerObjects.begin(), g_state.ds100.speakerObjects.end(),
+                [](const AppState::SpeakerObjState& s) { return s.hasSpeaker; }));
         }
 
-        // Soundscape-focus mode fills the whole terminal height and must react to
-        // resizes; the other modes use a constant panel size fixed at startup.
-        if (mode == DemoMode::SoundscapeFocus)
+        // Every mode's row count — and, for Soundscape overview/routing, how
+        // many sound-object columns fit per band — depends on the current
+        // terminal size, which can change at runtime (a live resize) just as
+        // easily as it can start out too small. computePanelFit() also tells
+        // us whether the current size is too small to use at all, in which
+        // case the panel is swapped for a short warning (see renderPanel()).
+        int rows, cols;
+        if (getTerminalSize(rows, cols))
         {
-            int rows, cols;
-            if (getTerminalSize(rows, cols))
-            {
-                (void)cols; // only the row count affects this panel's layout
-                const int logLines   = std::max(kFocusMinLogLines, rows - kFocusFixedLines - 1);
-                const int panelLines = kFocusFixedLines + logLines;
-                if (panelLines != g_panelLines.load())
-                {
-                    g_logCapacity = logLines;
-                    resetCanvas(panelLines);
-                    g_panelLines  = panelLines;
-                    g_needsRedraw = true;
-                }
-            }
+            g_termRows = rows;
+            g_termCols = cols;
+        }
+        else
+        {
+            rows = g_termRows.load();
+            cols = g_termCols.load();
+        }
+
+        const PanelFit fit = computePanelFit(mode, view, overviewRangeCount, routingRangeCount,
+                                              speakerLvlsEnabled, assignedSpeakerCount, rows, cols);
+        g_sizeFits   = fit.fits;
+        g_neededRows = fit.neededRows;
+        g_neededCols = fit.neededCols;
+        if (mode == DemoMode::Soundscape)
+        {
+            if (view == SoundscapeView::Routing) g_routingColsPerBand = fit.colsPerBand;
+            else                                  g_soColsPerBand     = fit.colsPerBand;
+            if (speakerLvlsEnabled) g_spkColsPerBand = fit.spkColsPerBand;
+        }
+
+        int panelLines;
+        if (!fit.fits)
+        {
+            panelLines = kWarningPanelLines;
+        }
+        else if (mode == DemoMode::SoundscapeFocus)
+        {
+            const int logLines = std::max(kFocusMinLogLines, rows - kFocusFixedLines - 1);
+            panelLines    = kFocusFixedLines + logLines;
+            g_logCapacity = logLines;
+        }
+        else if (mode == DemoMode::Soundscape)
+        {
+            panelLines = fit.neededRows - 1; // neededRows includes the prompt row; panelLines doesn't
+        }
+        else // Amp
+        {
+            panelLines = kPanelLines;
+        }
+
+        if (panelLines != g_panelLines.load())
+        {
+            resetCanvas(panelLines);
+            g_panelLines  = panelLines;
+            g_needsRedraw = true;
         }
 
         if (g_needsRedraw.exchange(false))
