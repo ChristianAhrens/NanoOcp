@@ -1,6 +1,6 @@
 # NanoOcp
 
-NanoOcp is a **JUCE-free, C++17** library that provides a minimal **AES70 / OCP.1** TCP client and server, plus the message structures and device-specific object definitions needed to control AES70-compatible audio devices over a plain TCP connection.
+NanoOcp is a **C++17** library that provides a minimal **AES70 / OCP.1** TCP client and server, plus the message structures and device-specific object definitions needed to control AES70-compatible audio devices over a plain TCP connection.
 
 No third-party dependencies — only the C++ standard library (C++17) and platform sockets (POSIX / Winsock2).
 
@@ -58,7 +58,7 @@ NanoOcp/
 │       ├── NanoThread.h            # std::thread wrapper (replaces juce::Thread)
 │       ├── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer), backed by NanoTimerScheduler
 │       └── NanoTimerScheduler.h / .cpp  # Shared one-thread scheduler: periodic timers + one-shot posted tasks (PostTask)
-├── NanoOcp1Demo/                   # JUCE-free CLI demo application
+├── NanoOcp1Demo/                   # CLI demo application
 │   ├── CMakeLists.txt
 │   ├── Terminal.h                  # Platform terminal setup / size query
 │   ├── Ansi.h                      # ANSI escape-sequence constants
@@ -493,7 +493,7 @@ Client                                     Device
 
 ## Demo application — NanoOcp1Demo
 
-`NanoOcp1Demo/` is a JUCE-free **CLI application** (entry point `main.cpp`, split into a handful of single-header modules — see [Repository layout](#repository-layout)) with a live terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in three modes selected at startup — Amp, Soundscape overview, and Soundscape focus — plus a Soundobject-Routing sub-mode reached at runtime from Soundscape overview.  Every mode checks the current terminal size against what it needs and shows a short warning instead of a garbled panel if it doesn't fit (see [Terminal-too-small warning](#terminal-too-small-warning)).
+`NanoOcp1Demo/` is a **CLI application** (entry point `main.cpp`, split into a handful of single-header modules — see [Repository layout](#repository-layout)) with a live terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in three modes selected at startup — Amp, Soundscape overview, and Soundscape focus — plus a Soundobject-Routing sub-mode reached at runtime from Soundscape overview.  Every mode checks the current terminal size against what it needs and shows a short warning instead of a garbled panel if it doesn't fit (see [Terminal-too-small warning](#terminal-too-small-warning)).
 
 ### Amp mode (`--amp`, default)
 
