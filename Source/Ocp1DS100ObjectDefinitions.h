@@ -1121,18 +1121,11 @@ struct dbOcaObjDef_MatrixSettings_ReverbRoomIdNames : Ocp1CommandDefinition
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, MatrixSettings_Box, MatrixSettings_ReverbRoomId), // ONO of MatrixSettings_ReverbRoomId
             OCP1DATATYPE_BLOB,      // Actual datatype is OcaList<OcaString>
             DefLevel_OcaSwitch,
-            2)                      // Prop_Position_Names
+            2,                      // Prop_Position_Names
+            0,                      // Parameter count is 0
+            ByteVector(),           // No parameter data
+            5)                      // OcaSwitch.GetPositionNames has method index 5
     {
-    }
-
-    Ocp1CommandDefinition GetValueCommand() const override
-    {
-        return Ocp1CommandDefinition(m_targetOno,
-            m_propertyType,
-            m_propertyDefLevel,
-            5,                                 // GetPositionNames has MethodIdx 5
-            0,                                 // GetPositionNames needs 0 input params
-            ByteVector());      // Empty parameters
     }
 
     dbOcaObjDef_MatrixSettings_ReverbRoomIdNames* Clone() const override
@@ -1150,18 +1143,11 @@ struct dbOcaObjDef_MatrixSettings_ReverbRoomIdEnableds : Ocp1CommandDefinition
         : Ocp1CommandDefinition(GetONoTy2(0x02, 0x00, 0x00, MatrixSettings_Box, MatrixSettings_ReverbRoomId), // ONO of MatrixSettings_ReverbRoomId
             OCP1DATATYPE_BLOB,      // Actual datatype is OcaList<OcaBoolean>
             DefLevel_OcaSwitch,
-            3)                      // Prop_Position_Enabled
+            3,                      // Prop_Position_Enabled
+            0,                      // Parameter count is 0
+            ByteVector(),           // No parameter data
+            9)                      // OcaSwitch.GetPositionEnableds has method index 9
     {
-    }
-
-    Ocp1CommandDefinition GetValueCommand() const override
-    {
-        return Ocp1CommandDefinition(m_targetOno,
-            m_propertyType,
-            m_propertyDefLevel,
-            9,                                 // GetPositionEnableds has MethodIdx 9
-            0,                                 // GetPositionEnableds needs 0 input params
-            ByteVector());      // Empty parameters
     }
 
     dbOcaObjDef_MatrixSettings_ReverbRoomIdEnableds* Clone() const override
