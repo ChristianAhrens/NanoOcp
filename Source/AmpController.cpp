@@ -30,8 +30,8 @@ namespace NanoOcp1
 
 // ── Construction / destruction ────────────────────────────────────────────────
 
-AmpController::AmpController(bool callbacksOnMessageThread)
-    : Ocp1Controller(callbacksOnMessageThread)
+AmpController::AmpController(std::shared_ptr<NanoTimerScheduler> scheduler, bool callbacksOnMessageThread)
+    : Ocp1Controller(std::move(scheduler), callbacksOnMessageThread)
 {
 }
 

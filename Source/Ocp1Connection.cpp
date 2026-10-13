@@ -19,10 +19,13 @@
 #include "Ocp1Connection.h"
 #include "Ocp1Message.h"
 
+#include "internal/NanoTimerScheduler.h"
+
 #include <algorithm>
 #include <cassert>
 #include <mutex>
 #include <shared_mutex>
+#include <stdexcept>
 
 
 namespace NanoOcp1
@@ -88,16 +91,19 @@ class Ocp1Connection::SafeAction : public SafeActionImpl
 
 // ── Construction / destruction ────────────────────────────────────────────────
 
-Ocp1Connection::Ocp1Connection(bool callbacksOnMessageThread,
+Ocp1Connection::Ocp1Connection(std::shared_ptr<NanoTimerScheduler> scheduler,
+                               bool callbacksOnMessageThread,
                                ThreadPriority threadPriority)
     : useMessageThread(callbacksOnMessageThread),
       safeAction(std::make_shared<SafeAction>(*this)),
+      m_scheduler(std::move(scheduler)),
       m_threadPriority(threadPriority)
 {
-    thread.reset(new ConnectionThread(*this));
+    // Enforce that the scheduler is non-null at construction time.
+    if (!m_scheduler)
+        throw std::invalid_argument("Ocp1Connection requires a non-null scheduler");
 
-    if (useMessageThread)
-        dispatcher = std::make_unique<NanoAsyncDispatcher>();
+    thread.reset(new ConnectionThread(*this));
 }
 
 Ocp1Connection::~Ocp1Connection()
@@ -226,19 +232,19 @@ void Ocp1Connection::initialiseWithSocket(std::unique_ptr<NanoSocket> newSocket)
 
 // ── Callback dispatch ─────────────────────────────────────────────────────────
 // When useMessageThread is false, callbacks fire synchronously on the socket
-// thread. When true, they are posted to `dispatcher` and run on its dedicated
-// worker thread instead — see the constructor documentation in the header.
+// thread. When true, they are posted to the shared scheduler and run on its
+// thread instead — see the constructor documentation in the header.
 
 void Ocp1Connection::dispatchOrCall(std::function<void(Ocp1Connection&)> fn)
 {
-    if (useMessageThread && dispatcher)
+    if (useMessageThread)
     {
         // Capture safeAction by value so the guard (and the connection object it
         // refers to) stays valid for the lifetime of the queued task, even if
         // this Ocp1Connection is torn down before the task runs — ifSafe() will
         // simply no-op once setSafe(false) has been called.
         auto action = safeAction;
-        dispatcher->post([action, fn]() { action->ifSafe(fn); });
+        m_scheduler->PostTask([action, fn]() { action->ifSafe(fn); });
     }
     else
     {

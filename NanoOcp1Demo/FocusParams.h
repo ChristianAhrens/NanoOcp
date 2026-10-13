@@ -63,6 +63,7 @@ static const FocusParamEntry kFocusableParams[] = {
     { SORemObjIdent::MatrixInput_EqEnable,                "MatrixInput_EqEnable",                "ch" },
     { SORemObjIdent::MatrixInput_Polarity,                "MatrixInput_Polarity",                "ch" },
     { SORemObjIdent::MatrixInput_ChannelName,             "MatrixInput_ChannelName",             "ch" },
+    { SORemObjIdent::MatrixInput_LevelMeterIn,            "MatrixInput_LevelMeterIn",            "ch" },
     { SORemObjIdent::MatrixInput_LevelMeterPreMute,       "MatrixInput_LevelMeterPreMute",       "ch" },
     { SORemObjIdent::MatrixInput_LevelMeterPostMute,      "MatrixInput_LevelMeterPostMute",      "ch" },
     { SORemObjIdent::MatrixInput_ReverbSendGain,          "MatrixInput_ReverbSendGain",          "ch" },

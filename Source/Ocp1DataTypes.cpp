@@ -423,16 +423,16 @@ ByteVector DataFromOnoForSubscription(std::uint32_t ono, bool add)
     ret.push_back(static_cast<std::uint8_t>(ono));
     ret.push_back(static_cast<std::uint8_t>(0x00)); // EventID def level: OcaRoot
     ret.push_back(static_cast<std::uint8_t>(0x01));
-    ret.push_back(static_cast<std::uint8_t>(0x00)); // EventID idx: PropertyChanged
+    ret.push_back(static_cast<std::uint8_t>(0x00)); // EventID idx: OCA_EVENT_PROPERTY_CHANGED
     ret.push_back(static_cast<std::uint8_t>(0x01));
 
     ret.push_back(static_cast<std::uint8_t>(ono >> 24)); // Subscriber ONo
     ret.push_back(static_cast<std::uint8_t>(ono >> 16));
     ret.push_back(static_cast<std::uint8_t>(ono >> 8));
     ret.push_back(static_cast<std::uint8_t>(ono));
-    ret.push_back(static_cast<std::uint8_t>(0x00)); // Method def level: OcaSubscriptionManager
+    ret.push_back(static_cast<std::uint8_t>(0x00)); // Def level of OcaEventHandler
     ret.push_back(static_cast<std::uint8_t>(0x03));
-    ret.push_back(static_cast<std::uint8_t>(0x00)); // Method idx: AddSubscription
+    ret.push_back(static_cast<std::uint8_t>(0x00)); // Event idx: ON_EVENT
     ret.push_back(static_cast<std::uint8_t>(0x01));
 
     if (!add)

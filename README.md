@@ -1,6 +1,6 @@
 # NanoOcp
 
-NanoOcp is a **JUCE-free, C++17** library that provides a minimal **AES70 / OCP.1** TCP client and server, plus the message structures and device-specific object definitions needed to control AES70-compatible audio devices over a plain TCP connection.
+NanoOcp is a **C++17** library that provides a minimal **AES70 / OCP.1** TCP client and server, plus the message structures and device-specific object definitions needed to control AES70-compatible audio devices over a plain TCP connection.
 
 No third-party dependencies — only the C++ standard library (C++17) and platform sockets (POSIX / Winsock2).
 
@@ -56,18 +56,20 @@ NanoOcp/
 │   └── internal/                   # Platform helpers (no external deps)
 │       ├── NanoSocket.h / .cpp     # Cross-platform TCP socket (POSIX / Winsock2)
 │       ├── NanoThread.h            # std::thread wrapper (replaces juce::Thread)
-│       └── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer)
-├── NanoOcp1Demo/                   # JUCE-free CLI demo application
+│       ├── NanoTimer.h / .cpp      # Periodic timer (replaces juce::Timer), backed by NanoTimerScheduler
+│       └── NanoTimerScheduler.h / .cpp  # Shared one-thread scheduler: periodic timers + one-shot posted tasks (PostTask)
+├── NanoOcp1Demo/                   # CLI demo application
 │   ├── CMakeLists.txt
 │   ├── Terminal.h                  # Platform terminal setup / size query
 │   ├── Ansi.h                      # ANSI escape-sequence constants
-│   ├── AppState.h                  # Shared UI state + logging helpers
+│   ├── AppState.h                  # Shared UI state + logging helpers + per-mode panel-size/terminal-fit checks
 │   ├── Format.h                    # Small text-formatting helpers (bars, state/type strings)
 │   ├── FocusParams.h               # Soundscape-focus parameter table, lookup, Variant format/parse
-│   ├── Panels.h                    # Panel renderers, canvas management, redraw thread
+│   ├── Panels.h                    # Panel renderers (incl. ranged/column layouts), canvas mgmt, redraw thread
 │   ├── Demo.h                      # Demo controller class (wraps AmpController / SoundscapeController)
 │   └── main.cpp                    # CLI help/argument parsing + entry point (three-mode terminal UI)
-├── CMakeLists.txt                  # Root CMake build (library + optional demo)
+├── Tests/                          # GoogleTest unit tests (NanoOcp1Tests target)
+├── CMakeLists.txt                  # Root CMake build (library + optional demo/tests)
 ├── submodules/
 │   └── doxygen-awesome-css/        # Doxygen HTML theme (docs only)
 ├── Doxyfile                        # Doxygen configuration
@@ -87,7 +89,7 @@ NanoOcp is structured in four layers.  The controller layer sits on top of the e
 │                  Your application                   │
 │  onStateChanged / onPower / onChannelGain / …       │
 └──────────────────────┬──────────────────────────────┘
-                       │  typed callbacks (socket thread)
+                       │  typed callbacks (scheduler thread by default)
 ┌──────────────────────▼──────────────────────────────┐
 │              Ocp1Controller  (base)                  │  Layer 1 – Controllers
 │  Connection lifecycle, auto-reconnect, sub/query     │
@@ -98,7 +100,7 @@ NanoOcp is structured in four layers.  The controller layer sits on top of the e
 │        GUID handshake, RemoteObject vocabulary,      │
 │        setActiveRemoteObjects / onRemoteObjectReceived│
 └──────────────────────┬──────────────────────────────┘
-                       │  callbacks (socket thread)
+                       │  callbacks (scheduler thread by default)
 ┌──────────────────────▼──────────────────────────────┐
 │          NanoOcp1Client  /  NanoOcp1Server           │  Layer 2 – Connection
 │  (NanoOcp1Base + Ocp1Connection + NanoTimer)         │
@@ -142,7 +144,7 @@ On connection loss the underlying client retries automatically and the controlle
 
 Write commands: `setPower(bool)`, `setChannelGain(ch, dB)`, `setChannelMute(ch, bool)`.
 
-**`SoundscapeController`** — targets d&b DS100 signal engines (DS100, DS110, DS100M, vCore).  Performs a GUID read on first connect to determine the OCA revision before subscribing.  The full `RemoteObject` vocabulary (74 parameter identifiers) is expressed as `RemoteObject::RemObjIdent` enumerators.  Set the parameters to monitor via `setActiveRemoteObjects()` and receive value updates through `onRemoteObjectReceived`.  Write values via `setObjectValue()`.
+**`SoundscapeController`** — targets d&b DS100 signal engines (DS100, DS110, DS100M, vCore).  Performs a GUID read on first connect to determine the OCA revision before subscribing.  The full `RemoteObject` vocabulary (75 parameter identifiers) is expressed as `RemoteObject::RemObjIdent` enumerators.  Set the parameters to monitor via `setActiveRemoteObjects()` and receive value updates through `onRemoteObjectReceived`.  Write values via `setObjectValue()`.
 
 ### Layer 2 — Connection (`NanoOcp1.h`)
 
@@ -205,9 +207,20 @@ covers all DS100 parameter boxes (MatrixInput, MatrixOutput, Positioning, Coordi
 
 `NanoOcp1Client` runs all socket I/O on a dedicated `Ocp1Connection::ConnectionThread` (a thin `std::thread` wrapper).
 
-All low-level callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`) fire on the **socket thread**.  The `callbacksOnMessageThread` constructor parameter is retained for API compatibility but has no effect — dispatch to another thread is the caller's responsibility if needed.
+The thread on which callbacks fire is selected by the `callbacksOnMessageThread` constructor parameter, which **defaults to `true`** at every layer (`Ocp1Connection`, `NanoOcp1Client`, `NanoOcp1Server`, `Ocp1Controller`, `AmpController`, `SoundscapeController`):
 
-Controller callbacks (`onStateChanged`, `onPower`, `onChannelGain`, `onRemoteObjectReceived`, …) likewise fire on the **socket thread**.  If you need to update GUI elements or call framework APIs that require a specific thread (e.g. the JUCE message thread), marshal inside the callback — for example via `juce::MessageManager::callAsync` or by posting a message to a `juce::MessageListener`.
+- **`true` (default)** — the low-level callbacks (`onDataReceived`, `onConnectionEstablished`, `onConnectionLost`) are posted to the shared `NanoTimerScheduler` thread, decoupling callback execution from socket I/O so slow or blocking callback code cannot stall the read loop.
+- **`false`** — the low-level callbacks run synchronously on the **socket thread**.
+
+Controller callbacks (`onStateChanged`, `onPower`, `onChannelGain`, `onRemoteObjectReceived`, …) are invoked from within those low-level callbacks, so they fire on whichever thread the parameter selects — the shared `NanoTimerScheduler` thread by default, or the socket thread when `callbacksOnMessageThread = false`.  `onStateChanged` triggered by the GetValues response-timeout always fires on the `NanoTimerScheduler` thread (see **Timers** below) — the same thread the other callbacks use under the default.
+
+Whichever mode is used, callbacks never run on a GUI/framework thread automatically.  If you need to update GUI elements or call framework APIs that require a specific thread (e.g. the JUCE message thread), marshal inside the callback — for example via `juce::MessageManager::callAsync` or by posting a message to a `juce::MessageListener`.
+
+**Timers.** `NanoOcp1Client` (reconnect) and `Ocp1Controller` (GetValues response-timeout) own no timer thread of their own.  Instead, they take a caller-supplied `std::shared_ptr<NanoTimerScheduler>` and register their timers on it.  The scheduler is a **required constructor argument** — NanoOcp provides no default or singleton; the owning application creates it and shares one instance across many clients and controllers.
+
+A single `NanoTimerScheduler` runs one background thread that services every timer registered on it.  Callbacks it triggers (e.g. `onStateChanged` from a response-timeout) therefore fire on that **scheduler thread**, not the socket thread.  That same thread also runs the low-level callbacks posted under the default `callbacksOnMessageThread = true`, so one scheduler thread handles both the timers and the dispatched callbacks.
+
+**Lifetime.** It is safe to release the last `shared_ptr<NanoTimerScheduler>` from within one of its own callbacks: the worker thread holds its own reference to the scheduler's internal state, so the scheduler detaches its thread and unwinds cleanly instead of self-joining.  This applies to the scheduler object only.  Do **not** destroy a client or controller (or other timer owner) from inside its own callback — teardown re-enters the connection's `SafeAction` guard (`disconnect()` → `setSafe()`) on the same thread and self-deadlocks.  Defer that teardown to outside the callback.
 
 ---
 
@@ -228,6 +241,16 @@ target_link_libraries(YourTarget PRIVATE NanoOcp1)
 cmake -B build -S . -DNANOOCP1_BUILD_DEMO=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
+
+### Building and running the unit tests
+
+```bash
+cmake -B build -S . -DNANOOCP1_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+`NANOOCP1_BUILD_TESTS` is `ON` by default; the tests build into the `NanoOcp1Tests` target and are registered with CTest via `gtest_discover_tests`.
 
 ### Adding source files directly
 
@@ -266,12 +289,13 @@ VERSIONINFO resource (visible under file Properties → Details).
 ```cpp
 #include "AmpController.h"
 
-auto amp = std::make_unique<NanoOcp1::AmpController>();
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
+auto amp = std::make_unique<NanoOcp1::AmpController>(scheduler);
 
 // Configure before connect
 amp->setAmpType(NanoOcp1::AmpController::AmpType::Dy, 4 /*channels*/);
 
-// Wire typed callbacks (fired on socket thread)
+// Wire typed callbacks (fired on the shared NanoTimerScheduler thread by default)
 amp->onStateChanged = [](NanoOcp1::Ocp1Controller::State s) {
     // Disconnected / Connecting / Subscribing / Subscribed / GetValues / Connected
 };
@@ -304,7 +328,8 @@ amp->disconnect();
 ```cpp
 #include "SoundscapeController.h"
 
-auto ds100 = std::make_unique<NanoOcp1::SoundscapeController>();
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
+auto ds100 = std::make_unique<NanoOcp1::SoundscapeController>(scheduler);
 
 using ROI = NanoOcp1::SoundscapeController::RemoteObject::RemObjIdent;
 using ROA = NanoOcp1::SoundscapeController::RemObjAddr;
@@ -312,13 +337,13 @@ using RO  = NanoOcp1::SoundscapeController::RemoteObject;
 
 // Declare which parameters to subscribe and query on every connect
 ds100->setActiveRemoteObjects({
-    RO{ ROI::MatrixInput_LevelMeterPreMute, ROA{5, 0} },  // level meter SO 5
+    RO{ ROI::MatrixInput_LevelMeterIn,     ROA{5, 0} },  // level meter SO 5
     RO{ ROI::Positioning_SourcePosition,   ROA{5, 0} },  // XYZ position SO 5
     RO{ ROI::Positioning_SourceSpread,     ROA{5, 0} },  // spread SO 5
     RO{ ROI::ReverbInput_Gain,             ROA{1, 5} },  // En-Space send gain SO 5
 });
 
-// Value-change callback (fired on socket thread)
+// Value-change callback (fired on the shared NanoTimerScheduler thread by default)
 ds100->onRemoteObjectReceived = [](const NanoOcp1::SoundscapeController::RemoteObject& ro) -> bool {
     bool ok = false;
     switch (ro.Id)
@@ -332,7 +357,7 @@ ds100->onRemoteObjectReceived = [](const NanoOcp1::SoundscapeController::RemoteO
         }
         break;
     }
-    case ROI::MatrixInput_LevelMeterPreMute:
+    case ROI::MatrixInput_LevelMeterIn:
     {
         float dBFS = ro.Var.ToFloat(&ok);
         break;
@@ -371,9 +396,10 @@ ds100->disconnect();
 #include "Ocp1Message.h"
 #include "Ocp1DS100ObjectDefinitions.h"
 
-// 1. Create client (callbacks fire on the socket thread)
+// 1. Create the shared scheduler and the client (callbacks fire on the socket thread with false)
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
 auto client = std::make_unique<NanoOcp1::NanoOcp1Client>(
-    "192.168.1.100", 50014, /*callbacksOnMessageThread=*/false);
+    scheduler, "192.168.1.100", 50014, /*callbacksOnMessageThread=*/false);
 
 // 2. Wire callbacks before start()
 client->onConnectionEstablished = [&]() {
@@ -433,8 +459,9 @@ client->sendData(setCmd.GetSerializedData());
 
 ```cpp
 // The server binds port 50014 and waits for a controller to connect.
+auto scheduler = std::make_shared<NanoOcp1::NanoTimerScheduler>();
 auto server = std::make_unique<NanoOcp1::NanoOcp1Server>(
-    "", 50014, /*callbacksOnMessageThread=*/false);
+    scheduler, "", 50014, /*callbacksOnMessageThread=*/false);
 
 server->onConnectionEstablished = [&]() { /* controller connected */ };
 server->onConnectionLost        = [&]() { /* controller disconnected */ };
@@ -466,7 +493,7 @@ Client                                     Device
 
 ## Demo application — NanoOcp1Demo
 
-`NanoOcp1Demo/` is a JUCE-free **CLI application** (entry point `main.cpp`, split into a handful of single-header modules — see [Repository layout](#repository-layout)) with a live terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in three modes selected at startup:
+`NanoOcp1Demo/` is a **CLI application** (entry point `main.cpp`, split into a handful of single-header modules — see [Repository layout](#repository-layout)) with a live terminal panel (ANSI colours, macOS / Linux / Windows) that demonstrates both high-level controllers.  It operates in three modes selected at startup — Amp, Soundscape overview, and Soundscape focus — plus a Soundobject-Routing sub-mode reached at runtime from Soundscape overview.  Every mode checks the current terminal size against what it needs and shows a short warning instead of a garbled panel if it doesn't fit (see [Terminal-too-small warning](#terminal-too-small-warning)).
 
 ### Amp mode (`--amp`, default)
 
@@ -481,20 +508,38 @@ m <ch> <1|0>   mute / unmute channel
 q              quit
 ```
 
-### Soundscape overview mode (`--soundscape <N>`)
+### Soundscape overview mode (`--soundscape <N>` or `--soundscape <lo>-<hi>`)
 
-Connects to a d&b Soundscape signal engine (DS100, DS110, DS100M, or vCore) via `SoundscapeController`.  Monitors and controls sound object N: level meter, gain, mute, XYZ position, spread, delay mode, En-Space send gain — all at once, in a fixed 19-row panel.  The exact device model is identified automatically via the GUID handshake.
+Connects to a d&b Soundscape signal engine (DS100, DS110, DS100M, or vCore) via `SoundscapeController`.  Monitors and controls every sound object in the given range — a single number is a range of one, e.g. `--soundscape 8-32` for 25 objects at once: level meter, gain, mute, XYZ position, spread, delay mode, En-Space send gain.  The exact device model is identified automatically via the GUID handshake.
+
+Each sound object is laid out as its own **channel-strip column** (not a row), wrapping onto additional stacked bands when the range is wider than the terminal — so a 128-object range on a narrow terminal just grows taller, not off-screen to the right.  The level meter is a full-width bar over the device's actual **-120..0 dB** metering range, with the exact dB value printed beneath it, fed from `MatrixInput_LevelMeterIn`.
+
+Per-parameter commands take an optional leading sound-object number to target just that one object within the active range; with no target they **broadcast** to every object in it — handy for batch-configuring a block of objects identically, then fine-tuning one:
 
 ```
-a <ip>         set host address          p <n>       set port
-c              connect (or reconnect)    d           disconnect
-x/y/z <m>      set position XYZ (meters)
-sp <0-1>       set spread
-dm <0|1|2>     set delay mode  (0=off  1=compensate  2=reflect)
-ig <dB>        set matrix input gain  (-120.0 to +24.0)
-mm <1|0>       mute / unmute matrix input
-es <dB>        set En-Space send gain  (-120.0 to +24.0)
-q              quit
+a <ip>              set host address          p <n>       set port
+c                   connect (or reconnect)    d           disconnect
+x/y/z [so] <m>      set position XYZ (meters)              -- [so]: target one object; omit to broadcast
+sp [so] <0-1>       set spread
+dm [so] <0|1|2>     set delay mode  (0=off  1=compensate  2=reflect)
+ig [so] <dB>        set matrix input gain  (-120.0 to +24.0)
+mm [so] <1|0>       mute / unmute matrix input
+es [so] <dB>        set En-Space send gain  (-120.0 to +24.0)
+r <so> | r <lo>-<hi>  enter the Soundobject-Routing sub-mode (see below)
+q                   quit
+```
+
+### Soundobject-Routing sub-mode (`r <so>` or `r <lo>-<hi>`, from Soundscape overview)
+
+Switches to controlling `SoundObjectRouting_Gain` / `SoundObjectRouting_Mute` for one sound object, or any sub-range of the active overview range, against all 32 Function Groups — laid out the same way as the overview (one column per selected sound object, wrapping onto further bands), with one row per Function Group.  Subscribes to `FunctionGroup_Mode` (is the group in use?) and `FunctionGroup_Name` (display label) for all 32 groups up front, so groups the device reports as unused are shown dimmed rather than with meaningless values.  `rg`/`rm` broadcast to every selected sound object by default, or can target one within the routing range — the same convention as the overview commands above.
+
+```
+a <ip>              set host address          p <n>       set port
+c                   connect (or reconnect)    d           disconnect
+rg <fg> [so] <dB>   set routing gain to Function Group <fg>  (-120.0 to +24.0)
+rm <fg> [so] <1|0>  mute / unmute routing to Function Group <fg>
+b / back            return to Soundscape overview mode
+q                   quit
 ```
 
 ### Soundscape focus mode (`--soundscape <N> --param <name> [--addr2 <n>]`)
@@ -519,6 +564,18 @@ Enumerate every focusable parameter name (with its addressing hint and descripti
 NanoOcp1Demo --soundscape --list-params
 ```
 
+### Terminal-too-small warning
+
+Every mode computes the minimum terminal size its current panel needs — a fixed ~80x20 for Amp and Soundscape focus's mostly-fixed-width rows; for Soundscape overview/routing, however many rows their column/band layout works out to for the active range at the current terminal width, plus room for at least one column.  If the terminal is smaller than that (at startup, or because it was resized smaller mid-session), the panel is replaced with a short centred warning instead of an overflowing or garbled layout:
+
+```
+          Terminal too small for Soundscape Overview mode
+             Needs at least 28 rows x 16 cols — have 10 x 220
+                Enlarge the terminal, or 'q' to quit
+```
+
+Input keeps working while the warning is shown — `q`/`quit` always exits, and `b`/`back` still leaves the Soundobject-Routing sub-mode — so enlarging the terminal (or going back) immediately brings the normal panel back.
+
 ### Running the demo
 
 ```bash
@@ -532,6 +589,9 @@ cmake --build build --config Release
 # Soundscape overview mode — monitor and control sound object 5 (DS100/DS110/DS100M/vCore)
 ./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 50014 --soundscape 5
 
+# Soundscape overview mode, ranged — monitor/control sound objects 8-32 (25 objects) at once
+./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 50014 --soundscape 8-32
+
 # Soundscape focus mode — monitor/set just MatrixInput_Gain on sound object 5
 ./build/NanoOcp1Demo/Release/NanoOcp1Demo 192.168.1.100 --soundscape 5 --param MatrixInput_Gain
 
@@ -543,6 +603,8 @@ cmake --build build --config Release
 ```
 
 `build/NanoOcp1Demo/Release/` (or `Debug/`) is where the executable lands on every platform — CMake places it there consistently whether the generator is single-config (Makefiles/Ninja on macOS/Linux) or multi-config (Visual Studio/Xcode).
+
+Once connected in overview mode, type `r 8-12` at the prompt to enter the Soundobject-Routing sub-mode for that sub-range (or `r 8` for a single object), `rg 3 -6.0` to set Function Group 3's routing gain to -6.0 dB on every object in `8-12`, `rm 3 8 1` to mute just object 8's routing to Function Group 3, and `b` to return to the overview.
 
 ---
 

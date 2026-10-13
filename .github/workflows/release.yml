@@ -28,6 +28,35 @@ jobs:
           --title "${{ github.ref_name }}"
           --generate-notes
 
+  # Regenerates the SPDX SBOM from the tagged commit's actual source tree
+  # (scripts/generate_spdx_sbom.py) and attaches it to the release. Runs once
+  # on Linux rather than per-OS in the matrix below: the SBOM is a source-level
+  # description, not a per-platform binary, and generating it only once avoids
+  # any risk of divergent file hashes from checkout line-ending differences
+  # across runners.
+  sbom:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate SPDX SBOM
+        run: >
+          python3 scripts/generate_spdx_sbom.py
+          --version "${{ github.ref_name }}"
+          --commit "${{ github.sha }}"
+          --output "NanoOcp1-${{ github.ref_name }}.spdx.json"
+
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release upload "${{ github.ref_name }}"
+          --repo "${{ github.repository }}"
+          --clobber
+          "NanoOcp1-${{ github.ref_name }}.spdx.json"
+
   build-and-upload:
     needs: create-release
     strategy:

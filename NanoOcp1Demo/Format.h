@@ -24,7 +24,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <string>
+#include <vector>
 
 #include "AmpController.h"
 #include "Ansi.h"
@@ -68,6 +70,43 @@ static std::string meterBar(float val, float lo, float hi, int width = 16)
     }
     bar += "]";
     return bar;
+}
+
+// Vertical, multi-*row* counterpart to meterBar() — used by the --speakerlvls
+// loudspeaker block, where each channel is a narrow column rather than a wide
+// horizontal row, so the bar has to grow in height instead of width. Returns
+// `segments` single-character, already zone-coloured (green/yellow/red, same
+// thresholds as meterBar()) cell strings ordered top-to-bottom (index 0 is the
+// topmost/loudest segment) for one column; the caller places rows[i] into row
+// i of the grid for every column so the columns' bars line up into one
+// multi-row meter. Unknown values are returned as dim "?" placeholders.
+static std::vector<std::string> verticalBarGlyphs(bool known, float val, float lo, float hi, int segments)
+{
+    std::vector<std::string> rows(static_cast<std::size_t>(segments));
+    if (!known)
+    {
+        for (auto& r : rows) r = std::string(Ansi::Dim) + "?" + Ansi::Reset;
+        return rows;
+    }
+    const float clamped = std::max(lo, std::min(hi, val));
+    const float frac    = (hi > lo) ? (clamped - lo) / (hi - lo) : 0.0f;
+    for (int i = 0; i < segments; ++i)
+    {
+        // Row i (from the top) represents the segment spanning
+        // (segments-i-1)/segments .. (segments-i)/segments of the full range.
+        const float rowTopFrac    = static_cast<float>(segments - i) / static_cast<float>(segments);
+        const float rowBottomFrac = static_cast<float>(segments - i - 1) / static_cast<float>(segments);
+        if (frac <= rowBottomFrac)
+        {
+            rows[static_cast<std::size_t>(i)] = "\xe2\x96\x91"; // U+2591 light — unlit
+            continue;
+        }
+        const char* color = (rowTopFrac > 0.9f)  ? Ansi::Red
+                           : (rowTopFrac > 0.75f) ? Ansi::Yellow
+                                                   : Ansi::Green;
+        rows[static_cast<std::size_t>(i)] = std::string(color) + "\xe2\x96\x88" + Ansi::Reset; // U+2588 full
+    }
+    return rows;
 }
 
 static std::string stateToStr(CtrlState s)
