@@ -557,6 +557,48 @@ TEST(MatrixSettingsReverbRoomIdEnabledsTest, GetValueCommandUsesDedicatedMethodI
     EXPECT_TRUE(getCmd.m_parameterData.empty());
 }
 
+TEST(MatrixSettingsReverbRoomIdTest, BaseValueStoragePreservesGetterAndSubscriptionIdentity)
+{
+    const NanoOcp1::DS100::dbOcaObjDef_MatrixSettings_ReverbRoomIdNames names;
+    const NanoOcp1::DS100::dbOcaObjDef_MatrixSettings_ReverbRoomIdEnableds enableds;
+    // Concrete-object getter tests miss the slicing bug: base-value storage previously lost indices 5/9 and used 1.
+    const std::vector<Ocp1CommandDefinition> definitions { names, enableds };
+    const std::uint16_t expectedMethodIndices[] { 5, 9 };
+    const std::uint16_t expectedPropertyIndices[] { 2, 3 };
+    const std::vector<Ocp1CommandDefinition> subscriptions {
+        names.AddSubscriptionCommand(), enableds.AddSubscriptionCommand()
+    };
+
+    for (std::size_t index = 0; index < definitions.size(); ++index)
+    {
+        // Copy, assignment and Clone checks extend coverage beyond the original vector-storage regression.
+        const Ocp1CommandDefinition copied = definitions[index];
+        Ocp1CommandDefinition assigned;
+        assigned = copied;
+        const std::unique_ptr<Ocp1CommandDefinition> cloned(assigned.Clone());
+
+        const Ocp1CommandDefinition* storedDefinitions[] {
+            &definitions[index], &copied, &assigned, cloned.get()
+        };
+        for (const auto* definition : storedDefinitions)
+        {
+            const auto command = definition->GetValueCommand();
+            EXPECT_EQ(command.m_propertyIndex, expectedMethodIndices[index]);
+            EXPECT_EQ(command.m_targetOno, definitions[index].m_targetOno);
+            EXPECT_EQ(command.m_propertyType, OCP1DATATYPE_BLOB);
+            EXPECT_EQ(command.m_propertyDefLevel, definitions[index].m_propertyDefLevel);
+            EXPECT_EQ(command.m_paramCount, 0);
+            EXPECT_TRUE(command.m_parameterData.empty());
+            // Getter method indices 5/9 must not replace property indices 2/3 or alter subscription identity.
+            EXPECT_EQ(definition->m_propertyIndex, expectedPropertyIndices[index]);
+            EXPECT_EQ(definition->AddSubscriptionCommand().m_parameterData,
+                      subscriptions[index].m_parameterData);
+            EXPECT_EQ(definition->RemoveSubscriptionCommand().m_parameterData,
+                      definitions[index].RemoveSubscriptionCommand().m_parameterData);
+        }
+    }
+}
+
 TEST(SceneAgentTest, ApplyCommandEncodesMajorMinorIntoSingleUint32Param)
 {
     NanoOcp1::DS100::dbOcaObjectDef_SceneAgent def;

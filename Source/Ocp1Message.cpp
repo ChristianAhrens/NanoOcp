@@ -53,9 +53,9 @@ Ocp1CommandDefinition Ocp1CommandDefinition::GetValueCommand() const
     return Ocp1CommandDefinition(m_targetOno,
                                  m_propertyType,
                                  m_propertyDefLevel,
-                                 1,                              // Get method is usually MethodIdx 1
-                                 0,                              // 0 Param
-        ByteVector());   // Empty parameters
+                                 m_getValueMethodIndex, // Method index for GetValue command
+                                 0,                     // Parameter count is 0
+                                 ByteVector());         // No parameter data
 }
 
 Ocp1CommandDefinition Ocp1CommandDefinition::SetValueCommand(const Variant& newValue) const

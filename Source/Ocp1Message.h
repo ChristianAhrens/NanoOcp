@@ -77,8 +77,7 @@ struct Ocp1CommandDefinition
         : Ocp1CommandDefinition(static_cast<std::uint32_t>(0),
                                 static_cast<std::uint16_t>(0),
                                 static_cast<std::uint16_t>(0),
-                                static_cast<std::uint16_t>(0),
-                                static_cast<std::uint8_t>(0))
+                                static_cast<std::uint16_t>(0))
     {
     }
 
@@ -90,13 +89,15 @@ struct Ocp1CommandDefinition
                           std::uint16_t propertyDefLevel,
                           std::uint16_t propertyIndex,
                           std::uint8_t paramCount = static_cast<std::uint8_t>(0),
-                          const ByteVector& parameterData = std::vector<std::uint8_t>())
+                          const ByteVector& parameterData = std::vector<std::uint8_t>(),
+                          std::uint16_t getValueMethodIndex = 1)
         :   m_targetOno(targetOno),
             m_propertyType(propertyType),
             m_propertyDefLevel(propertyDefLevel),
             m_propertyIndex(propertyIndex),
             m_paramCount(paramCount),
-            m_parameterData(parameterData)
+            m_parameterData(parameterData),
+            m_getValueMethodIndex(getValueMethodIndex)
     {
     }
 
@@ -122,7 +123,7 @@ struct Ocp1CommandDefinition
     virtual Ocp1CommandDefinition RemoveSubscriptionCommand() const;
 
     /**
-     * Generates a Ocp1CommandDefinition for a typical GetValue command (methodIndex 1).
+     * Generates a GetValue command using m_getValueMethodIndex (default 1).
      * Can be overriden for custom object GetValue commands.
      * 
      * @return A GetValue command definition.
@@ -156,12 +157,13 @@ struct Ocp1CommandDefinition
     }
 
 
-    std::uint32_t m_targetOno;                  // Target ONo of the command.
-    std::uint16_t m_propertyType;               // Property type of the command, as a Ocp1DataType.
-    std::uint16_t m_propertyDefLevel;           // Level of the property definition within the AES70 class hierarchy.
-    std::uint16_t m_propertyIndex;              // Index of the property within its AES70 class definition.
-    std::uint8_t m_paramCount;                  // Number of parameters contained in m_parameterData.
-    ByteVector m_parameterData;                 // Parameter data for the command.
+    std::uint32_t m_targetOno;              // Target ONo of the command.
+    std::uint16_t m_propertyType;           // Property type of the command, as a Ocp1DataType.
+    std::uint16_t m_propertyDefLevel;       // Level of the property definition within the AES70 class hierarchy.
+    std::uint16_t m_propertyIndex;          // Index of the property within its AES70 class definition.
+    std::uint8_t m_paramCount;              // Number of parameters contained in m_parameterData.
+    ByteVector m_parameterData;             // Parameter data for the command.
+    std::uint16_t m_getValueMethodIndex;    // Method index used for GetValue commands. By default, this is 1.
 };
 
 
