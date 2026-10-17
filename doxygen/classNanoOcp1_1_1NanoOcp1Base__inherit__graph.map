@@ -1,0 +1,7 @@
+<map id="NanoOcp1::NanoOcp1Base" name="NanoOcp1::NanoOcp1Base">
+<area shape="rect" id="Node000001" title="Abstract base class shared by NanoOcp1Client and NanoOcp1Server." alt="" coords="123,5,319,31"/>
+<area shape="rect" id="Node000002" href="$classNanoOcp1_1_1NanoOcp1Client.html" title="OCP.1 TCP client with automatic reconnection." alt="" coords="5,79,208,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="193,40,127,81,124,76,190,35"/>
+<area shape="rect" id="Node000003" href="$classNanoOcp1_1_1NanoOcp1Server.html" title="OCP.1 TCP server that accepts a single incoming connection at a time." alt="" coords="233,79,439,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="253,35,319,76,316,81,250,40"/>
+</map>

@@ -1,0 +1,26 @@
+<map id="Source/internal/NanoTimer.h" name="Source/internal/NanoTimer.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="537,5,743,31"/>
+<area shape="rect" id="Node000002" href="$NanoTimerScheduler_8h.html" title=" " alt="" coords="494,79,663,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="632,33,600,70,596,66,628,29"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="953,152,1031,177"/>
+<area shape="poly" id="edge12_Node000001_Node000009" title=" " alt="" coords="669,28,953,144,951,149,667,33"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,152,72,177"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="494,102,310,121,86,155,85,149,310,116,493,97"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="97,152,239,177"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="513,107,248,152,247,147,512,101"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="264,152,331,177"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="534,107,345,154,343,149,533,101"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="355,152,418,177"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="549,107,432,149,430,144,547,102"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="442,152,529,177"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="565,106,513,146,510,141,562,102"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="553,152,604,177"/>
+<area shape="poly" id="edge7_Node000002_Node000008" title=" " alt="" coords="581,104,581,138,576,138,576,104"/>
+<area shape="poly" id="edge8_Node000002_Node000009" title=" " alt="" coords="657,101,940,149,939,154,656,107"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="628,152,692,177"/>
+<area shape="poly" id="edge9_Node000002_Node000010" title=" " alt="" coords="593,102,638,141,635,145,590,106"/>
+<area shape="rect" id="Node000011" title=" " alt="" coords="716,152,780,177"/>
+<area shape="poly" id="edge10_Node000002_Node000011" title=" " alt="" coords="607,102,709,144,707,149,605,106"/>
+<area shape="rect" id="Node000012" title=" " alt="" coords="805,152,929,177"/>
+<area shape="poly" id="edge11_Node000002_Node000012" title=" " alt="" coords="626,101,807,146,806,151,624,107"/>
+</map>

@@ -1,0 +1,4 @@
+var structNanoOcp1_1_1DS100_1_1dbOcaObjectDef__Positioning__Source__Speaker__Group =
+[
+    [ "dbOcaObjectDef_Positioning_Source_Speaker_Group", "structNanoOcp1_1_1DS100_1_1dbOcaObjectDef__Positioning__Source__Speaker__Group.html#a28b1a3e75d0d05e4a44887735d14f228", null ]
+];

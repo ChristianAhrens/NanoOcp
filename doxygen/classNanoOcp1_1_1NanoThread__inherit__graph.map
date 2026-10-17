@@ -1,0 +1,9 @@
+<map id="NanoOcp1::NanoThread" name="NanoOcp1::NanoThread">
+<area shape="rect" id="Node000001" title=" " alt="" coords="132,5,308,31"/>
+<area shape="rect" id="Node000002" href="$structNanoOcp1_1_1Ocp1Connection_1_1ConnectionThread.html" title=" " alt="" coords="5,79,208,119"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="193,41,136,81,132,76,190,36"/>
+<area shape="rect" id="Node000003" href="$classNanoOcp1_1_1Ocp1ConnectionServer.html" title="TCP accept&#45;loop server base class for OCP.1 connections." alt="" coords="232,79,435,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="250,36,308,76,304,81,247,41"/>
+<area shape="rect" id="Node000004" href="$classNanoOcp1_1_1NanoOcp1Server.html" title="OCP.1 TCP server that accepts a single incoming connection at a time." alt="" coords="230,167,437,192"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="336,132,336,166,331,166,331,132"/>
+</map>

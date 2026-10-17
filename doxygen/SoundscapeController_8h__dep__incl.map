@@ -1,0 +1,26 @@
+<map id="Source/SoundscapeController.h" name="Source/SoundscapeController.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="157,5,380,31"/>
+<area shape="rect" id="Node000002" href="$AppState_8h.html" title=" " alt="" coords="29,79,231,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="236,39,154,81,152,76,233,34"/>
+<area shape="rect" id="Node000003" href="$Demo_8h.html" title=" " alt="" coords="72,225,255,251"/>
+<area shape="poly" id="edge10_Node000001_Node000003" title=" " alt="" coords="153,35,70,53,39,66,19,80,9,101,11,122,23,142,42,162,91,197,139,223,136,228,88,202,38,166,19,146,6,123,4,100,15,77,36,61,69,48,151,30"/>
+<area shape="rect" id="Node000005" href="$Format_8h.html" title=" " alt="" coords="173,152,364,177"/>
+<area shape="poly" id="edge15_Node000001_Node000005" title=" " alt="" coords="271,45,271,152,266,152,266,45"/>
+<area shape="rect" id="Node000007" href="$FocusParams_8h.html" title=" " alt="" coords="389,152,618,177"/>
+<area shape="poly" id="edge11_Node000001_Node000007" title=" " alt="" coords="287,40,313,72,348,102,403,131,458,149,456,154,401,135,345,106,309,76,283,44"/>
+<area shape="rect" id="Node000008" href="$SoundscapeController_8cpp.html" title=" " alt="" coords="357,79,596,104"/>
+<area shape="poly" id="edge16_Node000001_Node000008" title=" " alt="" coords="316,33,444,76,442,81,314,38"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="123,118,116,147,119,177,134,203,152,223,148,227,130,206,114,178,111,146,117,117"/>
+<area shape="rect" id="Node000004" href="$main_8cpp.html" title=" " alt="" coords="171,299,363,324"/>
+<area shape="poly" id="edge9_Node000002_Node000004" title=" " alt="" coords="109,116,84,144,62,179,54,197,51,216,53,233,61,249,81,264,114,277,194,296,193,301,112,282,79,268,57,252,48,234,46,215,49,196,57,177,80,141,105,112"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="166,108,247,149,245,154,163,113"/>
+<area shape="rect" id="Node000006" href="$Panels_8h.html" title=" " alt="" coords="279,225,466,251"/>
+<area shape="poly" id="edge8_Node000002_Node000006" title=" " alt="" coords="136,117,144,148,152,163,163,175,186,189,223,202,308,223,307,228,221,207,184,194,159,179,148,166,139,150,130,119"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="193,256,252,296,249,301,190,261"/>
+<area shape="poly" id="edge5_Node000005_Node000003" title=" " alt="" coords="242,187,182,227,179,223,239,183"/>
+<area shape="poly" id="edge6_Node000005_Node000006" title=" " alt="" coords="298,183,357,223,354,227,295,187"/>
+<area shape="poly" id="edge7_Node000006_Node000004" title=" " alt="" coords="346,261,286,301,283,296,343,256"/>
+<area shape="poly" id="edge12_Node000007_Node000003" title=" " alt="" coords="436,183,219,228,218,223,435,177"/>
+<area shape="poly" id="edge14_Node000007_Node000004" title=" " alt="" coords="505,192,498,223,491,239,480,253,455,273,426,288,364,306,363,301,424,283,452,268,476,249,486,236,493,221,500,190"/>
+<area shape="poly" id="edge13_Node000007_Node000006" title=" " alt="" coords="471,186,395,227,393,223,469,182"/>
+</map>

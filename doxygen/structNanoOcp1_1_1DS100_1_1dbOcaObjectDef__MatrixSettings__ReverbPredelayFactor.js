@@ -1,0 +1,4 @@
+var structNanoOcp1_1_1DS100_1_1dbOcaObjectDef__MatrixSettings__ReverbPredelayFactor =
+[
+    [ "dbOcaObjectDef_MatrixSettings_ReverbPredelayFactor", "structNanoOcp1_1_1DS100_1_1dbOcaObjectDef__MatrixSettings__ReverbPredelayFactor.html#a0bbfe385c5005f2ef13b2c3e3d8d39d0", null ]
+];

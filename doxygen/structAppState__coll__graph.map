@@ -1,0 +1,17 @@
+<map id="AppState" name="AppState">
+<area shape="rect" id="Node000001" title=" " alt="" coords="609,57,691,82"/>
+<area shape="rect" id="Node000002" href="$structAppState_1_1AmpState.html" title=" " alt="" coords="361,7,514,33"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="514,33,586,49,610,56,609,61,585,55,513,38"/>
+<area shape="rect" id="Node000003" href="$structChState.html" title=" " alt="" coords="88,7,161,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="175,17,360,17,360,23,175,23"/>
+<area shape="rect" id="Node000004" href="$structAppState_1_1SoState.html" title=" " alt="" coords="368,57,507,82"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="521,67,609,67,609,72,521,72"/>
+<area shape="rect" id="Node000005" href="$structAppState_1_1FunctionGroupInfo.html" title=" " alt="" coords="21,57,229,82"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="242,67,368,67,368,72,242,72"/>
+<area shape="rect" id="Node000006" href="$structAppState_1_1FocusState.html" title=" " alt="" coords="357,114,517,139"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="504,108,585,87,609,80,610,85,586,92,505,113"/>
+<area shape="rect" id="Node000007" href="$structNanoOcp1_1_1SoundscapeController_1_1RemObjAddr.html" title="Two&#45;dimensional address of a DS100 remote object." alt="" coords="5,107,244,147"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="257,124,357,124,357,129,257,129"/>
+<area shape="rect" id="Node000008" href="$classNanoOcp1_1_1Variant.html" title="Type&#45;erased OCA parameter value with built&#45;in marshal/unmarshal support." alt="" coords="53,171,196,197"/>
+<area shape="poly" id="edge7_Node000006_Node000008" title=" " alt="" coords="209,167,333,144,371,137,372,142,334,149,210,172"/>
+</map>
