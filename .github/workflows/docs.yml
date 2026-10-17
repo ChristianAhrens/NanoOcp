@@ -1,4 +1,4 @@
-name: Deploy Doxygen to GitHub Pages
+name: Deploy Landing Page and Doxygen to GitHub Pages
 
 on:
   push:
@@ -27,10 +27,18 @@ jobs:
       - name: Generate Doxygen documentation
         run: doxygen Doxyfile
 
+      - name: Assemble GitHub Pages site
+        run: |
+          mkdir -p site/doxygen site/Resources
+          cp pages/index.html site/index.html
+          cp NanoOcp1Demo/Resources/NanoOcpDemoDemo.mp4 site/Resources/
+          cp -r docs/html/. site/doxygen/
+          touch site/.nojekyll
+
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/html
+          publish_dir: ./site
           publish_branch: gh-pages
           force_orphan: true

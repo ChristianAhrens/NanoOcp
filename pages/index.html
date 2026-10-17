@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NanoOcp - a minimal C++17 AES70 / OCP.1 client and server library">
+  <meta property="og:title" content="NanoOcp">
+  <meta property="og:description" content="A minimal C++17 AES70 / OCP.1 client and server library">
+  <meta property="og:type" content="website">
+  <title>NanoOcp</title>
+  <style>
+    :root {
+      --bg:          #0d1117;
+      --surface:     #161b22;
+      --surface-2:   #21262d;
+      --border:      #30363d;
+      --text:        #e6edf3;
+      --text-muted:  #848d97;
+      --accent:      #58a6ff;
+      --accent-dim:  #1f3a5f;
+      --accent-hover:#79b8ff;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* ── Fullscreen background video ── */
+    .bg-video {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 0;
+    }
+
+    .bg-shade {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: radial-gradient(ellipse at center, rgba(13, 17, 23, 0.25) 0%, rgba(13, 17, 23, 0.65) 100%);
+      pointer-events: none;
+    }
+
+    /* ── Centered panel ── */
+    main {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .panel {
+      width: 100%;
+      max-width: 440px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+      padding: 2.25rem 2rem 2rem;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--text) 55%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tagline {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      display: block;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0d1117;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      color: #0d1117;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bg-video { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <video class="bg-video" src="Resources/NanoOcpDemoDemo.mp4" autoplay muted loop playsinline aria-hidden="true"></video>
+  <div class="bg-shade"></div>
+
+  <main>
+    <div class="panel">
+      <h1>NanoOcp</h1>
+      <p class="tagline">A minimal C++17 AES70&nbsp;/&nbsp;OCP.1 client and server library</p>
+      <div class="buttons">
+        <a class="btn btn-primary" href="https://github.com/ChristianAhrens/NanoOcp/releases/latest">Latest Release</a>
+        <a class="btn" href="https://github.com/ChristianAhrens/NanoOcp">GitHub Repository</a>
+        <a class="btn" href="doxygen/index.html">Documentation</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
